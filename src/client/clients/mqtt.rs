@@ -19,41 +19,89 @@
 use crossflow::bevy_ecs;
 use dashmap::DashMap;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+#[derive(serde::Deserialize, Clone)]
+#[serde(default, deny_unknown_fields)]
+pub struct MqttSettings {
+    pub client_id: String,
+    pub host: String,
+    pub port: u16,
+    pub reconnect_millis: u64,
+}
+
+impl Default for MqttSettings {
+    fn default() -> Self {
+        Self {
+            client_id: String::from("TaskOrchestrator-MQTT"),
+            host: String::from("localhost"),
+            port: 1883,
+            reconnect_millis: 250,
+        }
+    }
+}
+
+impl MqttSettings {
+    /// fallback to default if invalid
+    fn sanitise(mut self) -> Self {
+        if self.client_id.is_empty() {
+            self.client_id = Self::default().client_id;
+            tracing::warn!("MqttSettings: client_id blank! Replacing with default...");
+        }
+        if self.host.is_empty() {
+            self.host = Self::default().host;
+            tracing::warn!("MqttSettings: host blank! Replacing with default...");
+        }
+        self
+    }
+}
+
 pub type MqttMessage = Vec<u8>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum MqttError {
+    #[error("Invalid QoS value error: {0}")]
+    Qos(String),
+    #[error("Subscribing error: {0}")]
+    Subscribe(String),
+    #[error("Publishing error: {0}")]
+    Publish(String),
+}
 
 #[derive(Clone, bevy_ecs::resource::Resource)]
 pub struct MqttHandle {
-    client: AsyncClient,
+    client: Arc<AsyncClient>,
     subscriptions: Arc<DashMap<String, broadcast::Sender<MqttMessage>>>,
 }
 
 impl MqttHandle {
-    fn parse_qos(qos: u8) -> QoS {
-        match qos {
+    fn parse_qos(qos: u8) -> Result<QoS, MqttError> {
+        Ok(match qos {
             1 => QoS::AtLeastOnce,
             2 => QoS::ExactlyOnce,
-            _ => QoS::AtMostOnce,
-        }
+            0 => QoS::AtMostOnce,
+            _ => return Err(MqttError::Qos(format!("{qos} not between 0 and 2"))),
+        })
     }
 
     pub async fn subscribe(
         &self,
         topic: &str,
         qos: u8,
-    ) -> Result<broadcast::Receiver<MqttMessage>, Box<dyn std::error::Error>> {
+    ) -> Result<broadcast::Receiver<MqttMessage>, MqttError> {
         // Clones the tx channel to pass to node if the topic currently has a rx channel opened
         if let Some(tx) = self.subscriptions.get(topic) {
             return Ok(tx.subscribe());
         }
         let (tx, rx) = broadcast::channel(16);
         self.client
-            .subscribe(topic, Self::parse_qos(qos))
+            .subscribe(topic, Self::parse_qos(qos)?)
             .await
-            .map_err(|e| format!("Failed to subscribe to {topic} topic: {e}"))?;
+            .map_err(|e| {
+                MqttError::Subscribe(format!("Failed to subscribe to {topic} topic: {e}"))
+            })?;
         self.subscriptions.insert(topic.to_string(), tx);
         Ok(rx)
     }
@@ -64,34 +112,38 @@ impl MqttHandle {
         payload: impl Into<Vec<u8>>,
         qos: u8,
         retain: bool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), MqttError> {
         self.client
-            .publish(topic, Self::parse_qos(qos), retain, payload)
+            .publish(topic, Self::parse_qos(qos)?, retain, payload)
             .await
-            .map_err(|e| format!("Failed to publish to {topic} topic: {e}"))?;
+            .map_err(|e| MqttError::Publish(format!("Failed to publish to {topic} topic: {e}")))?;
         Ok(())
     }
 }
 
 impl MqttHandle {
-    pub fn connect(
-        client_id: &str,
-        host: &str,
-        port: u16,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut mqttoptions = MqttOptions::new(client_id, host, port);
-        mqttoptions.set_keep_alive(Duration::from_secs(5));
+    // TODO(@EthanKuai): Max retries timeout + change implementations to expect result.
+    pub fn connect(config: MqttSettings, runtime: tokio::runtime::Handle) -> Self {
+        let MqttSettings {
+            client_id,
+            host,
+            port,
+            reconnect_millis,
+        } = config.sanitise();
+
         tracing::info!(
             "MQTT connecting to {}:{} (client_id={})",
             host,
             port,
             client_id
         );
+        let mut mqttoptions = MqttOptions::new(client_id, host, port);
+        mqttoptions.set_keep_alive(Duration::from_secs(5));
         let (client, mut eventloop) = AsyncClient::new(mqttoptions, 64);
         let subscriptions: Arc<DashMap<String, broadcast::Sender<MqttMessage>>> =
             Arc::new(DashMap::new());
         let subs = subscriptions.clone();
-        tokio::spawn(async move {
+        runtime.spawn(async move {
             loop {
                 match eventloop.poll().await {
                     Ok(Event::Incoming(Packet::Publish(publish))) => {
@@ -110,13 +162,47 @@ impl MqttHandle {
                     Ok(_) => {}
                     Err(e) => {
                         tracing::warn!("MQTT connection error, reconnecting... {e}");
+                        tokio::time::sleep(Duration::from_millis(reconnect_millis)).await;
                     }
                 }
             }
         });
-        Ok(Self {
-            client,
+        Self {
+            client: Arc::new(client),
             subscriptions,
-        })
+        }
+    }
+}
+
+#[derive(serde::Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct MqttTomlFormat {
+    pub mqtt_client: MqttSettings,
+}
+
+#[derive(Clone)]
+pub(crate) struct EnsureMqtt(Arc<Mutex<Option<MqttSettings>>>);
+
+impl EnsureMqtt {
+    pub(crate) fn new(config: Option<MqttSettings>) -> Self {
+        Self(Arc::new(Mutex::new(
+            config.or_else(|| Some(Self::load_config())),
+        )))
+    }
+
+    fn load_config() -> MqttSettings {
+        crate::config::load_base_configuration::<MqttTomlFormat>()
+            .expect("Failed to load MQTT config")
+            .mqtt_client
+    }
+}
+
+impl bevy_ecs::system::Command for EnsureMqtt {
+    fn apply(self, world: &mut bevy_ecs::prelude::World) {
+        if let Some(mqtt_config) = self.0.lock().unwrap().take() {
+            let runtime = world.resource::<crate::TokioHandle>().0.clone();
+            let mqtt = MqttHandle::connect(mqtt_config, runtime);
+            world.insert_resource(mqtt);
+        }
     }
 }
