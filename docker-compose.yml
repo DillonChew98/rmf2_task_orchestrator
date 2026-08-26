@@ -4,11 +4,11 @@ services:
     ports:
       - "${HTTP_PORT:-2727}:2727"
     environment:
-      - TASK_ORCHESTRATOR__HTTP__HOST=0.0.0.0
-      - TASK_ORCHESTRATOR__AMQP__HOST=${AMQP_HOST:-rabbitmq}
-      - TASK_ORCHESTRATOR__AMQP__PORT=${AMQP_PORT:-5672}
-      - TASK_ORCHESTRATOR__MQTT__HOST=${MQTT_HOST:-mosquitto}
-      - TASK_ORCHESTRATOR__MQTT__PORT=${MQTT_PORT:-1883}
+      - RMF2_TO__HTTP__HOST=0.0.0.0
+      - RMF2_TO__AMQP__HOST=${AMQP_HOST:-rabbitmq}
+      - RMF2_TO__AMQP__PORT=${AMQP_PORT:-5672}
+      - RMF2_TO__MQTT__HOST=${MQTT_HOST:-mosquitto}
+      - RMF2_TO__MQTT__PORT=${MQTT_PORT:-1883}
       - RUST_LOG=${LOG_LEVEL:-rmf2_task_orchestrator=info}
     restart: unless-stopped
 

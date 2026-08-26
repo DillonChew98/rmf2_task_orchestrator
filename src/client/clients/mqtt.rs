@@ -177,7 +177,7 @@ impl MqttHandle {
 #[derive(serde::Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct MqttTomlFormat {
-    pub mqtt_client: MqttSettings,
+    pub mqtt: MqttSettings,
 }
 
 #[derive(Clone)]
@@ -193,7 +193,7 @@ impl EnsureMqtt {
     fn load_config() -> MqttSettings {
         crate::config::load_base_configuration::<MqttTomlFormat>()
             .expect("Failed to load MQTT config")
-            .mqtt_client
+            .mqtt
     }
 }
 

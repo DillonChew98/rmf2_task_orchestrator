@@ -39,9 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config: Settings =
         load_base_configuration().map_err(|e| format!("Error loading config file: {e}"))?;
 
-    let amqp_config = &config.task_orchestrator.amqp;
+    let amqp_config = &config.amqp;
     let mqtt_config = None;
-    let http_config = &config.task_orchestrator.http;
+    let http_config = &config.http;
 
     let (executor_handle, editor_router) = spawn(amqp_config, mqtt_config, http_config).await?;
 

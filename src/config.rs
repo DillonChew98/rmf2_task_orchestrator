@@ -45,12 +45,6 @@ impl From<&AmqpSettings> for String {
 }
 
 #[derive(serde::Deserialize, Clone)]
-pub struct TaskOrchestratorSettings {
-    pub http: HttpSettings,
-    pub amqp: AmqpSettings,
-}
-
-#[derive(serde::Deserialize, Clone)]
 pub struct HttpSettings {
     pub port: u16,
     pub host: String,
@@ -70,7 +64,8 @@ impl HttpSettings {
 
 #[derive(serde::Deserialize, Clone)]
 pub struct Settings {
-    pub task_orchestrator: TaskOrchestratorSettings,
+    pub http: HttpSettings,
+    pub amqp: AmqpSettings,
 }
 
 pub enum Environment {
@@ -126,7 +121,12 @@ fn load_base_configuration_once() -> Result<config::Config, config::ConfigError>
         }
     }
     dotenvy::from_filename(env_file).ok();
-    builder = builder.add_source(config::Environment::default().separator("__"));
+    builder = builder.add_source(
+        config::Environment::default()
+            .separator("__")
+            .prefix("RMF2_TO")
+            .prefix_separator("__"),
+    );
 
     builder.build()
 }
