@@ -59,6 +59,7 @@ pub async fn spawn(
         node::amqp::register(&mut registry, amqp_client);
         node::mqtt::register(&mut app, &mut registry, mqtt_config);
         node::utils::register(&mut registry);
+        node::http::register(&mut app, &mut registry);
 
         let diagram_editor_router = new_router(&mut app, registry, ServerOptions::default());
         let _ = router_tx.send(diagram_editor_router);

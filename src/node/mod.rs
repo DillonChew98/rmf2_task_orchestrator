@@ -17,5 +17,6 @@
  */
 
 pub(crate) mod amqp;
+pub(crate) mod http;
 pub(crate) mod mqtt;
 pub(crate) mod utils;
