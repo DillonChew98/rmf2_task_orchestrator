@@ -49,26 +49,30 @@ impl HttpHandle {
         method: Method,
         url: &str,
         headers: HashMap<String, String>,
-        body: Option<serde_json::Value>
+        body: Option<serde_json::Value>,
     ) -> Result<serde_json::Value, String> {
         let mut req = self.inner.request(method.clone(), url);
         for (key, value) in headers {
             req = req.header(key, value);
+        }
+        if method != Method::GET
+            && method != Method::DELETE
+            && let Some(body) = body
+        {
+            req = req.json(&body);
+        }
 
-        }
-        if method != Method::GET && method != Method::DELETE {
-            if let Some(body) = body {
-                req = req.json(&body);
-            }
-        }
-        
         let response = req.send().await.map_err(|e| e.to_string())?;
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(format!("{status}:{body}"));
+            return Err(format!("{status}: {body}"));
         }
-        response.json().await.map_err(|e| e.to_string())
+        let text = response.text().await.map_err(|e| e.to_string())?;
+        if text.is_empty() {
+            return Ok(serde_json::json!({"status": status.as_u16()}));
+        }
+        serde_json::from_str(&text).map_err(|e| e.to_string())
     }
 }
 
@@ -123,12 +127,16 @@ mod tests {
 
     async fn spawn_test_server() -> String {
         let app = axum::Router::new()
-            .route("/status", axum::routing::get(|| async {
-                axum::Json(serde_json::json!({"status":"ok"}))
-            }))
-            .route("/echo", axum::routing::post(|body: axum::Json<serde_json::Value>| async move {
-                axum::Json(body.0)
-            }));
+            .route(
+                "/status",
+                axum::routing::get(|| async { axum::Json(serde_json::json!({"status":"ok"})) }),
+            )
+            .route(
+                "/echo",
+                axum::routing::post(|body: axum::Json<serde_json::Value>| async move {
+                    axum::Json(body.0)
+                }),
+            );
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move {
@@ -141,10 +149,24 @@ mod tests {
     async fn test_get_request() {
         let base_url = spawn_test_server().await;
         let handle = HttpHandle::build(HttpSettings::default());
-        let result = handle.request(reqwest::Method::GET, &format!("{base_url}/status"), HashMap::new(), None).await;
+        let result = handle
+            .request(
+                reqwest::Method::GET,
+                &format!("{base_url}/status"),
+                HashMap::new(),
+                None,
+            )
+            .await;
         assert_eq!(result.unwrap(), serde_json::json!({"status":"ok"}));
 
-        let result = handle.request(reqwest::Method::GET, &format!("{base_url}/error"), HashMap::new(), None).await;
+        let result = handle
+            .request(
+                reqwest::Method::GET,
+                &format!("{base_url}/error"),
+                HashMap::new(),
+                None,
+            )
+            .await;
         assert!(result.is_err());
     }
 
@@ -153,8 +175,14 @@ mod tests {
         let base_url = spawn_test_server().await;
         let handle = HttpHandle::build(HttpSettings::default());
         let payload = serde_json::json!({"foo": "boo"});
-        let result = handle.request(reqwest::Method::POST, &format!("{base_url}/echo"), HashMap::new(), Some(payload.clone())).await;
+        let result = handle
+            .request(
+                reqwest::Method::POST,
+                &format!("{base_url}/echo"),
+                HashMap::new(),
+                Some(payload.clone()),
+            )
+            .await;
         assert_eq!(result.unwrap(), payload);
     }
 }
-
