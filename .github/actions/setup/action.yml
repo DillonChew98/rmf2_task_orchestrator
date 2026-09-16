@@ -1,5 +1,5 @@
 name: setup
-description: Install Rust, pnpm, and node
+description: Install Rust, protoc, pnpm, and node
 
 runs:
   using: composite
@@ -9,6 +9,12 @@ runs:
       with:
         toolchain: stable
         components: rustfmt, clippy
+
+    - name: Install protoc
+      shell: bash
+      run: |
+        sudo apt-get update -qq -y
+        sudo apt-get install protobuf-compiler -qq -y
 
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       with:

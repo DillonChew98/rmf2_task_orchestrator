@@ -6,6 +6,12 @@ port = 2727
 host = "localhost"
 port = 5672
 
+[grpc]
+# ca_cert = "assets/certs/ca.crt"
+# domain_name = "name-on-the-server-cert"
+# client_cert = "/path/to/client.crt"
+# client_key = "/path/to/client.key"
+
 [mqtt]
 client_id = "TaskOrchestrator-MQTT"
 host = "localhost"

@@ -45,6 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let amqp_config = &config.amqp;
     let mqtt_config = None;
     let http_config = &config.http;
+    let grpc_config = &config.grpc;
     let app_config = &config.app;
 
     let mut registry = TemplateRegistry::default();
@@ -55,7 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| format!("Failed to load templates: {e}"))?;
     }
     let registry = Arc::new(registry);
-    let (executor_handle, editor_router) = spawn(amqp_config, mqtt_config, http_config).await?;
+    let (executor_handle, editor_router) =
+        spawn(amqp_config, mqtt_config, http_config, grpc_config).await?;
 
     let amqp_connection = client::AmqpConnection::new(amqp_config)
         .await

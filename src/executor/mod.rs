@@ -21,7 +21,7 @@ mod amqp_handlers;
 use crate::TemplateRegistry;
 use crate::client::mqtt::MqttSettings;
 use crate::client::{AmqpClient, AmqpRouter};
-use crate::config::{AmqpSettings, HttpSettings};
+use crate::config::{AmqpSettings, GrpcSettings, HttpSettings};
 use crate::node;
 use amqp_handlers::handle_workflow_execute;
 
@@ -47,10 +47,12 @@ pub async fn spawn(
     amqp_config: &AmqpSettings,
     mqtt_config: Option<MqttSettings>,
     http_config: &HttpSettings,
+    grpc_config: &GrpcSettings,
 ) -> Result<(ExecutorHandle, Router), String> {
     let amqp_client = create_amqp_client(amqp_config).await?;
     let (router_tx, router_rx) = oneshot::channel();
     let tokio_handle = TokioHandle(tokio::runtime::Handle::current());
+    let grpc_config = grpc_config.clone();
 
     thread::spawn(move || {
         let mut app = bevy_app::App::new();
@@ -61,6 +63,16 @@ pub async fn spawn(
         node::amqp::register(&mut registry, amqp_client);
         node::mqtt::register(&mut app, &mut registry, mqtt_config);
         node::utils::register(&mut registry);
+        {
+            let grpc_runtime = std::sync::Arc::new(
+                tokio::runtime::Builder::new_multi_thread()
+                    .worker_threads(2)
+                    .enable_all()
+                    .build()
+                    .expect("failed to create gRPC tokio runtime"),
+            );
+            node::grpc::register(&mut registry, grpc_runtime, &grpc_config);
+        }
         node::http::register(&mut app, &mut registry, None);
 
         let diagram_editor_router = new_router(&mut app, registry, ServerOptions::default());

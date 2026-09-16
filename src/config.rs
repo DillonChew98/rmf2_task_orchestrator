@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 #[derive(serde::Deserialize, Clone)]
@@ -61,6 +62,13 @@ impl HttpSettings {
         (self.host.clone(), self.port)
     }
 }
+#[derive(serde::Deserialize, Clone, Default)]
+pub struct GrpcSettings {
+    pub ca_cert: Option<PathBuf>,
+    pub domain_name: Option<String>,
+    pub client_cert: Option<PathBuf>,
+    pub client_key: Option<PathBuf>,
+}
 
 #[derive(serde::Deserialize, Clone)]
 pub struct AppSettings {
@@ -71,6 +79,8 @@ pub struct AppSettings {
 pub struct Settings {
     pub http: HttpSettings,
     pub amqp: AmqpSettings,
+    #[serde(default)]
+    pub grpc: GrpcSettings,
     pub app: AppSettings,
 }
 
