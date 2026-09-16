@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.sdt.dialogcontrol.v2;
+
+/* TRIOS message dialogs and notifications. */
+service DialogControl {
+  /* POST /dialog/show-message. Request.Payload is ShowMessageRequestPayload; Result.Payload is ShowMessageResult. */
+  rpc ShowMessage (sila2.org.tainstruments.sdt.dialogcontrol.v2.ShowMessage_Parameters) returns (sila2.org.tainstruments.sdt.dialogcontrol.v2.ShowMessage_Responses) {}
+  /* POST /dialog/notification. Request.Payload is ShowNotificationRequestPayload; Result.Payload is ShowNotificationResult. */
+  rpc ShowNotification (sila2.org.tainstruments.sdt.dialogcontrol.v2.ShowNotification_Parameters) returns (sila2.org.tainstruments.sdt.dialogcontrol.v2.ShowNotification_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* ShowMessage Request.Payload. */
+message DataType_ShowMessageRequestPayload {
+  message ShowMessageRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_ShowMessageRequestPayload.ShowMessageRequestPayload_Struct ShowMessageRequestPayload = 1;  /* ShowMessage Request.Payload. */
+}
+
+/* ShowMessage Result.Payload. */
+message DataType_ShowMessageResult {
+  message ShowMessageResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_ShowMessageResult.ShowMessageResult_Struct ShowMessageResult = 1;  /* ShowMessage Result.Payload. */
+}
+
+/* ShowNotification Request.Payload. */
+message DataType_ShowNotificationRequestPayload {
+  message ShowNotificationRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_ShowNotificationRequestPayload.ShowNotificationRequestPayload_Struct ShowNotificationRequestPayload = 1;  /* ShowNotification Request.Payload. */
+}
+
+/* ShowNotification Result.Payload. */
+message DataType_ShowNotificationResult {
+  message ShowNotificationResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_ShowNotificationResult.ShowNotificationResult_Struct ShowNotificationResult = 1;  /* ShowNotification Result.Payload. */
+}
+
+/* Parameters for ShowMessage */
+message ShowMessage_Parameters {
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ShowMessage */
+message ShowMessage_Responses {
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ShowNotification */
+message ShowNotification_Parameters {
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ShowNotification */
+message ShowNotification_Responses {
+  sila2.org.tainstruments.sdt.dialogcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

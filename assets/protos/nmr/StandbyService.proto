@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.magritek.nmr.standbyservice.v2;
+
+/* Keep the magnet shimmed between acquisitions via Spinsolve STANDBY (Period=0 Until Stopped until Abort). Standby activity is reflected on InstrumentStatus.CurrentInstrumentStatus (Standby). */
+service StandbyService {
+  /* Register the loaded tube and start Spinsolve STANDBY in a background thread; returns immediately. The reference tube must already be in the magnet. Payload may include SampleName and Period (hours as string; "0" means Until Stopped). Result Payload includes Active, SampleName, Period. */
+  rpc StartStandby (sila2.com.magritek.nmr.standbyservice.v2.StartStandby_Parameters) returns (sila2.com.magritek.nmr.standbyservice.v2.StartStandby_Responses) {}
+  /* Abort STANDBY and wait for the worker thread to exit. Idempotent when standby is not active. Result Payload includes Active. */
+  rpc StopStandby (sila2.com.magritek.nmr.standbyservice.v2.StopStandby_Parameters) returns (sila2.com.magritek.nmr.standbyservice.v2.StopStandby_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.magritek.nmr.standbyservice.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.magritek.nmr.standbyservice.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Parameters for StartStandby */
+message StartStandby_Parameters {
+  sila2.com.magritek.nmr.standbyservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of StartStandby */
+message StartStandby_Responses {
+  sila2.com.magritek.nmr.standbyservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for StopStandby */
+message StopStandby_Parameters {
+  sila2.com.magritek.nmr.standbyservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of StopStandby */
+message StopStandby_Responses {
+  sila2.com.magritek.nmr.standbyservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

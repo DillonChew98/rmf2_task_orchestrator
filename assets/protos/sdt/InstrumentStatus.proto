@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.sdt.instrumentstatus.v2;
+
+/* Expose instrument snapshot (subscribeable), synchronization waits, and error list. Command Payload shapes are DataTypeDefinitions encoded as JSON objects in Payload. */
+service InstrumentStatus {
+  /* POST /status/wait-idle while streaming GET /status as Update envelopes. Request.TimeoutSeconds is forwarded to TRIOS (0 = server default). Update Payload is InstrumentStatusProgress; Result.Payload is WaitUntilIdleResult. */
+  rpc WaitUntilIdle (sila2.org.tainstruments.sdt.instrumentstatus.v2.WaitUntilIdle_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of WaitUntilIdle */
+  rpc WaitUntilIdle_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of WaitUntilIdle */
+  rpc WaitUntilIdle_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.sdt.instrumentstatus.v2.WaitUntilIdle_IntermediateResponses) {}
+  /* Retrieve result of WaitUntilIdle */
+  rpc WaitUntilIdle_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.sdt.instrumentstatus.v2.WaitUntilIdle_Responses) {}
+  /* POST /status/wait-test-started while streaming GET /status as Update envelopes. Request.TimeoutSeconds is forwarded to TRIOS (0 = server default). Update Payload is InstrumentStatusProgress; Result.Payload is WaitForTestStartedResult. */
+  rpc WaitForTestStarted (sila2.org.tainstruments.sdt.instrumentstatus.v2.WaitForTestStarted_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of WaitForTestStarted */
+  rpc WaitForTestStarted_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of WaitForTestStarted */
+  rpc WaitForTestStarted_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.sdt.instrumentstatus.v2.WaitForTestStarted_IntermediateResponses) {}
+  /* Retrieve result of WaitForTestStarted */
+  rpc WaitForTestStarted_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.sdt.instrumentstatus.v2.WaitForTestStarted_Responses) {}
+  /* GET /errors. Result.Payload is GetInstrumentErrorsResult. */
+  rpc GetInstrumentErrors (sila2.org.tainstruments.sdt.instrumentstatus.v2.GetInstrumentErrors_Parameters) returns (sila2.org.tainstruments.sdt.instrumentstatus.v2.GetInstrumentErrors_Responses) {}
+  /* GET /signals. Result.Payload is GetControlPanelSignalsResult. */
+  rpc GetControlPanelSignals (sila2.org.tainstruments.sdt.instrumentstatus.v2.GetControlPanelSignals_Parameters) returns (sila2.org.tainstruments.sdt.instrumentstatus.v2.GetControlPanelSignals_Responses) {}
+  /* GET /status body as UTF-8 JSON. Subscribeable; Get returns a live snapshot. */
+  rpc Subscribe_CurrentInstrumentStatus (sila2.org.tainstruments.sdt.instrumentstatus.v2.Subscribe_CurrentInstrumentStatus_Parameters) returns (stream sila2.org.tainstruments.sdt.instrumentstatus.v2.Subscribe_CurrentInstrumentStatus_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Intermediate Update Payload during WaitUntilIdle / WaitForTestStarted. */
+message DataType_InstrumentStatusProgress {
+  message InstrumentStatusProgress_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_InstrumentStatusProgress.InstrumentStatusProgress_Struct InstrumentStatusProgress = 1;  /* Intermediate Update Payload during WaitUntilIdle / WaitForTestStarted. */
+}
+
+/* WaitUntilIdle Result.Payload. */
+message DataType_WaitUntilIdleResult {
+  message WaitUntilIdleResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_WaitUntilIdleResult.WaitUntilIdleResult_Struct WaitUntilIdleResult = 1;  /* WaitUntilIdle Result.Payload. */
+}
+
+/* WaitForTestStarted Result.Payload. */
+message DataType_WaitForTestStartedResult {
+  message WaitForTestStartedResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_WaitForTestStartedResult.WaitForTestStartedResult_Struct WaitForTestStartedResult = 1;  /* WaitForTestStarted Result.Payload. */
+}
+
+/* GetInstrumentErrors Result.Payload. */
+message DataType_GetInstrumentErrorsResult {
+  message GetInstrumentErrorsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_GetInstrumentErrorsResult.GetInstrumentErrorsResult_Struct GetInstrumentErrorsResult = 1;  /* GetInstrumentErrors Result.Payload. */
+}
+
+/* GetControlPanelSignals Result.Payload. */
+message DataType_GetControlPanelSignalsResult {
+  message GetControlPanelSignalsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_GetControlPanelSignalsResult.GetControlPanelSignalsResult_Struct GetControlPanelSignalsResult = 1;  /* GetControlPanelSignals Result.Payload. */
+}
+
+/* Parameters for WaitUntilIdle */
+message WaitUntilIdle_Parameters {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of WaitUntilIdle */
+message WaitUntilIdle_Responses {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of WaitUntilIdle */
+message WaitUntilIdle_IntermediateResponses {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for WaitForTestStarted */
+message WaitForTestStarted_Parameters {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of WaitForTestStarted */
+message WaitForTestStarted_Responses {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of WaitForTestStarted */
+message WaitForTestStarted_IntermediateResponses {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for GetInstrumentErrors */
+message GetInstrumentErrors_Parameters {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetInstrumentErrors */
+message GetInstrumentErrors_Responses {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetControlPanelSignals */
+message GetControlPanelSignals_Parameters {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetControlPanelSignals */
+message GetControlPanelSignals_Responses {
+  sila2.org.tainstruments.sdt.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for CurrentInstrumentStatus */
+message Subscribe_CurrentInstrumentStatus_Parameters {
+}
+
+/* Responses of CurrentInstrumentStatus */
+message Subscribe_CurrentInstrumentStatus_Responses {
+  sila2.org.silastandard.String CurrentInstrumentStatus = 1;  /* GET /status body as UTF-8 JSON. Subscribeable; Get returns a live snapshot. */
+}

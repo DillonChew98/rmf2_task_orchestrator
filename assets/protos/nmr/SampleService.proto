@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.magritek.nmr.sampleservice.v2;
+
+/* Protocol discovery against Spinsolve plus offline sample / protocol validation helpers (make_sample, parse_protocol_entries). */
+service SampleService {
+  /* Return the instrument AvailableProtocols list. Result Payload includes ProtocolNames (list of strings). */
+  rpc ListProtocols (sila2.com.magritek.nmr.sampleservice.v2.ListProtocols_Parameters) returns (sila2.com.magritek.nmr.sampleservice.v2.ListProtocols_Responses) {}
+  /* Return AvailableProtocolOptions lines (protocol, options, enumerations). Result Payload includes OptionLines (list of strings). */
+  rpc ListProtocolOptions (sila2.com.magritek.nmr.sampleservice.v2.ListProtocolOptions_Parameters) returns (sila2.com.magritek.nmr.sampleservice.v2.ListProtocolOptions_Responses) {}
+  /* Return the option names/enumerations for one protocol. Payload must include Protocol. Result Payload includes OptionLines. */
+  rpc GetProtocolOptions (sila2.com.magritek.nmr.sampleservice.v2.GetProtocolOptions_Parameters) returns (sila2.com.magritek.nmr.sampleservice.v2.GetProtocolOptions_Responses) {}
+  /* Build and validate a Sample from direct arguments (no CSV, no hardware). Payload may include Name, Solvent, Protocols (list of protocol entry strings), Position. Result Payload includes Position, Name, Solvent, Protocols, Options (list of {Protocol, Name, Value}). */
+  rpc MakeSample (sila2.com.magritek.nmr.sampleservice.v2.MakeSample_Parameters) returns (sila2.com.magritek.nmr.sampleservice.v2.MakeSample_Responses) {}
+  /* Parse and validate a list of protocol entry strings. Payload must include Entries (list of strings). Result Payload includes Protocols and Options. */
+  rpc ParseProtocolEntries (sila2.com.magritek.nmr.sampleservice.v2.ParseProtocolEntries_Parameters) returns (sila2.com.magritek.nmr.sampleservice.v2.ParseProtocolEntries_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Parameters for ListProtocols */
+message ListProtocols_Parameters {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ListProtocols */
+message ListProtocols_Responses {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ListProtocolOptions */
+message ListProtocolOptions_Parameters {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ListProtocolOptions */
+message ListProtocolOptions_Responses {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetProtocolOptions */
+message GetProtocolOptions_Parameters {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetProtocolOptions */
+message GetProtocolOptions_Responses {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for MakeSample */
+message MakeSample_Parameters {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MakeSample */
+message MakeSample_Responses {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ParseProtocolEntries */
+message ParseProtocolEntries_Parameters {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ParseProtocolEntries */
+message ParseProtocolEntries_Responses {
+  sila2.com.magritek.nmr.sampleservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.xdsc.applicationcontrol.v2;
+
+/* Show/hide TRIOS and toggle the UI. */
+service ApplicationControl {
+  /* POST /app/show. Void request Payload; Result.Payload is ShowTriosResult. */
+  rpc ShowTrios (sila2.org.tainstruments.xdsc.applicationcontrol.v2.ShowTrios_Parameters) returns (sila2.org.tainstruments.xdsc.applicationcontrol.v2.ShowTrios_Responses) {}
+  /* POST /app/hide. Void request Payload; Result.Payload is HideTriosResult. */
+  rpc HideTrios (sila2.org.tainstruments.xdsc.applicationcontrol.v2.HideTrios_Parameters) returns (sila2.org.tainstruments.xdsc.applicationcontrol.v2.HideTrios_Responses) {}
+  /* GET /app/ui-enabled. Result.Payload is GetUiEnabledResult. */
+  rpc GetUiEnabled (sila2.org.tainstruments.xdsc.applicationcontrol.v2.GetUiEnabled_Parameters) returns (sila2.org.tainstruments.xdsc.applicationcontrol.v2.GetUiEnabled_Responses) {}
+  /* PUT /app/ui-enabled. Request.Payload is SetUiEnabledRequestPayload; Result.Payload is SetUiEnabledResult. */
+  rpc SetUiEnabled (sila2.org.tainstruments.xdsc.applicationcontrol.v2.SetUiEnabled_Parameters) returns (sila2.org.tainstruments.xdsc.applicationcontrol.v2.SetUiEnabled_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* ShowTrios Result.Payload. */
+message DataType_ShowTriosResult {
+  message ShowTriosResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_ShowTriosResult.ShowTriosResult_Struct ShowTriosResult = 1;  /* ShowTrios Result.Payload. */
+}
+
+/* HideTrios Result.Payload. */
+message DataType_HideTriosResult {
+  message HideTriosResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_HideTriosResult.HideTriosResult_Struct HideTriosResult = 1;  /* HideTrios Result.Payload. */
+}
+
+/* GetUiEnabled Result.Payload. */
+message DataType_GetUiEnabledResult {
+  message GetUiEnabledResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_GetUiEnabledResult.GetUiEnabledResult_Struct GetUiEnabledResult = 1;  /* GetUiEnabled Result.Payload. */
+}
+
+/* SetUiEnabled Request.Payload. */
+message DataType_SetUiEnabledRequestPayload {
+  message SetUiEnabledRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_SetUiEnabledRequestPayload.SetUiEnabledRequestPayload_Struct SetUiEnabledRequestPayload = 1;  /* SetUiEnabled Request.Payload. */
+}
+
+/* SetUiEnabled Result.Payload. */
+message DataType_SetUiEnabledResult {
+  message SetUiEnabledResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_SetUiEnabledResult.SetUiEnabledResult_Struct SetUiEnabledResult = 1;  /* SetUiEnabled Result.Payload. */
+}
+
+/* Parameters for ShowTrios */
+message ShowTrios_Parameters {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ShowTrios */
+message ShowTrios_Responses {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for HideTrios */
+message HideTrios_Parameters {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of HideTrios */
+message HideTrios_Responses {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetUiEnabled */
+message GetUiEnabled_Parameters {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetUiEnabled */
+message GetUiEnabled_Responses {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for SetUiEnabled */
+message SetUiEnabled_Parameters {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of SetUiEnabled */
+message SetUiEnabled_Responses {
+  sila2.org.tainstruments.xdsc.applicationcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

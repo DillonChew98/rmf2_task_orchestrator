@@ -1,0 +1,350 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.xdsc.autosamplercontrol.v2;
+
+/* X3 DSC autosampler motion, lid, and configuration. */
+service AutosamplerControl {
+  /* GET /autosampler/settings. Result.Payload is GetAutosamplerSettingsJsonResult. */
+  rpc GetAutosamplerSettingsJson (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.GetAutosamplerSettingsJson_Parameters) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.GetAutosamplerSettingsJson_Responses) {}
+  /* PUT /autosampler/settings. Request.Payload is UpdateAutosamplerSettingsRequestPayload; Result.Payload is UpdateAutosamplerSettingsResult. */
+  rpc UpdateAutosamplerSettings (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UpdateAutosamplerSettings_Parameters) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UpdateAutosamplerSettings_Responses) {}
+  /* POST /autosampler/load-sample. Request.Payload is LoadSamplePanRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is LoadSamplePanResult. */
+  rpc LoadSamplePan (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.LoadSamplePan_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of LoadSamplePan */
+  rpc LoadSamplePan_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of LoadSamplePan */
+  rpc LoadSamplePan_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.LoadSamplePan_IntermediateResponses) {}
+  /* Retrieve result of LoadSamplePan */
+  rpc LoadSamplePan_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.LoadSamplePan_Responses) {}
+  /* POST /autosampler/unload-sample. Request.Payload is UnloadSamplePanRequestPayload (empty Body unloads all sensors). Update Payload is AutosamplerProgress; Result.Payload is UnloadSamplePanResult. */
+  rpc UnloadSamplePan (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UnloadSamplePan_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of UnloadSamplePan */
+  rpc UnloadSamplePan_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of UnloadSamplePan */
+  rpc UnloadSamplePan_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UnloadSamplePan_IntermediateResponses) {}
+  /* Retrieve result of UnloadSamplePan */
+  rpc UnloadSamplePan_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UnloadSamplePan_Responses) {}
+  /* POST /autosampler/load-reference. Request.Payload is LoadReferencePanRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is LoadReferencePanResult. */
+  rpc LoadReferencePan (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.LoadReferencePan_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of LoadReferencePan */
+  rpc LoadReferencePan_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of LoadReferencePan */
+  rpc LoadReferencePan_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.LoadReferencePan_IntermediateResponses) {}
+  /* Retrieve result of LoadReferencePan */
+  rpc LoadReferencePan_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.LoadReferencePan_Responses) {}
+  /* POST /autosampler/unload-reference. Void request Payload. Update Payload is AutosamplerProgress; Result.Payload is UnloadReferencePanResult. */
+  rpc UnloadReferencePan (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UnloadReferencePan_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of UnloadReferencePan */
+  rpc UnloadReferencePan_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of UnloadReferencePan */
+  rpc UnloadReferencePan_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UnloadReferencePan_IntermediateResponses) {}
+  /* Retrieve result of UnloadReferencePan */
+  rpc UnloadReferencePan_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.UnloadReferencePan_Responses) {}
+  /* POST /autosampler/park. Request.Payload is ParkAutosamplerRequestPayload (Position CellSide or TraySide). Update Payload is AutosamplerProgress; Result.Payload is ParkAutosamplerResult. */
+  rpc ParkAutosampler (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.ParkAutosampler_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ParkAutosampler */
+  rpc ParkAutosampler_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ParkAutosampler */
+  rpc ParkAutosampler_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.ParkAutosampler_IntermediateResponses) {}
+  /* Retrieve result of ParkAutosampler */
+  rpc ParkAutosampler_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.ParkAutosampler_Responses) {}
+  /* POST /autosampler/open-lid. Void request Payload. Update Payload is AutosamplerProgress; Result.Payload is OpenAutosamplerLidResult. */
+  rpc OpenAutosamplerLid (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.OpenAutosamplerLid_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of OpenAutosamplerLid */
+  rpc OpenAutosamplerLid_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of OpenAutosamplerLid */
+  rpc OpenAutosamplerLid_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.OpenAutosamplerLid_IntermediateResponses) {}
+  /* Retrieve result of OpenAutosamplerLid */
+  rpc OpenAutosamplerLid_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.OpenAutosamplerLid_Responses) {}
+  /* POST /autosampler/close-lid. Void request Payload. Update Payload is AutosamplerProgress; Result.Payload is CloseAutosamplerLidResult. */
+  rpc CloseAutosamplerLid (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.CloseAutosamplerLid_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of CloseAutosamplerLid */
+  rpc CloseAutosamplerLid_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of CloseAutosamplerLid */
+  rpc CloseAutosamplerLid_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.CloseAutosamplerLid_IntermediateResponses) {}
+  /* Retrieve result of CloseAutosamplerLid */
+  rpc CloseAutosamplerLid_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.CloseAutosamplerLid_Responses) {}
+  /* GET /autosampler/status body as UTF-8 JSON. Subscribeable; Get returns a live snapshot. */
+  rpc Subscribe_CurrentAutosamplerStatus (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.Subscribe_CurrentAutosamplerStatus_Parameters) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.Subscribe_CurrentAutosamplerStatus_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Intermediate Update Payload during autosampler motion commands. */
+message DataType_AutosamplerProgress {
+  message AutosamplerProgress_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_AutosamplerProgress.AutosamplerProgress_Struct AutosamplerProgress = 1;  /* Intermediate Update Payload during autosampler motion commands. */
+}
+
+/* GetAutosamplerSettingsJson Result.Payload. */
+message DataType_GetAutosamplerSettingsJsonResult {
+  message GetAutosamplerSettingsJsonResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_GetAutosamplerSettingsJsonResult.GetAutosamplerSettingsJsonResult_Struct GetAutosamplerSettingsJsonResult = 1;  /* GetAutosamplerSettingsJson Result.Payload. */
+}
+
+/* UpdateAutosamplerSettings Request.Payload. */
+message DataType_UpdateAutosamplerSettingsRequestPayload {
+  message UpdateAutosamplerSettingsRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_UpdateAutosamplerSettingsRequestPayload.UpdateAutosamplerSettingsRequestPayload_Struct UpdateAutosamplerSettingsRequestPayload = 1;  /* UpdateAutosamplerSettings Request.Payload. */
+}
+
+/* UpdateAutosamplerSettings Result.Payload. */
+message DataType_UpdateAutosamplerSettingsResult {
+  message UpdateAutosamplerSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_UpdateAutosamplerSettingsResult.UpdateAutosamplerSettingsResult_Struct UpdateAutosamplerSettingsResult = 1;  /* UpdateAutosamplerSettings Result.Payload. */
+}
+
+/* LoadSamplePan Request.Payload. */
+message DataType_LoadSamplePanRequestPayload {
+  message LoadSamplePanRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_LoadSamplePanRequestPayload.LoadSamplePanRequestPayload_Struct LoadSamplePanRequestPayload = 1;  /* LoadSamplePan Request.Payload. */
+}
+
+/* UnloadSamplePan Request.Payload. */
+message DataType_UnloadSamplePanRequestPayload {
+  message UnloadSamplePanRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_UnloadSamplePanRequestPayload.UnloadSamplePanRequestPayload_Struct UnloadSamplePanRequestPayload = 1;  /* UnloadSamplePan Request.Payload. */
+}
+
+/* LoadReferencePan Request.Payload. */
+message DataType_LoadReferencePanRequestPayload {
+  message LoadReferencePanRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_LoadReferencePanRequestPayload.LoadReferencePanRequestPayload_Struct LoadReferencePanRequestPayload = 1;  /* LoadReferencePan Request.Payload. */
+}
+
+/* ParkAutosampler Request.Payload. */
+message DataType_ParkAutosamplerRequestPayload {
+  message ParkAutosamplerRequestPayload_Struct {
+    sila2.org.silastandard.String Position = 1;  /* CellSide or TraySide. */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_ParkAutosamplerRequestPayload.ParkAutosamplerRequestPayload_Struct ParkAutosamplerRequestPayload = 1;  /* ParkAutosampler Request.Payload. */
+}
+
+/* LoadSamplePan Result.Payload. */
+message DataType_LoadSamplePanResult {
+  message LoadSamplePanResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_LoadSamplePanResult.LoadSamplePanResult_Struct LoadSamplePanResult = 1;  /* LoadSamplePan Result.Payload. */
+}
+
+/* UnloadSamplePan Result.Payload. */
+message DataType_UnloadSamplePanResult {
+  message UnloadSamplePanResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_UnloadSamplePanResult.UnloadSamplePanResult_Struct UnloadSamplePanResult = 1;  /* UnloadSamplePan Result.Payload. */
+}
+
+/* LoadReferencePan Result.Payload. */
+message DataType_LoadReferencePanResult {
+  message LoadReferencePanResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_LoadReferencePanResult.LoadReferencePanResult_Struct LoadReferencePanResult = 1;  /* LoadReferencePan Result.Payload. */
+}
+
+/* UnloadReferencePan Result.Payload. */
+message DataType_UnloadReferencePanResult {
+  message UnloadReferencePanResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_UnloadReferencePanResult.UnloadReferencePanResult_Struct UnloadReferencePanResult = 1;  /* UnloadReferencePan Result.Payload. */
+}
+
+/* ParkAutosampler Result.Payload. */
+message DataType_ParkAutosamplerResult {
+  message ParkAutosamplerResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_ParkAutosamplerResult.ParkAutosamplerResult_Struct ParkAutosamplerResult = 1;  /* ParkAutosampler Result.Payload. */
+}
+
+/* OpenAutosamplerLid Result.Payload. */
+message DataType_OpenAutosamplerLidResult {
+  message OpenAutosamplerLidResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_OpenAutosamplerLidResult.OpenAutosamplerLidResult_Struct OpenAutosamplerLidResult = 1;  /* OpenAutosamplerLid Result.Payload. */
+}
+
+/* CloseAutosamplerLid Result.Payload. */
+message DataType_CloseAutosamplerLidResult {
+  message CloseAutosamplerLidResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_CloseAutosamplerLidResult.CloseAutosamplerLidResult_Struct CloseAutosamplerLidResult = 1;  /* CloseAutosamplerLid Result.Payload. */
+}
+
+/* Parameters for GetAutosamplerSettingsJson */
+message GetAutosamplerSettingsJson_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetAutosamplerSettingsJson */
+message GetAutosamplerSettingsJson_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for UpdateAutosamplerSettings */
+message UpdateAutosamplerSettings_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of UpdateAutosamplerSettings */
+message UpdateAutosamplerSettings_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for LoadSamplePan */
+message LoadSamplePan_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of LoadSamplePan */
+message LoadSamplePan_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of LoadSamplePan */
+message LoadSamplePan_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for UnloadSamplePan */
+message UnloadSamplePan_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of UnloadSamplePan */
+message UnloadSamplePan_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of UnloadSamplePan */
+message UnloadSamplePan_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for LoadReferencePan */
+message LoadReferencePan_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of LoadReferencePan */
+message LoadReferencePan_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of LoadReferencePan */
+message LoadReferencePan_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for UnloadReferencePan */
+message UnloadReferencePan_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of UnloadReferencePan */
+message UnloadReferencePan_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of UnloadReferencePan */
+message UnloadReferencePan_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for ParkAutosampler */
+message ParkAutosampler_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ParkAutosampler */
+message ParkAutosampler_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of ParkAutosampler */
+message ParkAutosampler_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for OpenAutosamplerLid */
+message OpenAutosamplerLid_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of OpenAutosamplerLid */
+message OpenAutosamplerLid_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of OpenAutosamplerLid */
+message OpenAutosamplerLid_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for CloseAutosamplerLid */
+message CloseAutosamplerLid_Parameters {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of CloseAutosamplerLid */
+message CloseAutosamplerLid_Responses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of CloseAutosamplerLid */
+message CloseAutosamplerLid_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for CurrentAutosamplerStatus */
+message Subscribe_CurrentAutosamplerStatus_Parameters {
+}
+
+/* Responses of CurrentAutosamplerStatus */
+message Subscribe_CurrentAutosamplerStatus_Responses {
+  sila2.org.silastandard.String CurrentAutosamplerStatus = 1;  /* GET /autosampler/status body as UTF-8 JSON. Subscribeable; Get returns a live snapshot. */
+}

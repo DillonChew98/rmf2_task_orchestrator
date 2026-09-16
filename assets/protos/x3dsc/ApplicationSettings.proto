@@ -1,0 +1,226 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.xdsc.applicationsettings.v2;
+
+/* TRIOS analysis, JSON, LIMS, and user settings. */
+service ApplicationSettings {
+  /* GET /app/settings/analysis. Result.Payload is GetAnalysisSettingsResult. */
+  rpc GetAnalysisSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetAnalysisSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetAnalysisSettings_Responses) {}
+  /* PUT /app/settings/analysis. Request.Payload is SetAnalysisSettingsRequestPayload; Result.Payload is SetAnalysisSettingsResult. */
+  rpc SetAnalysisSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetAnalysisSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetAnalysisSettings_Responses) {}
+  /* GET /app/settings/json. Result.Payload is GetJsonSettingsResult. */
+  rpc GetJsonSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetJsonSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetJsonSettings_Responses) {}
+  /* PUT /app/settings/json. Request.Payload is SetJsonSettingsRequestPayload; Result.Payload is SetJsonSettingsResult. */
+  rpc SetJsonSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetJsonSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetJsonSettings_Responses) {}
+  /* GET /app/settings/lims. Result.Payload is GetLimsSettingsResult. */
+  rpc GetLimsSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetLimsSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetLimsSettings_Responses) {}
+  /* PUT /app/settings/lims. Request.Payload is SetLimsSettingsRequestPayload; Result.Payload is SetLimsSettingsResult. */
+  rpc SetLimsSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetLimsSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetLimsSettings_Responses) {}
+  /* GET /app/settings/user. Result.Payload is GetUserSettingsResult. */
+  rpc GetUserSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetUserSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.GetUserSettings_Responses) {}
+  /* PUT /app/settings/user. Request.Payload is SetUserSettingsRequestPayload; Result.Payload is SetUserSettingsResult. */
+  rpc SetUserSettings (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetUserSettings_Parameters) returns (sila2.org.tainstruments.xdsc.applicationsettings.v2.SetUserSettings_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* GetAnalysisSettings Result.Payload. */
+message DataType_GetAnalysisSettingsResult {
+  message GetAnalysisSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_GetAnalysisSettingsResult.GetAnalysisSettingsResult_Struct GetAnalysisSettingsResult = 1;  /* GetAnalysisSettings Result.Payload. */
+}
+
+/* SetAnalysisSettings Request.Payload. */
+message DataType_SetAnalysisSettingsRequestPayload {
+  message SetAnalysisSettingsRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetAnalysisSettingsRequestPayload.SetAnalysisSettingsRequestPayload_Struct SetAnalysisSettingsRequestPayload = 1;  /* SetAnalysisSettings Request.Payload. */
+}
+
+/* SetAnalysisSettings Result.Payload. */
+message DataType_SetAnalysisSettingsResult {
+  message SetAnalysisSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetAnalysisSettingsResult.SetAnalysisSettingsResult_Struct SetAnalysisSettingsResult = 1;  /* SetAnalysisSettings Result.Payload. */
+}
+
+/* GetJsonSettings Result.Payload. */
+message DataType_GetJsonSettingsResult {
+  message GetJsonSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_GetJsonSettingsResult.GetJsonSettingsResult_Struct GetJsonSettingsResult = 1;  /* GetJsonSettings Result.Payload. */
+}
+
+/* SetJsonSettings Request.Payload. */
+message DataType_SetJsonSettingsRequestPayload {
+  message SetJsonSettingsRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetJsonSettingsRequestPayload.SetJsonSettingsRequestPayload_Struct SetJsonSettingsRequestPayload = 1;  /* SetJsonSettings Request.Payload. */
+}
+
+/* SetJsonSettings Result.Payload. */
+message DataType_SetJsonSettingsResult {
+  message SetJsonSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetJsonSettingsResult.SetJsonSettingsResult_Struct SetJsonSettingsResult = 1;  /* SetJsonSettings Result.Payload. */
+}
+
+/* GetLimsSettings Result.Payload. */
+message DataType_GetLimsSettingsResult {
+  message GetLimsSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_GetLimsSettingsResult.GetLimsSettingsResult_Struct GetLimsSettingsResult = 1;  /* GetLimsSettings Result.Payload. */
+}
+
+/* SetLimsSettings Request.Payload. */
+message DataType_SetLimsSettingsRequestPayload {
+  message SetLimsSettingsRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetLimsSettingsRequestPayload.SetLimsSettingsRequestPayload_Struct SetLimsSettingsRequestPayload = 1;  /* SetLimsSettings Request.Payload. */
+}
+
+/* SetLimsSettings Result.Payload. */
+message DataType_SetLimsSettingsResult {
+  message SetLimsSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetLimsSettingsResult.SetLimsSettingsResult_Struct SetLimsSettingsResult = 1;  /* SetLimsSettings Result.Payload. */
+}
+
+/* GetUserSettings Result.Payload. */
+message DataType_GetUserSettingsResult {
+  message GetUserSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_GetUserSettingsResult.GetUserSettingsResult_Struct GetUserSettingsResult = 1;  /* GetUserSettings Result.Payload. */
+}
+
+/* SetUserSettings Request.Payload. */
+message DataType_SetUserSettingsRequestPayload {
+  message SetUserSettingsRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetUserSettingsRequestPayload.SetUserSettingsRequestPayload_Struct SetUserSettingsRequestPayload = 1;  /* SetUserSettings Request.Payload. */
+}
+
+/* SetUserSettings Result.Payload. */
+message DataType_SetUserSettingsResult {
+  message SetUserSettingsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_SetUserSettingsResult.SetUserSettingsResult_Struct SetUserSettingsResult = 1;  /* SetUserSettings Result.Payload. */
+}
+
+/* Parameters for GetAnalysisSettings */
+message GetAnalysisSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetAnalysisSettings */
+message GetAnalysisSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for SetAnalysisSettings */
+message SetAnalysisSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of SetAnalysisSettings */
+message SetAnalysisSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetJsonSettings */
+message GetJsonSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetJsonSettings */
+message GetJsonSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for SetJsonSettings */
+message SetJsonSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of SetJsonSettings */
+message SetJsonSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetLimsSettings */
+message GetLimsSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetLimsSettings */
+message GetLimsSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for SetLimsSettings */
+message SetLimsSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of SetLimsSettings */
+message SetLimsSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetUserSettings */
+message GetUserSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetUserSettings */
+message GetUserSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for SetUserSettings */
+message SetUserSettings_Parameters {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of SetUserSettings */
+message SetUserSettings_Responses {
+  sila2.org.tainstruments.xdsc.applicationsettings.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

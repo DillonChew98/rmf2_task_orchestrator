@@ -1,0 +1,273 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.bruker.ftir.stagecontrolservice.v2;
+
+/* Control of the sample stage / plate transport (e.g. HTS-XT): absolute moves, well addressing, load/unload, reference positions, and stage discovery. */
+service StageControlService {
+  /* Move the stage / plate transport to absolute coordinates via OPUS MoveStage. Request.Payload is MoveStageRequestPayload; Result.Payload is DrawerResult. */
+  rpc MoveStage (sila2.com.bruker.ftir.stagecontrolservice.v2.MoveStage_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.MoveStage_Responses) {}
+  /* Move the HTS-XT stage to a microplate well (e.g. A1, B3) using hts_xt.json geometry. Request.Payload is MoveToWellRequestPayload; Result.Payload is DrawerResult. */
+  rpc MoveToWell (sila2.com.bruker.ftir.stagecontrolservice.v2.MoveToWell_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.MoveToWell_Responses) {}
+  /* Move the HTS-XT stage to the centered plate-load pose (vendor load_plate). Result.Payload is DrawerResult (Void request Payload). */
+  rpc LoadPlate (sila2.com.bruker.ftir.stagecontrolservice.v2.LoadPlate_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.LoadPlate_Responses) {}
+  /* Move the HTS-XT stage to center then the unload pose (vendor unload_plate). Result.Payload is DrawerResult (Void request Payload). */
+  rpc UnloadPlate (sila2.com.bruker.ftir.stagecontrolservice.v2.UnloadPlate_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.UnloadPlate_Responses) {}
+  /* Open the HTS-XT plate drawer via OPUS MoveStage to the verified open pose. Streams Update envelopes (DrawerProgress); Result.Payload is DrawerResult. */
+  rpc OpenDrawer (sila2.com.bruker.ftir.stagecontrolservice.v2.OpenDrawer_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of OpenDrawer */
+  rpc OpenDrawer_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of OpenDrawer */
+  rpc OpenDrawer_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.com.bruker.ftir.stagecontrolservice.v2.OpenDrawer_IntermediateResponses) {}
+  /* Retrieve result of OpenDrawer */
+  rpc OpenDrawer_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.OpenDrawer_Responses) {}
+  /* Close the HTS-XT plate drawer via OPUS MoveStage to the verified closed pose. Streams Update envelopes (DrawerProgress); Result.Payload is DrawerResult. */
+  rpc CloseDrawer (sila2.com.bruker.ftir.stagecontrolservice.v2.CloseDrawer_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of CloseDrawer */
+  rpc CloseDrawer_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of CloseDrawer */
+  rpc CloseDrawer_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.com.bruker.ftir.stagecontrolservice.v2.CloseDrawer_IntermediateResponses) {}
+  /* Retrieve result of CloseDrawer */
+  rpc CloseDrawer_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.CloseDrawer_Responses) {}
+  /* Home the stage to a named reference position. Request.Payload is MoveStageToReferencePositionRequestPayload. */
+  rpc MoveStageToReferencePosition (sila2.com.bruker.ftir.stagecontrolservice.v2.MoveStageToReferencePosition_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.MoveStageToReferencePosition_Responses) {}
+  /* Read the current stage coordinates. Request.Payload is DeviceRequestPayload. */
+  rpc GetStagePosition (sila2.com.bruker.ftir.stagecontrolservice.v2.GetStagePosition_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.GetStagePosition_Responses) {}
+  /* Read the connected stage identifier. Request.Payload is GetStageNameRequestPayload. */
+  rpc GetStageName (sila2.com.bruker.ftir.stagecontrolservice.v2.GetStageName_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.GetStageName_Responses) {}
+  /* Read the number of available stage axes. Request.Payload is DeviceRequestPayload. */
+  rpc GetNumberOfAxes (sila2.com.bruker.ftir.stagecontrolservice.v2.GetNumberOfAxes_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.GetNumberOfAxes_Responses) {}
+  /* Define a named stage reference position. Request.Payload is SetReferencePositionRequestPayload. */
+  rpc SetReferencePosition (sila2.com.bruker.ftir.stagecontrolservice.v2.SetReferencePosition_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.SetReferencePosition_Responses) {}
+  /* Check whether the internal reference plate is present (HTS-XT). Request.Payload is DeviceRequestPayload. */
+  rpc IsReferencePlateAvailable (sila2.com.bruker.ftir.stagecontrolservice.v2.IsReferencePlateAvailable_Parameters) returns (sila2.com.bruker.ftir.stagecontrolservice.v2.IsReferencePlateAvailable_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Stage and drawer command Result.Payload. */
+message DataType_DrawerResult {
+  message DrawerResult_Struct {
+    sila2.org.silastandard.String Function = 1;  /* OPUS / binding function name that was invoked. */
+    repeated sila2.org.silastandard.String Response = 2;  /* Raw OPUS response lines. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_DrawerResult.DrawerResult_Struct DrawerResult = 1;  /* Stage and drawer command Result.Payload. */
+}
+
+/* Intermediate Update Payload during OpenDrawer / CloseDrawer. */
+message DataType_DrawerProgress {
+  message DrawerProgress_Struct {
+    sila2.org.silastandard.String Phase = 1;  /* Drawer move phase, e.g. running. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_DrawerProgress.DrawerProgress_Struct DrawerProgress = 1;  /* Intermediate Update Payload during OpenDrawer / CloseDrawer. */
+}
+
+/* MoveStage Request.Payload. */
+message DataType_MoveStageRequestPayload {
+  message MoveStageRequestPayload_Struct {
+    sila2.org.silastandard.String Device = 1;  /* Stage device id; empty means OPUS default. */
+    sila2.org.silastandard.Real X = 2;  /* Absolute X coordinate. */
+    sila2.org.silastandard.Real Y = 3;  /* Absolute Y coordinate. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_MoveStageRequestPayload.MoveStageRequestPayload_Struct MoveStageRequestPayload = 1;  /* MoveStage Request.Payload. */
+}
+
+/* MoveToWell Request.Payload. */
+message DataType_MoveToWellRequestPayload {
+  message MoveToWellRequestPayload_Struct {
+    sila2.org.silastandard.String Well = 1;  /* Well label, e.g. A1, B3, H12. */
+    sila2.org.silastandard.Integer PlateFormat = 2;  /* Plate well count (96 or 24); 0 means hts_xt.json default. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_MoveToWellRequestPayload.MoveToWellRequestPayload_Struct MoveToWellRequestPayload = 1;  /* MoveToWell Request.Payload. */
+}
+
+/* MoveStageToReferencePosition Request.Payload. */
+message DataType_MoveStageToReferencePositionRequestPayload {
+  message MoveStageToReferencePositionRequestPayload_Struct {
+    sila2.org.silastandard.String Device = 1;  /* Stage device id; empty means OPUS default. */
+    sila2.org.silastandard.String ReferencePosition = 2;  /* Named reference position. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_MoveStageToReferencePositionRequestPayload.MoveStageToReferencePositionRequestPayload_Struct MoveStageToReferencePositionRequestPayload = 1;  /* MoveStageToReferencePosition Request.Payload. */
+}
+
+/* Request.Payload with optional Device for stage queries. */
+message DataType_DeviceRequestPayload {
+  message DeviceRequestPayload_Struct {
+    sila2.org.silastandard.String Device = 1;  /* Stage device id; empty means OPUS default. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_DeviceRequestPayload.DeviceRequestPayload_Struct DeviceRequestPayload = 1;  /* Request.Payload with optional Device for stage queries. */
+}
+
+/* GetStageName Request.Payload. */
+message DataType_GetStageNameRequestPayload {
+  message GetStageNameRequestPayload_Struct {
+    sila2.org.silastandard.String ImagingDevice = 1;  /* Imaging device id; empty means OPUS default. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_GetStageNameRequestPayload.GetStageNameRequestPayload_Struct GetStageNameRequestPayload = 1;  /* GetStageName Request.Payload. */
+}
+
+/* SetReferencePosition Request.Payload. */
+message DataType_SetReferencePositionRequestPayload {
+  message SetReferencePositionRequestPayload_Struct {
+    sila2.org.silastandard.String Device = 1;  /* Stage device id; empty means OPUS default. */
+    sila2.org.silastandard.String ReferencePosition = 2;  /* Named reference position to define. */
+    sila2.org.silastandard.Real X = 3;  /* Absolute X coordinate. */
+    sila2.org.silastandard.Real Y = 4;  /* Absolute Y coordinate. */
+    sila2.org.silastandard.Real Z = 5;  /* Absolute Z coordinate. */
+  }
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_SetReferencePositionRequestPayload.SetReferencePositionRequestPayload_Struct SetReferencePositionRequestPayload = 1;  /* SetReferencePosition Request.Payload. */
+}
+
+/* Parameters for MoveStage */
+message MoveStage_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MoveStage */
+message MoveStage_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for MoveToWell */
+message MoveToWell_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MoveToWell */
+message MoveToWell_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for LoadPlate */
+message LoadPlate_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of LoadPlate */
+message LoadPlate_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for UnloadPlate */
+message UnloadPlate_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of UnloadPlate */
+message UnloadPlate_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for OpenDrawer */
+message OpenDrawer_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of OpenDrawer */
+message OpenDrawer_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of OpenDrawer */
+message OpenDrawer_IntermediateResponses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for CloseDrawer */
+message CloseDrawer_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of CloseDrawer */
+message CloseDrawer_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of CloseDrawer */
+message CloseDrawer_IntermediateResponses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for MoveStageToReferencePosition */
+message MoveStageToReferencePosition_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MoveStageToReferencePosition */
+message MoveStageToReferencePosition_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetStagePosition */
+message GetStagePosition_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetStagePosition */
+message GetStagePosition_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetStageName */
+message GetStageName_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetStageName */
+message GetStageName_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetNumberOfAxes */
+message GetNumberOfAxes_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetNumberOfAxes */
+message GetNumberOfAxes_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for SetReferencePosition */
+message SetReferencePosition_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of SetReferencePosition */
+message SetReferencePosition_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for IsReferencePlateAvailable */
+message IsReferencePlateAvailable_Parameters {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of IsReferencePlateAvailable */
+message IsReferencePlateAvailable_Responses {
+  sila2.com.bruker.ftir.stagecontrolservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

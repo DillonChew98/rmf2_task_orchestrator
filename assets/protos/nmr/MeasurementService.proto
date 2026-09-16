@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.magritek.nmr.measurementservice.v2;
+
+/* High-level Spinsolve measurement: run one sample (shim, protocols, process, AnIML/plot/summary). Exposes ASM-mirroring properties for last-result identity fields. */
+service MeasurementService {
+  /* Acquire, process, and report one loaded tube. Observable: streams Update envelopes during acquisition (also published on CurrentStatus), then returns SampleResult fields in Result Payload when the pipeline finishes. Payload may include Name, Solvent, Protocols (list of protocol entry strings), Position, OutputPath, Analyst, SampleRoleType, AsmMetadata (object). Do not call while Standby is active — Abort standby first. */
+  rpc RunSample (sila2.com.magritek.nmr.measurementservice.v2.RunSample_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of RunSample */
+  rpc RunSample_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of RunSample */
+  rpc RunSample_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.com.magritek.nmr.measurementservice.v2.RunSample_IntermediateResponses) {}
+  /* Retrieve result of RunSample */
+  rpc RunSample_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.com.magritek.nmr.measurementservice.v2.RunSample_Responses) {}
+  /* Latest RunSample progress (same shape as RunSample Update payloads). Seeded idle; updates through starting, acquiring, complete, or error. */
+  rpc Subscribe_CurrentStatus (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_CurrentStatus_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_CurrentStatus_Responses) {}
+  /* ASM asset management identifier for this instrument (site config; empty if unset). */
+  rpc Subscribe_AssetManagementIdentifier (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_AssetManagementIdentifier_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_AssetManagementIdentifier_Responses) {}
+  /* ASM probe type for this instrument (site config; empty if unset). */
+  rpc Subscribe_ProbeType (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_ProbeType_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_ProbeType_Responses) {}
+  /* ASM nuclear magnetic resonance frequency in MHz from the last successful run (empty string if unknown). */
+  rpc Subscribe_NmrFrequencyMHz (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_NmrFrequencyMHz_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_NmrFrequencyMHz_Responses) {}
+  /* ASM sample identifier from the last successful RunSample. */
+  rpc Subscribe_LastSampleIdentifier (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastSampleIdentifier_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastSampleIdentifier_Responses) {}
+  /* ASM measurement identifier (UUID) from the last successful RunSample. */
+  rpc Subscribe_LastMeasurementIdentifier (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastMeasurementIdentifier_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastMeasurementIdentifier_Responses) {}
+  /* ASM measurement time (ISO-8601 UTC) from the last successful RunSample. */
+  rpc Subscribe_LastMeasurementTime (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastMeasurementTime_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastMeasurementTime_Responses) {}
+  /* ASM analyst from the last successful RunSample. */
+  rpc Subscribe_LastAnalyst (sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastAnalyst_Parameters) returns (stream sila2.com.magritek.nmr.measurementservice.v2.Subscribe_LastAnalyst_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* RunSample progress snapshot. */
+message DataType_RunProgress {
+  message RunProgress_Struct {
+    sila2.org.silastandard.String Phase = 1;  /* idle, starting, acquiring, complete, or error. */
+    sila2.org.silastandard.String Protocol = 2;  /* Current protocol name during acquisition; empty when not applicable. */
+    sila2.org.silastandard.Integer ProgressPercent = 3;  /* Acquisition progress 0-100; 0 when not applicable. */
+  }
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_RunProgress.RunProgress_Struct RunProgress = 1;  /* RunSample progress snapshot. */
+}
+
+/* Parameters for RunSample */
+message RunSample_Parameters {
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of RunSample */
+message RunSample_Responses {
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of RunSample */
+message RunSample_IntermediateResponses {
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for CurrentStatus */
+message Subscribe_CurrentStatus_Parameters {
+}
+
+/* Responses of CurrentStatus */
+message Subscribe_CurrentStatus_Responses {
+  sila2.com.magritek.nmr.measurementservice.v2.DataType_RunProgress CurrentStatus = 1;  /* Latest RunSample progress (same shape as RunSample Update payloads). Seeded idle; updates through starting, acquiring, complete, or error. */
+}
+
+/* Parameters for AssetManagementIdentifier */
+message Subscribe_AssetManagementIdentifier_Parameters {
+}
+
+/* Responses of AssetManagementIdentifier */
+message Subscribe_AssetManagementIdentifier_Responses {
+  sila2.org.silastandard.String AssetManagementIdentifier = 1;  /* ASM asset management identifier for this instrument (site config; empty if unset). */
+}
+
+/* Parameters for ProbeType */
+message Subscribe_ProbeType_Parameters {
+}
+
+/* Responses of ProbeType */
+message Subscribe_ProbeType_Responses {
+  sila2.org.silastandard.String ProbeType = 1;  /* ASM probe type for this instrument (site config; empty if unset). */
+}
+
+/* Parameters for NmrFrequencyMHz */
+message Subscribe_NmrFrequencyMHz_Parameters {
+}
+
+/* Responses of NmrFrequencyMHz */
+message Subscribe_NmrFrequencyMHz_Responses {
+  sila2.org.silastandard.String NmrFrequencyMHz = 1;  /* ASM nuclear magnetic resonance frequency in MHz from the last successful run (empty string if unknown). */
+}
+
+/* Parameters for LastSampleIdentifier */
+message Subscribe_LastSampleIdentifier_Parameters {
+}
+
+/* Responses of LastSampleIdentifier */
+message Subscribe_LastSampleIdentifier_Responses {
+  sila2.org.silastandard.String LastSampleIdentifier = 1;  /* ASM sample identifier from the last successful RunSample. */
+}
+
+/* Parameters for LastMeasurementIdentifier */
+message Subscribe_LastMeasurementIdentifier_Parameters {
+}
+
+/* Responses of LastMeasurementIdentifier */
+message Subscribe_LastMeasurementIdentifier_Responses {
+  sila2.org.silastandard.String LastMeasurementIdentifier = 1;  /* ASM measurement identifier (UUID) from the last successful RunSample. */
+}
+
+/* Parameters for LastMeasurementTime */
+message Subscribe_LastMeasurementTime_Parameters {
+}
+
+/* Responses of LastMeasurementTime */
+message Subscribe_LastMeasurementTime_Responses {
+  sila2.org.silastandard.String LastMeasurementTime = 1;  /* ASM measurement time (ISO-8601 UTC) from the last successful RunSample. */
+}
+
+/* Parameters for LastAnalyst */
+message Subscribe_LastAnalyst_Parameters {
+}
+
+/* Responses of LastAnalyst */
+message Subscribe_LastAnalyst_Responses {
+  sila2.org.silastandard.String LastAnalyst = 1;  /* ASM analyst from the last successful RunSample. */
+}

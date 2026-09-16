@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.bruker.ftir.opusfunctionservice.v2;
+
+/* Generic access to every OPUS function (401 total) plus discovery helpers. */
+service OpusFunctionService {
+  /* Invoke any of the 401 OPUS functions by name. Request.Payload is ExecuteFunctionRequestPayload; Result.Payload is ExecuteFunctionResult. */
+  rpc ExecuteFunction (sila2.com.bruker.ftir.opusfunctionservice.v2.ExecuteFunction_Parameters) returns (sila2.com.bruker.ftir.opusfunctionservice.v2.ExecuteFunction_Responses) {}
+  /* Return the names of all available OPUS functions. Result.Payload is ListFunctionsResult (Void request Payload). */
+  rpc ListFunctions (sila2.com.bruker.ftir.opusfunctionservice.v2.ListFunctions_Parameters) returns (sila2.com.bruker.ftir.opusfunctionservice.v2.ListFunctions_Responses) {}
+  /* Return input/return parameter codes and metadata for an OPUS function. Request.Payload is DescribeFunctionRequestPayload; Result.Payload is DescribeFunctionResult. */
+  rpc DescribeFunction (sila2.com.bruker.ftir.opusfunctionservice.v2.DescribeFunction_Parameters) returns (sila2.com.bruker.ftir.opusfunctionservice.v2.DescribeFunction_Responses) {}
+  /* Send a raw OPUS C/S interpreter command. Request.Payload is RawCommandRequestPayload; Result.Payload is RawCommandResult. OPUS soft-fail becomes Envelope Failed. */
+  rpc RawCommand (sila2.com.bruker.ftir.opusfunctionservice.v2.RawCommand_Parameters) returns (sila2.com.bruker.ftir.opusfunctionservice.v2.RawCommand_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* ExecuteFunction Request.Payload. */
+message DataType_ExecuteFunctionRequestPayload {
+  message ExecuteFunctionRequestPayload_Struct {
+    sila2.org.silastandard.String FunctionName = 1;  /* PascalCase OPUS function name. */
+    sila2.org.silastandard.Integer FileId = 2;  /* OPUS file id; 0 means omit. */
+    sila2.org.silastandard.String BlockName = 3;  /* OPUS block name; empty means omit. */
+    sila2.org.silastandard.Any Parameters = 4;  /* OPUS 3-letter parameter codes. Void or empty object means none. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_ExecuteFunctionRequestPayload.ExecuteFunctionRequestPayload_Struct ExecuteFunctionRequestPayload = 1;  /* ExecuteFunction Request.Payload. */
+}
+
+/* ExecuteFunction Result.Payload. */
+message DataType_ExecuteFunctionResult {
+  message ExecuteFunctionResult_Struct {
+    sila2.org.silastandard.String Function = 1;  /* OPUS function that was invoked. */
+    repeated sila2.org.silastandard.String Response = 2;  /* Raw OPUS response lines. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_ExecuteFunctionResult.ExecuteFunctionResult_Struct ExecuteFunctionResult = 1;  /* ExecuteFunction Result.Payload. */
+}
+
+/* ListFunctions Result.Payload. */
+message DataType_ListFunctionsResult {
+  message ListFunctionsResult_Struct {
+    repeated sila2.org.silastandard.String Names = 1;  /* Available OPUS function names. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_ListFunctionsResult.ListFunctionsResult_Struct ListFunctionsResult = 1;  /* ListFunctions Result.Payload. */
+}
+
+/* DescribeFunction Request.Payload. */
+message DataType_DescribeFunctionRequestPayload {
+  message DescribeFunctionRequestPayload_Struct {
+    sila2.org.silastandard.String FunctionName = 1;  /* PascalCase OPUS function name. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_DescribeFunctionRequestPayload.DescribeFunctionRequestPayload_Struct DescribeFunctionRequestPayload = 1;  /* DescribeFunction Request.Payload. */
+}
+
+/* DescribeFunction Result.Payload. */
+message DataType_DescribeFunctionResult {
+  message DescribeFunctionResult_Struct {
+    sila2.org.silastandard.String Function = 1;  /* OPUS function name. */
+    repeated sila2.org.silastandard.String InputParameters = 2;  /* 3-letter input parameter codes. */
+    repeated sila2.org.silastandard.String ReturnParameters = 3;  /* Return parameter codes. */
+    sila2.org.silastandard.Any ParameterDetails = 4;  /* code to {description, dtype, default} for inputs with metadata. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_DescribeFunctionResult.DescribeFunctionResult_Struct DescribeFunctionResult = 1;  /* DescribeFunction Result.Payload. */
+}
+
+/* RawCommand Request.Payload. */
+message DataType_RawCommandRequestPayload {
+  message RawCommandRequestPayload_Struct {
+    sila2.org.silastandard.String Command = 1;  /* Raw OPUS C/S interpreter command. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_RawCommandRequestPayload.RawCommandRequestPayload_Struct RawCommandRequestPayload = 1;  /* RawCommand Request.Payload. */
+}
+
+/* RawCommand Result.Payload. */
+message DataType_RawCommandResult {
+  message RawCommandResult_Struct {
+    sila2.org.silastandard.Boolean Success = 1;  /* Whether OPUS reported success. */
+    repeated sila2.org.silastandard.String Response = 2;  /* Raw OPUS response lines. */
+  }
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_RawCommandResult.RawCommandResult_Struct RawCommandResult = 1;  /* RawCommand Result.Payload. */
+}
+
+/* Parameters for ExecuteFunction */
+message ExecuteFunction_Parameters {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ExecuteFunction */
+message ExecuteFunction_Responses {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ListFunctions */
+message ListFunctions_Parameters {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ListFunctions */
+message ListFunctions_Responses {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for DescribeFunction */
+message DescribeFunction_Parameters {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of DescribeFunction */
+message DescribeFunction_Responses {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for RawCommand */
+message RawCommand_Parameters {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of RawCommand */
+message RawCommand_Responses {
+  sila2.com.bruker.ftir.opusfunctionservice.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
