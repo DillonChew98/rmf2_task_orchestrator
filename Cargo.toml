@@ -7,8 +7,8 @@ edition = "2024"
 axum = "0.8.6"
 cel-interpreter = "0.10.0"
 config = "0.15.19"
-crossflow = { git = "https://github.com/open-rmf/crossflow.git", branch = "main", features = ["diagram"] }
-crossflow_diagram_editor = { git = "https://github.com/open-rmf/crossflow.git", branch = "main", features = ["frontend", "router"] }
+crossflow = { git = "https://github.com/junwei582/crossflow", branch="feat/grpc-tls", features = ["diagram", "grpc"] }
+crossflow_diagram_editor = { git = "https://github.com/junwei582/crossflow", branch="feat/grpc-tls", features = ["frontend", "router"] }
 dashmap = "6.1.0"
 dotenvy = "0.15.7"
 futures-lite = "2.6"
@@ -21,8 +21,12 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 thiserror = "2.0"
 tokio = { version = "1.48.0", features = ["full"] }
+prost-reflect = { version = "0.16" }
 tracing = "0.1.43"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[build-dependencies]
+tonic-prost-build = "0.14"
 
 [dev-dependencies]
 tempfile = "3.27.0"

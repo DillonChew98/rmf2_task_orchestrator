@@ -10,6 +10,9 @@ services:
       - RMF2_TO__MQTT__HOST=${MQTT_HOST:-mosquitto}
       - RMF2_TO__MQTT__PORT=${MQTT_PORT:-1883}
       - RUST_LOG=${LOG_LEVEL:-rmf2_task_orchestrator=info}
+      - RMF2_TO__GRPC__CA_CERT
+    volumes:
+      - ./assets/certs:/app/assets/certs:ro
     restart: unless-stopped
 
   rabbitmq:
