@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.gpc.instrumentlifecycle.v2;
+
+/* Owns the GPC server state chart (Disconnected, Connect, Run, Pause, Maintenance) and exposes lifecycle commands. The CurrentState property is observable so clients can subscribe to state changes. */
+service InstrumentLifecycle {
+  /* Attach to the running Agilent WinGPC instance via UIA. Allowed only from Disconnected. Transitions to Connect on success. Result Payload includes state. */
+  rpc Connect (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Connect_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Connect_Responses) {}
+  /* Drop the cached UIA references and return to Disconnected. Allowed from Connect. Result Payload includes state. */
+  rpc Disconnect (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Disconnect_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Disconnect_Responses) {}
+  /* Bring the WinGPC main window to the foreground. Allowed in any connected state. */
+  rpc BringToFront (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.BringToFront_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.BringToFront_Responses) {}
+  /* Transition Connect -> Maintenance to allow raw UI input commands (UiInput feature). Result Payload includes state. */
+  rpc EnterMaintenance (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.EnterMaintenance_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.EnterMaintenance_Responses) {}
+  /* Transition Maintenance -> Connect. Result Payload includes state. */
+  rpc ExitMaintenance (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.ExitMaintenance_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.ExitMaintenance_Responses) {}
+  /* Logical pause: transition Run -> Pause. WinGPC has no native pause control; this is a state-machine-only operation. Result Payload includes state. */
+  rpc Pause (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Pause_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Pause_Responses) {}
+  /* Transition Pause -> Run. Result Payload includes state. */
+  rpc Resume (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Resume_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Resume_Responses) {}
+  /* Stop the running sequence: if currently in Run/Pause and the Start toggle is ON, click it once to toggle OFF. Always transitions back to Connect on success. Result Payload includes state and clicked_start. */
+  rpc Stop (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Stop_Parameters) returns (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Stop_Responses) {}
+  /* Current state of the GPC server state machine. One of: Disconnected, Connect, Run, Pause, Maintenance. */
+  rpc Subscribe_CurrentState (sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Subscribe_CurrentState_Parameters) returns (stream sila2.org.tainstruments.gpc.instrumentlifecycle.v2.Subscribe_CurrentState_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for BringToFront */
+message BringToFront_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of BringToFront */
+message BringToFront_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for EnterMaintenance */
+message EnterMaintenance_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of EnterMaintenance */
+message EnterMaintenance_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ExitMaintenance */
+message ExitMaintenance_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ExitMaintenance */
+message ExitMaintenance_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for Pause */
+message Pause_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Pause */
+message Pause_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for Resume */
+message Resume_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Resume */
+message Resume_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for Stop */
+message Stop_Parameters {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Stop */
+message Stop_Responses {
+  sila2.org.tainstruments.gpc.instrumentlifecycle.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for CurrentState */
+message Subscribe_CurrentState_Parameters {
+}
+
+/* Responses of CurrentState */
+message Subscribe_CurrentState_Responses {
+  sila2.org.silastandard.String CurrentState = 1;  /* Current state of the GPC server state machine. One of: Disconnected, Connect, Run, Pause, Maintenance. */
+}

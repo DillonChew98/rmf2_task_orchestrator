@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.xdsc.runcontrol.v2;
+
+/* TRIOS run control start/stop on the shared /api base. */
+service RunControl {
+  /* Start the experiment (POST /control/start). Request.Payload is ControlStartRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is ControlStartResult (terminal queue status). */
+  rpc ControlStart (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStart_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ControlStart */
+  rpc ControlStart_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ControlStart */
+  rpc ControlStart_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStart_IntermediateResponses) {}
+  /* Retrieve result of ControlStart */
+  rpc ControlStart_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStart_Responses) {}
+  /* POST /control/stop. Request.Payload is ControlStopRequestPayload; Result.Payload is ControlStopResult. */
+  rpc ControlStop (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStop_Parameters) returns (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStop_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* ControlStart Request.Payload. */
+message DataType_ControlStartRequestPayload {
+  message ControlStartRequestPayload_Struct {
+    sila2.org.silastandard.String WaitForReady = 1;  /* empty | "true" | "false"; empty means server default. */
+    sila2.org.silastandard.Integer ReadyTimeoutSeconds = 2;  /* REST ready-wait timeout; 0 omits. */
+    sila2.org.silastandard.Boolean Force = 3;  /* Retry with force after HTTP 409 / canForce. */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_ControlStartRequestPayload.ControlStartRequestPayload_Struct ControlStartRequestPayload = 1;  /* ControlStart Request.Payload. */
+}
+
+/* Intermediate Update Payload during ControlStart. */
+message DataType_QueueStatusProgress {
+  message QueueStatusProgress_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_QueueStatusProgress.QueueStatusProgress_Struct QueueStatusProgress = 1;  /* Intermediate Update Payload during ControlStart. */
+}
+
+/* ControlStart Result.Payload. */
+message DataType_ControlStartResult {
+  message ControlStartResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_ControlStartResult.ControlStartResult_Struct ControlStartResult = 1;  /* ControlStart Result.Payload. */
+}
+
+/* ControlStop Request.Payload. */
+message DataType_ControlStopRequestPayload {
+  message ControlStopRequestPayload_Struct {
+    sila2.org.silastandard.Boolean Force = 1;  /* Force stop after HTTP 409 / canForce. */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_ControlStopRequestPayload.ControlStopRequestPayload_Struct ControlStopRequestPayload = 1;  /* ControlStop Request.Payload. */
+}
+
+/* ControlStop Result.Payload. */
+message DataType_ControlStopResult {
+  message ControlStopResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_ControlStopResult.ControlStopResult_Struct ControlStopResult = 1;  /* ControlStop Result.Payload. */
+}
+
+/* Parameters for ControlStart */
+message ControlStart_Parameters {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ControlStart */
+message ControlStart_Responses {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of ControlStart */
+message ControlStart_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for ControlStop */
+message ControlStop_Parameters {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ControlStop */
+message ControlStop_Responses {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

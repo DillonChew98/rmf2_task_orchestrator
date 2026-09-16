@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.gpc.uiinput.v2;
+
+/* Low-level UI automation primitives for menu navigation, mouse, keyboard, locator-based control interaction, window waits, and tree exploration. All commands require the state machine to be in Maintenance. */
+service UiInput {
+  /* Navigate the Application menu bar by item names. Payload must include MenuPath (list of strings), e.g. ["File", "Open"]. */
+  rpc ClickMenu (sila2.org.tainstruments.gpc.uiinput.v2.ClickMenu_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.ClickMenu_Responses) {}
+  /* Click at absolute screen coordinates via pyautogui. Payload must include X and Y; optional Clicks (default 1). */
+  rpc ClickAt (sila2.org.tainstruments.gpc.uiinput.v2.ClickAt_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.ClickAt_Responses) {}
+  /* Type text via pyautogui at the current focus. Payload must include Text; optional IntervalMs (0 = default 20 ms). */
+  rpc TypeText (sila2.org.tainstruments.gpc.uiinput.v2.TypeText_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.TypeText_Responses) {}
+  /* Send a hotkey combo via pyautogui. Payload must include Keys (non-empty list of strings), e.g. ["ctrl", "s"]. */
+  rpc Hotkey (sila2.org.tainstruments.gpc.uiinput.v2.Hotkey_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.Hotkey_Responses) {}
+  /* Locate a UIA control under the main window by any combination of title, AutomationId, or control type. Payload must include Locator (object with optional title, auto_id, control_type). Result Payload is a descriptor object (does not return a handle). */
+  rpc FindControl (sila2.org.tainstruments.gpc.uiinput.v2.FindControl_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.FindControl_Responses) {}
+  /* Find a control by locator and click it. Payload must include Locator (object with optional title, auto_id, control_type). */
+  rpc ClickControlByLocator (sila2.org.tainstruments.gpc.uiinput.v2.ClickControlByLocator_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.ClickControlByLocator_Responses) {}
+  /* Find a control by locator, focus it, optionally clear, and type. Payload must include Locator and Text; optional ClearFirst (boolean). */
+  rpc TypeIntoControlByLocator (sila2.org.tainstruments.gpc.uiinput.v2.TypeIntoControlByLocator_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.TypeIntoControlByLocator_Responses) {}
+  /* Wait for a top-level window with the given title to appear. Payload must include Title. Request.TimeoutSeconds is the wait budget (0 = GPC client default). */
+  rpc WaitForWindow (sila2.org.tainstruments.gpc.uiinput.v2.WaitForWindow_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.WaitForWindow_Responses) {}
+  /* Wait until a top-level window with the given title disappears. Payload must include Title. Request.TimeoutSeconds is the wait budget (0 = GPC client default of 10s). */
+  rpc WaitUntilGone (sila2.org.tainstruments.gpc.uiinput.v2.WaitUntilGone_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.WaitUntilGone_Responses) {}
+  /* Print the UIA control tree to the server log. Payload may include Depth (0 = default 3). */
+  rpc PrintControlTree (sila2.org.tainstruments.gpc.uiinput.v2.PrintControlTree_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.PrintControlTree_Responses) {}
+  /* List immediate children of a UIA control with their key properties. Payload may include Locator (object; omit or empty for the main window). Result Payload is a list of child descriptor objects. */
+  rpc ListChildren (sila2.org.tainstruments.gpc.uiinput.v2.ListChildren_Parameters) returns (sila2.org.tainstruments.gpc.uiinput.v2.ListChildren_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Parameters for ClickMenu */
+message ClickMenu_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ClickMenu */
+message ClickMenu_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ClickAt */
+message ClickAt_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ClickAt */
+message ClickAt_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for TypeText */
+message TypeText_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of TypeText */
+message TypeText_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for Hotkey */
+message Hotkey_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Hotkey */
+message Hotkey_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for FindControl */
+message FindControl_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of FindControl */
+message FindControl_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ClickControlByLocator */
+message ClickControlByLocator_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ClickControlByLocator */
+message ClickControlByLocator_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for TypeIntoControlByLocator */
+message TypeIntoControlByLocator_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of TypeIntoControlByLocator */
+message TypeIntoControlByLocator_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for WaitForWindow */
+message WaitForWindow_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of WaitForWindow */
+message WaitForWindow_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for WaitUntilGone */
+message WaitUntilGone_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of WaitUntilGone */
+message WaitUntilGone_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for PrintControlTree */
+message PrintControlTree_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of PrintControlTree */
+message PrintControlTree_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ListChildren */
+message ListChildren_Parameters {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ListChildren */
+message ListChildren_Responses {
+  sila2.org.tainstruments.gpc.uiinput.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

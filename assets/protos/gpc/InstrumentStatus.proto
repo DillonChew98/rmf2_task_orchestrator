@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.gpc.instrumentstatus.v2;
+
+/* Read-only LED, sequence summary, and instrument snapshot accessors. Allowed in Connect, Run, Pause, and Maintenance states. CurrentSystemStatus and CurrentAnalysisStatus are observable so dashboards can subscribe. */
+service InstrumentStatus {
+  /* Read the LED color from a Pane control by its AutomationId. Payload must include AutoId. */
+  rpc GetColor (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetColor_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetColor_Responses) {}
+  /* Read window_text() from a Text control by its AutomationId. Payload must include AutoId. */
+  rpc GetText (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetText_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetText_Responses) {}
+  /* Read the system status LED color (AutomationId: ledSystemState). Result Payload includes color. */
+  rpc GetSystemStatus (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetSystemStatus_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetSystemStatus_Responses) {}
+  /* Read the analysis LED color (AutomationId: ledAnalysis). Result Payload includes color. */
+  rpc GetAnalysisStatus (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetAnalysisStatus_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetAnalysisStatus_Responses) {}
+  /* Return whether the Start checkbox-button (AutomationId: checkBoxButtonStart) is currently toggled on. Result Payload includes IsOn. */
+  rpc GetStartButtonState (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetStartButtonState_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetStartButtonState_Responses) {}
+  /* Read injections elapsed/left, time elapsed/left, solvent elapsed/left from the Sequence window. Result Payload is the SequenceSummary object. */
+  rpc GetSequenceSummary (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetSequenceSummary_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetSequenceSummary_Responses) {}
+  /* Read the current sequence step (sample name, position, injection time). Result Payload is the CurrentSequenceStep object. */
+  rpc GetCurrentSequenceStep (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetCurrentSequenceStep_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetCurrentSequenceStep_Responses) {}
+  /* Read instrument label, state text, and ARGB LED color from the Instrument Status window. Result Payload is a list of module objects. */
+  rpc GetSystemInfo (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetSystemInfo_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetSystemInfo_Responses) {}
+  /* Single batched read of system LED, analysis LED, sequence summary, current step, and system info. Per-subsystem failures are logged and replaced with empty defaults. Result Payload is the snapshot object. */
+  rpc GetInstrumentSnapshot (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetInstrumentSnapshot_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.GetInstrumentSnapshot_Responses) {}
+  /* Clear cached child-window references (use after a UI restructure). */
+  rpc InvalidateCache (sila2.org.tainstruments.gpc.instrumentstatus.v2.InvalidateCache_Parameters) returns (sila2.org.tainstruments.gpc.instrumentstatus.v2.InvalidateCache_Responses) {}
+  /* System LED color (green, yellow, red, gray, ...). Refreshed on each get-call; emits to subscribers. */
+  rpc Subscribe_CurrentSystemStatus (sila2.org.tainstruments.gpc.instrumentstatus.v2.Subscribe_CurrentSystemStatus_Parameters) returns (stream sila2.org.tainstruments.gpc.instrumentstatus.v2.Subscribe_CurrentSystemStatus_Responses) {}
+  /* Analysis LED color (green, yellow, red, gray, ...). Refreshed on each get-call; emits to subscribers. */
+  rpc Subscribe_CurrentAnalysisStatus (sila2.org.tainstruments.gpc.instrumentstatus.v2.Subscribe_CurrentAnalysisStatus_Parameters) returns (stream sila2.org.tainstruments.gpc.instrumentstatus.v2.Subscribe_CurrentAnalysisStatus_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Parameters for GetColor */
+message GetColor_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetColor */
+message GetColor_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetText */
+message GetText_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetText */
+message GetText_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetSystemStatus */
+message GetSystemStatus_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetSystemStatus */
+message GetSystemStatus_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetAnalysisStatus */
+message GetAnalysisStatus_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetAnalysisStatus */
+message GetAnalysisStatus_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetStartButtonState */
+message GetStartButtonState_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetStartButtonState */
+message GetStartButtonState_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetSequenceSummary */
+message GetSequenceSummary_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetSequenceSummary */
+message GetSequenceSummary_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetCurrentSequenceStep */
+message GetCurrentSequenceStep_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetCurrentSequenceStep */
+message GetCurrentSequenceStep_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetSystemInfo */
+message GetSystemInfo_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetSystemInfo */
+message GetSystemInfo_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetInstrumentSnapshot */
+message GetInstrumentSnapshot_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetInstrumentSnapshot */
+message GetInstrumentSnapshot_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for InvalidateCache */
+message InvalidateCache_Parameters {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of InvalidateCache */
+message InvalidateCache_Responses {
+  sila2.org.tainstruments.gpc.instrumentstatus.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for CurrentSystemStatus */
+message Subscribe_CurrentSystemStatus_Parameters {
+}
+
+/* Responses of CurrentSystemStatus */
+message Subscribe_CurrentSystemStatus_Responses {
+  sila2.org.silastandard.String CurrentSystemStatus = 1;  /* System LED color (green, yellow, red, gray, ...). Refreshed on each get-call; emits to subscribers. */
+}
+
+/* Parameters for CurrentAnalysisStatus */
+message Subscribe_CurrentAnalysisStatus_Parameters {
+}
+
+/* Responses of CurrentAnalysisStatus */
+message Subscribe_CurrentAnalysisStatus_Responses {
+  sila2.org.silastandard.String CurrentAnalysisStatus = 1;  /* Analysis LED color (green, yellow, red, gray, ...). Refreshed on each get-call; emits to subscribers. */
+}
