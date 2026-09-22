@@ -4,14 +4,17 @@ description: Install Rust, pnpm, and node
 runs:
   using: composite
   steps:
-    - uses: dtolnay/rust-toolchain@stable
+    # rtolnay/rust-toolchain does NOT use conventional versioning
+    - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # 17-07-2026 release, up to rustc v1.97.1
       with:
+        toolchain: stable
         components: rustfmt, clippy
 
-    - uses: pnpm/action-setup@v4
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+    # Crossflow frontend runs install
+    - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
       with:
         version: 11
-
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 22
+        runtime: node@22
+        install: false
