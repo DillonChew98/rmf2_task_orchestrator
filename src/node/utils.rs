@@ -19,10 +19,12 @@
 use cel_interpreter::{Context, Program, Value};
 use crossflow::ConfigExample;
 use crossflow::bevy_ecs::prelude::Res;
-use crossflow::bevy_time::Time;
+use crossflow::bevy_time::{Real, Time};
 use crossflow::prelude::*;
+use futures_timer::Delay;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Default)]
 pub struct CelConditionEvalConfig {
@@ -30,9 +32,26 @@ pub struct CelConditionEvalConfig {
     pub condition: String,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(default, deny_unknown_fields)]
+pub struct TimeoutConfig {
+    pub interval_secs: u64,
+    pub timeout_secs: u64,
+}
+
+impl Default for TimeoutConfig {
+    fn default() -> Self {
+        Self {
+            interval_secs: 5,
+            timeout_secs: 300,
+        }
+    }
+}
+
 pub(crate) fn register(registry: &mut DiagramElementRegistry) {
     register_cel_eval_condition_node(registry);
     register_consume_message_node(registry);
+    register_timeout_node(registry);
 }
 
 fn register_cel_eval_condition_node(registry: &mut DiagramElementRegistry) {
@@ -97,6 +116,109 @@ pub(crate) fn eval_condition(condition: &str, message: &JsonMessage) -> Result<b
         Ok(Value::Bool(b)) => Ok(b),
         Ok(_) => Err("CEL condition must return bool".to_string()),
         Err(e) => Err(format!("CEL evaluation error: {e}")),
+    }
+}
+
+fn register_timeout_node(registry: &mut DiagramElementRegistry) {
+    registry
+        .register_node_builder(
+            NodeBuilderOptions::new("timeout")
+                .with_default_display_text("Timeout")
+                .with_description(
+                    "Add timeout for node. Each pass waits interval_secs, then \
+                     returns the input message as Ok. Once timeout_secs have \
+                     passed since the first pass, the node returns Err.",
+                )
+                .with_config_examples([
+                    ConfigExample::new(
+                        "Try every 30s, error after the default 5 min",
+                        TimeoutConfig {
+                            interval_secs: 30,
+                            ..Default::default()
+                        },
+                    ),
+                    ConfigExample::new(
+                        "Try every 2s, error after 1 min",
+                        TimeoutConfig {
+                            interval_secs: 2,
+                            timeout_secs: 60,
+                        },
+                    ),
+                ]),
+            |builder, config: Option<TimeoutConfig>| {
+                timeout_node(builder, config.unwrap_or_default())
+            },
+        )
+        .with_result();
+}
+
+pub(crate) fn timeout_node(
+    builder: &mut Builder,
+    config: TimeoutConfig,
+) -> Node<JsonMessage, Result<JsonMessage, JsonMessage>> {
+    let duration = Duration::from_secs(config.interval_secs);
+    let timeout = config.timeout_secs;
+
+    let start: Buffer<f64> = builder.create_buffer(BufferSettings::default());
+    let access = builder.create_buffer_access(start);
+
+    let gate =
+        move |Blocking {
+                  request: (message, key),
+                  id,
+                  ..
+              }: Blocking<(JsonMessage, BufferKey<f64>)>,
+              mut start_access: BufferAccessMut<f64>,
+              time: Res<Time<Real>>|
+              -> Result<JsonMessage, JsonMessage> {
+            let now = time.elapsed_secs_f64();
+
+            let started = start_access.get_mut(id, &key).ok().map(|mut buffer| {
+                match buffer.newest().copied() {
+                    Some(started) => started,
+                    None => {
+                        buffer.push(now);
+                        now
+                    }
+                }
+            });
+
+            let Some(started) = started else {
+                return Err(serde_json::json!({
+                    "error": "timeout: could not reach the timer",
+                    "message": message
+                }));
+            };
+
+            let elapsed = now - started;
+            if elapsed > timeout as f64 {
+                Err(serde_json::json!({
+                    "error": format!("timeout: timed out after {timeout}s"),
+                    "elapsed_secs": elapsed,
+                    "message": message
+                }))
+            } else {
+                Ok(message)
+            }
+        };
+
+    let output = builder
+        .chain(access.output)
+        .then(gate.into_callback())
+        .map_async(
+            move |outcome: Result<JsonMessage, JsonMessage>| async move {
+                if outcome.is_ok() {
+                    Delay::new(duration).await;
+                }
+                outcome
+            },
+        )
+        .output();
+
+    Node {
+        input: access.input,
+        output,
+        streams: (),
     }
 }
 
@@ -166,4 +288,97 @@ fn register_consume_message_node(registry: &mut DiagramElementRegistry) {
             },
         )
         .with_listen();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossflow::{Diagram, DiagramElementRegistry, testing::*};
+    use serde_json::json;
+
+    fn timeout_diagram(config: serde_json::Value, ok: serde_json::Value) -> Diagram {
+        Diagram::from_json(json!({
+            "version": "0.1.0",
+            "start": "wait",
+            "ops": {
+                "wait": {
+                    "type": "node",
+                    "builder": "timeout",
+                    "config": config,
+                    "next": "wait_result"
+                },
+                "wait_result": {
+                    "type": "fork_result",
+                    "ok": ok,
+                    "err": { "builtin": "terminate" }
+                }
+            }
+        }))
+        .unwrap()
+    }
+
+    fn run(diagram: &Diagram, input: serde_json::Value) -> JsonMessage {
+        let mut ctx = TestingContext::minimal_plugins();
+        let mut registry = DiagramElementRegistry::new();
+        register(&mut registry);
+
+        let workflow = ctx
+            .command(|cmds| {
+                diagram
+                    .spawn_io_workflow::<JsonMessage, JsonMessage>(cmds, &registry)
+                    .map_err(Box::new)
+            })
+            .unwrap();
+        let mut outcome = ctx.command(|cmds| cmds.request(input, workflow).outcome());
+        ctx.run_with_conditions(&mut outcome, Duration::from_secs(10));
+
+        outcome
+            .try_recv()
+            .expect("workflow did not respond")
+            .expect("workflow was cancelled")
+    }
+
+    #[test]
+    fn test_timeout_node_timeout() {
+        let started = std::time::Instant::now();
+        let out = run(
+            &timeout_diagram(
+                json!({"interval_secs": 0, "timeout_secs": 1}),
+                json!("wait"),
+            ),
+            json!({"poll": "status"}),
+        );
+        assert!(
+            started.elapsed() >= Duration::from_secs(1),
+            "gave up after {:?}, before the 1 s timeout",
+            started.elapsed()
+        );
+        assert_eq!(
+            out["message"],
+            json!({"poll": "status"}),
+            "the giving-up error must carry the message that was in flight"
+        );
+    }
+
+    #[test]
+    fn test_timeout_node_interval() {
+        let started = std::time::Instant::now();
+        let out = run(
+            &timeout_diagram(
+                json!({"interval_secs": 1, "timeout_secs": 300}),
+                json!({ "builtin": "terminate" }),
+            ),
+            json!({"poll": "status"}),
+        );
+        assert!(
+            started.elapsed() >= Duration::from_secs(1),
+            "passed the message on after {:?}, before the 1 s interval",
+            started.elapsed()
+        );
+        assert_eq!(
+            out,
+            json!({"poll": "status"}),
+            "the ok path must pass the message on unchanged"
+        );
+    }
 }
