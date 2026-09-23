@@ -1,6 +1,7 @@
 [http]
 host = "127.0.0.1"
 port = 2727
+request_timeout_secs = 30
 
 [amqp]
 host = "localhost"
