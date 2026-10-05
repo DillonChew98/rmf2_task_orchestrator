@@ -16,3 +16,6 @@ exchange = "@RECEIVE@"
 queue = "@RECEIVE@-rmf_schedule"
 routing_key = ""
 exchange_kind = "fanout"
+
+[app]
+template_directory = "diagrams/lab_examples"

@@ -20,6 +20,8 @@ pub mod client;
 pub mod config;
 pub mod executor;
 mod node;
+pub mod template_registry;
+pub use template_registry::*;
 
 pub(crate) use executor::TokioHandle;
 pub use executor::{ExecutorHandle, create_amqp_client, create_amqp_router, spawn};

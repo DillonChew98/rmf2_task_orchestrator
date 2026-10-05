@@ -17,10 +17,13 @@
  */
 
 use axum::{http::StatusCode, routing::get};
+use std::sync::Arc;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
 use rmf2_task_orchestrator::client;
 use rmf2_task_orchestrator::config::{Settings, load_base_configuration};
+use rmf2_task_orchestrator::{TemplateFolderSource, TemplateRegistry};
 use rmf2_task_orchestrator::{create_amqp_router, spawn};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 async fn health_check() -> StatusCode {
     StatusCode::OK
@@ -42,14 +45,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let amqp_config = &config.amqp;
     let mqtt_config = None;
     let http_config = &config.http;
+    let app_config = &config.app;
 
+    let mut registry = TemplateRegistry::default();
+    if let Some(dir) = &app_config.template_directory {
+        let source = TemplateFolderSource::new(dir);
+        registry
+            .add_source(&source)
+            .map_err(|e| format!("Failed to load templates: {e}"))?;
+    }
+    let registry = Arc::new(registry);
     let (executor_handle, editor_router) = spawn(amqp_config, mqtt_config, http_config).await?;
 
     let amqp_connection = client::AmqpConnection::new(amqp_config)
         .await
         .map_err(|e| format!("Failed to connect to AMQP broker: {e}"))?;
 
-    let amqp_router = create_amqp_router(executor_handle);
+    let amqp_router = create_amqp_router(executor_handle, Arc::clone(&registry));
     tokio::spawn(client::run_consumer(
         amqp_connection,
         amqp_config.consumer.clone(),

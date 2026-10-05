@@ -63,9 +63,15 @@ impl HttpSettings {
 }
 
 #[derive(serde::Deserialize, Clone)]
+pub struct AppSettings {
+    pub template_directory: Option<String>,
+}
+
+#[derive(serde::Deserialize, Clone)]
 pub struct Settings {
     pub http: HttpSettings,
     pub amqp: AmqpSettings,
+    pub app: AppSettings,
 }
 
 pub enum Environment {
