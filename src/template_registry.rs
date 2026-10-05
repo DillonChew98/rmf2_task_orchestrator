@@ -224,7 +224,7 @@ mod tests {
         let mut registry = TemplateRegistry::default();
         registry.add_source(&source).unwrap();
 
-        assert!(registry.templates.get("pickup").is_some());
+        assert!(registry.templates.contains_key("pickup"));
     }
 
     #[test]
