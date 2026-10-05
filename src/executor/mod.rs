@@ -18,18 +18,20 @@
 
 mod amqp_handlers;
 
+use crate::TemplateRegistry;
 use crate::client::mqtt::MqttSettings;
 use crate::client::{AmqpClient, AmqpRouter};
 use crate::config::{AmqpSettings, HttpSettings};
 use crate::node;
 use amqp_handlers::handle_workflow_execute;
 
+use std::sync::Arc;
+use std::thread;
+
 use axum::Router;
 use crossflow::bevy_time::TimePlugin;
 use crossflow::{CrossflowExecutorApp, DiagramElementRegistry, bevy_app, bevy_ecs};
 use crossflow_diagram_editor::{ServerOptions, new_router};
-use std::sync::Arc;
-use std::thread;
 use tokio::sync::oneshot;
 
 #[derive(Clone)]
@@ -77,12 +79,14 @@ pub async fn spawn(
     Ok((handle, diagram_editor_router))
 }
 
-pub fn create_amqp_router(handle: ExecutorHandle) -> AmqpRouter {
+pub fn create_amqp_router(handle: ExecutorHandle, registry: Arc<TemplateRegistry>) -> AmqpRouter {
     AmqpRouter::default().route("", {
         let handle = handle.clone();
+        let registry = Arc::clone(&registry);
         move |data| {
             let handle = handle.clone();
-            handle_workflow_execute(handle, data)
+            let registry = Arc::clone(&registry);
+            handle_workflow_execute(handle, registry, data)
         }
     })
 }
