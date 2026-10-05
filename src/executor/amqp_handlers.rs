@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 
+use std::sync::Arc;
+
+use serde::Deserialize;
+
+use crate::TemplateRegistry;
 use crate::client::amqp::AmqpError;
 use crate::executor::ExecutorHandle;
-use serde::Deserialize;
 
 // AMQP message containing a workflow execution request.
 // The workflow diagram is embedded in the payload field.
@@ -34,6 +38,7 @@ pub struct WorkflowExecuteMessage {
 
 pub async fn handle_workflow_execute(
     handle: ExecutorHandle,
+    registry: Arc<TemplateRegistry>,
     data: Vec<u8>,
 ) -> Result<(), AmqpError> {
     let message: WorkflowExecuteMessage =
@@ -57,6 +62,16 @@ pub async fn handle_workflow_execute(
     } else {
         message.payload.clone()
     };
+
+    // Parse into Diagram, inject templates from registry, serialize back
+    let mut diagram = crossflow::diagram::Diagram::from_json_str(
+        &serde_json::to_string(&diagram_json)
+            .map_err(|e| AmqpError::Parse(format!("Diagram serialize: {e}")))?,
+    )
+    .map_err(|e| AmqpError::Parse(format!("Diagram parse: {e}")))?;
+    registry.inject(&mut diagram);
+    let diagram_json = serde_json::to_value(&diagram)
+        .map_err(|e| AmqpError::Parse(format!("Diagram re-serialize: {e}")))?;
 
     // The request is the input value passed to the workflow's start node.
     // Nodes get their config from the diagram, so we pass task metadata as context.

@@ -361,6 +361,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b098575ebe77cb6d14fc7f32749631a6e44edbef6b796f89b020e99ba20d425"
 dependencies = [
  "axum-core",
+ "base64",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -379,8 +380,10 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
+ "sha1",
  "sync_wrapper",
  "tokio",
+ "tokio-tungstenite",
  "tower",
  "tower-layer",
  "tower-service",
@@ -1029,7 +1032,7 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 [[package]]
 name = "crossflow"
 version = "0.0.7"
-source = "git+https://github.com/open-rmf/crossflow.git?branch=main#b8f1ed5f07c050b6ded05fd06cd8dc94e91e54eb"
+source = "git+https://github.com/open-rmf/crossflow.git?branch=main#f95003ca080cb031d56401c4eca330c8ad3526d7"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -1063,7 +1066,7 @@ dependencies = [
 [[package]]
 name = "crossflow_derive"
 version = "0.0.7"
-source = "git+https://github.com/open-rmf/crossflow.git?branch=main#b8f1ed5f07c050b6ded05fd06cd8dc94e91e54eb"
+source = "git+https://github.com/open-rmf/crossflow.git?branch=main#f95003ca080cb031d56401c4eca330c8ad3526d7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1073,7 +1076,7 @@ dependencies = [
 [[package]]
 name = "crossflow_diagram_editor"
 version = "0.0.7"
-source = "git+https://github.com/open-rmf/crossflow.git?branch=main#b8f1ed5f07c050b6ded05fd06cd8dc94e91e54eb"
+source = "git+https://github.com/open-rmf/crossflow.git?branch=main#f95003ca080cb031d56401c4eca330c8ad3526d7"
 dependencies = [
  "axum",
  "bevy_app",
@@ -3926,6 +3929,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tungstenite"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d25a406cddcc431a75d3d9afc6a7c0f7428d4891dd973e4d54c56b46127bf857"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4101,6 +4116,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "tungstenite"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8628dcc84e5a09eb3d8423d6cb682965dea9133204e8fb3efee74c2a0c259442"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http",
+ "httparse",
+ "log",
+ "rand",
+ "sha1",
+ "thiserror 2.0.18",
+ "utf-8",
+]
+
+[[package]]
 name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4165,6 +4197,12 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
+
+[[package]]
+name = "utf-8"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
 
 [[package]]
 name = "utf8_iter"
