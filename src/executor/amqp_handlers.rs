@@ -69,7 +69,10 @@ pub async fn handle_workflow_execute(
             .map_err(|e| AmqpError::Parse(format!("Diagram serialize: {e}")))?,
     )
     .map_err(|e| AmqpError::Parse(format!("Diagram parse: {e}")))?;
-    registry.inject(&mut diagram);
+    if let Err(e) = registry.inject(&mut diagram) {
+        tracing::warn!("Skipping workflow {}: {e}", message.task_id);
+        return Err(AmqpError::Workflow(e.to_string()))
+    };
     let diagram_json = serde_json::to_value(&diagram)
         .map_err(|e| AmqpError::Parse(format!("Diagram re-serialize: {e}")))?;
 

@@ -13,6 +13,8 @@ pub enum TemplateError {
     BadPath { path: PathBuf },
     #[error("Failed to parse template '{name}': {reason}")]
     Parse { name: String, reason: String },
+    #[error("Failed to find template in registry. TemplateSource may be invalid")]
+    NotFound {name: String}, 
 }
 
 #[derive(Deserialize)]
@@ -26,7 +28,7 @@ pub struct TemplateFolderSource {
 }
 
 pub trait TemplateSource: Send + Sync {
-    fn load(&self) -> Result<HashMap<String, SectionTemplate>, TemplateError>;
+    fn load(&self) -> HashMap<String, SectionTemplate>;
 
     fn name(&self) -> String;
 }
@@ -40,11 +42,24 @@ impl TemplateFolderSource {
 }
 
 impl TemplateSource for TemplateFolderSource {
-    fn load(&self) -> Result<HashMap<String, SectionTemplate>, TemplateError> {
+    fn load(&self) -> HashMap<String, SectionTemplate> {
         let mut templates: HashMap<String, SectionTemplate> = HashMap::new();
 
-        for file in std::fs::read_dir(&self.dir_path)? {
-            let file_path = file?.path();
+        let entries = match std::fs::read_dir(&self.dir_path) {
+            Ok(entries) => entries,
+            Err(e) => {
+                tracing::warn!("Failed to read templates directory {}: {e}", self.dir_path.display());
+                return templates;
+            }
+        };
+        for file in entries {
+            let file_path = match file {
+                Ok(dir) => dir.path(),
+                Err(e) => {
+                    tracing::warn!("Failed to read directory entry: {e}");
+                    continue;
+                }
+            };
             // Only read files with .json extension
             if file_path
                 .extension()
@@ -54,12 +69,21 @@ impl TemplateSource for TemplateFolderSource {
                 continue;
             }
 
-            let content = std::fs::read_to_string(&file_path)?;
+            let content = match std::fs::read_to_string(&file_path) {
+                Ok(con) => con,
+                Err(e) => {
+                    tracing::warn!("Failed to read template file {}: {e}", file_path.display());
+                    continue;
+                }
+            };
             let diagram: DiagramFile =
-                serde_json::from_str(&content).map_err(|e| TemplateError::Parse {
-                    name: file_path.display().to_string(),
-                    reason: e.to_string(),
-                })?;
+                match serde_json::from_str(&content) {
+                    Ok(diagram) => diagram,
+                    Err(e) => {
+                        tracing::warn!("Failed to parse template file {}: {e}", file_path.display());
+                        continue;
+                    }
+                };
             for (name, template) in diagram.templates {
                 if templates.contains_key(&name) {
                     tracing::warn!(
@@ -71,11 +95,12 @@ impl TemplateSource for TemplateFolderSource {
                 templates.insert(name, template);
             }
         }
-        Ok(templates)
+        templates
     }
 
     fn name(&self) -> String {
-        format!("{}", self.dir_path.display())
+        let path_name = format!("{}", self.dir_path.display());
+        path_name
     }
 }
 
@@ -85,8 +110,8 @@ pub struct TemplateRegistry {
 }
 
 impl TemplateRegistry {
-    pub fn add_source(&mut self, source: &dyn TemplateSource) -> Result<&mut Self, TemplateError> {
-        for (name, template) in source.load()? {
+    pub fn add_source(&mut self, source: &dyn TemplateSource) {
+        for (name, template) in source.load() {
             if self.templates.contains_key(&name) {
                 tracing::warn!(
                     "Duplicate template '{name}' from source '{}' in template registry, skipping...",
@@ -96,10 +121,9 @@ impl TemplateRegistry {
             }
             self.templates.insert(name, template);
         }
-        Ok(self)
     }
 
-    pub fn inject(&self, diagram: &mut Diagram) {
+    pub fn inject(&self, diagram: &mut Diagram) -> Result<(), TemplateError> {
         let mut temp: Vec<String> = Vec::new();
 
         for op in diagram.ops.values() {
@@ -114,19 +138,23 @@ impl TemplateRegistry {
             if diagram.templates.contains_key(name.as_str()) {
                 continue;
             }
-
-            if let Some(template) = self.templates.get(&name) {
-                // Template stored in the registry might have references to other templates
-                for op in template.ops.values() {
-                    if let DiagramOperation::Section(section) = op.as_ref()
-                        && let SectionProvider::Template(nested) = &section.provider
-                    {
-                        temp.push(nested.to_string());
+            match self.templates.get(&name) {
+                Some(template) => {
+                    for op in template.ops.values() {
+                        if let DiagramOperation::Section(section) = op.as_ref()
+                            && let SectionProvider::Template(nested) = &section.provider
+                            {
+                                temp.push(nested.to_string());
+                            }
                     }
+                    diagram.templates.insert(name.into(), template.clone());
                 }
-                diagram.templates.insert(name.into(), template.clone());
+                None => {
+                    return Err(TemplateError::NotFound { name });
+                }
             }
         }
+        Ok(())
     }
 }
 
@@ -164,7 +192,7 @@ mod tests {
         fs::write(dir.path().join("README.md"), "template").unwrap();
 
         let source = TemplateFolderSource::new(dir.path());
-        let templates = source.load().unwrap();
+        let templates = source.load();
 
         assert!(templates.contains_key("pickup"));
         assert_eq!(templates.len(), 1);
@@ -191,7 +219,7 @@ mod tests {
         "#;
         fs::write(dir.path().join("dropoff.json"), dropoff).unwrap();
         let source = TemplateFolderSource::new(dir.path());
-        let templates = source.load().unwrap();
+        let templates = source.load();
 
         assert_eq!(templates.len(), 2);
     }
@@ -203,7 +231,7 @@ mod tests {
         fs::write(dir.path().join("b.json"), test_json()).unwrap();
 
         let source = TemplateFolderSource::new(dir.path());
-        let templates = source.load().unwrap();
+        let templates = source.load();
 
         assert_eq!(templates.len(), 1);
     }
@@ -212,7 +240,7 @@ mod tests {
     fn empty_folder() {
         let dir = tempdir().unwrap();
         let source = TemplateFolderSource::new(dir.path());
-        let templates = source.load().unwrap();
+        let templates = source.load();
         assert!(templates.is_empty());
     }
 
@@ -222,7 +250,7 @@ mod tests {
         fs::write(dir.path().join("pickup.json"), test_json()).unwrap();
         let source = TemplateFolderSource::new(dir.path());
         let mut registry = TemplateRegistry::default();
-        registry.add_source(&source).unwrap();
+        registry.add_source(&source);
 
         assert!(registry.templates.contains_key("pickup"));
     }
@@ -233,8 +261,7 @@ mod tests {
         fs::write(dir.path().join("pickup.json"), test_json()).unwrap();
         let source = TemplateFolderSource::new(dir.path());
         let mut registry = TemplateRegistry::default();
-        registry.add_source(&source).unwrap();
-
+        registry.add_source(&source);
         let mut diagram = Diagram::from_json_str(
             r#"{
             "version": "0.1.0",
@@ -253,7 +280,7 @@ mod tests {
         .unwrap();
 
         assert!(diagram.templates.is_empty());
-        registry.inject(&mut diagram);
+        registry.inject(&mut diagram).unwrap();
         assert!(diagram.templates.contains_key("pickup"));
         assert_eq!(diagram.templates.len(), 1);
     }
@@ -296,7 +323,7 @@ mod tests {
         fs::write(dir.path().join("nested.json"), nested_json).unwrap();
         let source = TemplateFolderSource::new(dir.path());
         let mut registry = TemplateRegistry::default();
-        registry.add_source(&source).unwrap();
+        registry.add_source(&source);
 
         let mut diagram = Diagram::from_json_str(
             r#"{
@@ -316,7 +343,7 @@ mod tests {
         .unwrap();
 
         assert!(diagram.templates.is_empty());
-        registry.inject(&mut diagram);
+        registry.inject(&mut diagram).unwrap();
         assert!(diagram.templates.contains_key("outer"));
         assert!(diagram.templates.contains_key("inner"));
         assert_eq!(diagram.templates.len(), 2);

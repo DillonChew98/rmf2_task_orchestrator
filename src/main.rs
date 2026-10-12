@@ -53,7 +53,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let source = TemplateFolderSource::new(dir);
         registry
             .add_source(&source)
-            .map_err(|e| format!("Failed to load templates: {e}"))?;
     }
     let registry = Arc::new(registry);
     let (executor_handle, editor_router) =
