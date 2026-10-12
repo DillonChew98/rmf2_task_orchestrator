@@ -62,7 +62,8 @@ impl Default for RetryPolicy {
 #[serde(deny_unknown_fields)]
 struct HttpRequestConfig {
     pub method: HttpMethod,
-    pub uri: String,
+    /// If you leave this unset, the input must be `{"uri": "..."}`. An optional `body` key is the request body.
+    pub uri: Option<String>,
     #[serde(default)]
     pub headers: HashMap<String, String>,
     pub body: Option<JsonMessage>,
@@ -74,13 +75,13 @@ fn register_http_request_node(registry: &mut DiagramElementRegistry, ensure_http
         .register_node_builder(
             NodeBuilderOptions::new("http_request")
                 .with_default_display_text("HTTP Request")
-                .with_description("Make an outgoing HTTP request. If no body is specified in config, the upstream input is used as the request body.")
+                .with_description("Make an outgoing HTTP request. If no body is specified in config, the upstream input is used as the request body. If no uri is specified in config, the upstream input must be {\"uri\": ...}.")
                 .with_config_examples([
                     ConfigExample::new(
                         "Health check",
                         HttpRequestConfig {
                             method: HttpMethod::GET,
-                            uri: "http://localhost:2727/health_check".into(),
+                            uri: Some("http://localhost:2727/health_check".into()),
                             headers: Default::default(),
                             body: None,
                             retry: None,
@@ -90,7 +91,7 @@ fn register_http_request_node(registry: &mut DiagramElementRegistry, ensure_http
                         "POST with JSON body",
                         HttpRequestConfig {
                             method: HttpMethod::POST,
-                            uri: "http://localhost:8080/api/tasks".into(),
+                            uri: Some("http://localhost:8080/api/tasks".into()),
                             headers: [("Content-Type".into(), "application/json".into())].into(),
                             body: Some(serde_json::json!({
                                 "task_type": "pick_and_place",
@@ -103,10 +104,20 @@ fn register_http_request_node(registry: &mut DiagramElementRegistry, ensure_http
                         "GET with retry",
                         HttpRequestConfig {
                             method: HttpMethod::GET,
-                            uri: "http://localhost:8080/api/v2.0.0/status".into(),
+                            uri: Some("http://localhost:8080/api/v2.0.0/status".into()),
                             headers: Default::default(),
                             body: None,
                             retry: Some(RetryPolicy::default()),
+                        },
+                    ),
+                    ConfigExample::new(
+                        "URI from input",
+                        HttpRequestConfig {
+                            method: HttpMethod::POST,
+                            uri: None,
+                            headers: Default::default(),
+                            body: None,
+                            retry: None,
                         },
                     ),
                 ]),
@@ -133,17 +144,20 @@ fn http_request_node(
             let config = config.clone();
             async move {
                 let method: reqwest::Method = config.method.into();
-                let body = config.body.or(Some(request));
-                request_with_retry(
-                    http,
-                    rt,
-                    method,
-                    config.uri,
-                    config.headers,
-                    body,
-                    config.retry,
-                )
-                .await
+                let (uri, input_body) = match config.uri {
+                    Some(uri) => (uri, Some(request)),
+                    None => {
+                        let JsonMessage::Object(mut fields) = request else {
+                            return Err("http_request: uri is unset in config, so the input must be an object with a uri field".into());
+                        };
+                        let Some(JsonMessage::String(uri)) = fields.remove("uri") else {
+                            return Err("http_request: uri is unset in config and the input has no string uri field".into());
+                        };
+                        (uri, fields.remove("body"))
+                    }
+                };
+                let body = config.body.or(input_body);
+                request_with_retry(http, rt, method, uri, config.headers, body, config.retry).await
             }
         };
     builder.create_node(callback.into_callback())
@@ -502,5 +516,37 @@ mod tests {
             1,
             "a retry ran after the workflow ended"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dynamic_uri() {
+        let (base_url, _) = spawn_test_server().await;
+
+        let diagram = Diagram::from_json(json!({
+            "version": "0.1.0",
+            "start": "target",
+            "ops": {
+                "target": {
+                    "type": "transform",
+                    "cel": format!("{{'uri': '{base_url}/ok_after_500ms'}}"),
+                    "next": "request"
+                },
+                "request": {
+                    "type": "node",
+                    "builder": "http_request",
+                    "config": {"method": "GET"},
+                    "next": "result"
+                },
+                "result": {
+                    "type": "fork_result",
+                    "ok": { "builtin": "terminate" },
+                    "err": { "builtin": "terminate" }
+                }
+            }
+        }))
+        .unwrap();
+        let (out, _) = run(&diagram, json!({}));
+
+        assert_eq!(out, json!({"slow": true}));
     }
 }
