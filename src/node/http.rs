@@ -157,7 +157,16 @@ fn http_request_node(
                     }
                 };
                 let body = config.body.or(input_body);
-                request_with_retry(http, rt, method, uri, config.headers, body, config.retry).await
+                //load "${NAME}" headers from env vars
+                let mut headers = config.headers;
+                for value in headers.values_mut() {
+                    if let Some(name) = value.strip_prefix("${").and_then(|v| v.strip_suffix('}')) {
+                        *value = std::env::var(name).map_err(|_| {
+                            format!("http_request: header needs env var {name}, unset or not UTF-8")
+                        })?;
+                    }
+                }
+                request_with_retry(http, rt, method, uri, headers, body, config.retry).await
             }
         };
     builder.create_node(callback.into_callback())
@@ -252,6 +261,7 @@ mod tests {
     /// - `/bad_gateway` (POST): always 502.
     /// - `/ok_after_timeout` (POST): 200, but only after the request timeout.
     /// - `/ok_after_500ms` (GET): 200 after 500 ms. Not counted.
+    /// - `/echo_auth` (GET): 200 with `{"auth": <Authorization header>}`. Not counted.
     async fn spawn_test_server() -> (String, Arc<AtomicUsize>) {
         let request_count = Arc::new(AtomicUsize::new(0));
         let flaky = {
@@ -293,8 +303,16 @@ mod tests {
                 }
             }
         };
+        let echo_auth = |headers: axum::http::HeaderMap| async move {
+            let auth = headers
+                .get("authorization")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            (StatusCode::OK, format!(r#"{{"auth":"{auth}"}}"#))
+        };
         let app = axum::Router::new()
             .route("/service_unavailable_then_ok", axum::routing::get(flaky))
+            .route("/echo_auth", axum::routing::get(echo_auth))
             .route(
                 "/not_found",
                 axum::routing::get(always(StatusCode::NOT_FOUND)),
@@ -548,5 +566,19 @@ mod tests {
         let (out, _) = run(&diagram, json!({}));
 
         assert_eq!(out, json!({"slow": true}));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_header_placeholder_reads_env() {
+        let (base_url, _) = spawn_test_server().await;
+
+        let diagram = request_diagram(json!({
+            "method": "GET",
+            "uri": format!("{base_url}/echo_auth"),
+            "headers": { "Authorization": "${CARGO_PKG_NAME}" }
+        }));
+        let (out, _) = run(&diagram, json!({}));
+
+        assert_eq!(out, json!({"auth": env!("CARGO_PKG_NAME")}));
     }
 }
