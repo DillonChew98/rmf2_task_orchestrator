@@ -14,7 +14,7 @@ pub enum TemplateError {
     #[error("Failed to parse template '{name}': {reason}")]
     Parse { name: String, reason: String },
     #[error("Failed to find template in registry. TemplateSource may be invalid")]
-    NotFound {name: String}, 
+    NotFound { name: String },
 }
 
 #[derive(Deserialize)]
@@ -48,7 +48,10 @@ impl TemplateSource for TemplateFolderSource {
         let entries = match std::fs::read_dir(&self.dir_path) {
             Ok(entries) => entries,
             Err(e) => {
-                tracing::warn!("Failed to read templates directory {}: {e}", self.dir_path.display());
+                tracing::warn!(
+                    "Failed to read templates directory {}: {e}",
+                    self.dir_path.display()
+                );
                 return templates;
             }
         };
@@ -76,14 +79,13 @@ impl TemplateSource for TemplateFolderSource {
                     continue;
                 }
             };
-            let diagram: DiagramFile =
-                match serde_json::from_str(&content) {
-                    Ok(diagram) => diagram,
-                    Err(e) => {
-                        tracing::warn!("Failed to parse template file {}: {e}", file_path.display());
-                        continue;
-                    }
-                };
+            let diagram: DiagramFile = match serde_json::from_str(&content) {
+                Ok(diagram) => diagram,
+                Err(e) => {
+                    tracing::warn!("Failed to parse template file {}: {e}", file_path.display());
+                    continue;
+                }
+            };
             for (name, template) in diagram.templates {
                 if templates.contains_key(&name) {
                     tracing::warn!(
@@ -143,9 +145,9 @@ impl TemplateRegistry {
                     for op in template.ops.values() {
                         if let DiagramOperation::Section(section) = op.as_ref()
                             && let SectionProvider::Template(nested) = &section.provider
-                            {
-                                temp.push(nested.to_string());
-                            }
+                        {
+                            temp.push(nested.to_string());
+                        }
                     }
                     diagram.templates.insert(name.into(), template.clone());
                 }

@@ -18,11 +18,14 @@
 
 use std::sync::Arc;
 
+use crossflow::diagram::TraceToggle;
 use serde::Deserialize;
 
 use crate::TemplateRegistry;
+use crate::WorkflowTrackerHandle;
 use crate::client::amqp::AmqpError;
 use crate::executor::ExecutorHandle;
+use crate::workflow_updates::extract_section_workflows;
 
 // AMQP message containing a workflow execution request.
 // The workflow diagram is embedded in the payload field.
@@ -39,6 +42,7 @@ pub struct WorkflowExecuteMessage {
 pub async fn handle_workflow_execute(
     handle: ExecutorHandle,
     registry: Arc<TemplateRegistry>,
+    tracker: WorkflowTrackerHandle,
     data: Vec<u8>,
 ) -> Result<(), AmqpError> {
     let message: WorkflowExecuteMessage =
@@ -71,8 +75,15 @@ pub async fn handle_workflow_execute(
     .map_err(|e| AmqpError::Parse(format!("Diagram parse: {e}")))?;
     if let Err(e) = registry.inject(&mut diagram) {
         tracing::warn!("Skipping workflow {}: {e}", message.task_id);
-        return Err(AmqpError::Workflow(e.to_string()))
+        return Err(AmqpError::Workflow(e.to_string()));
     };
+
+    let workflow_sections = extract_section_workflows(&diagram_json);
+    for (workflow_id, sections) in workflow_sections {
+        tracker.register(workflow_id, sections);
+    }
+    diagram.default_trace = TraceToggle::Messages;
+
     let diagram_json = serde_json::to_value(&diagram)
         .map_err(|e| AmqpError::Parse(format!("Diagram re-serialize: {e}")))?;
 

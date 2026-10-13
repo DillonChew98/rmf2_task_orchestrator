@@ -23,7 +23,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use rmf2_task_orchestrator::client;
 use rmf2_task_orchestrator::config::{Settings, load_base_configuration};
 use rmf2_task_orchestrator::{TemplateFolderSource, TemplateRegistry};
-use rmf2_task_orchestrator::{create_amqp_router, spawn};
+use rmf2_task_orchestrator::{WorkflowTracker, create_amqp_router, spawn, workflow_events_router};
 
 async fn health_check() -> StatusCode {
     StatusCode::OK
@@ -51,25 +51,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut registry = TemplateRegistry::default();
     if let Some(dir) = &app_config.template_directory {
         let source = TemplateFolderSource::new(dir);
-        registry
-            .add_source(&source)
+        registry.add_source(&source)
     }
     let registry = Arc::new(registry);
-    let (executor_handle, editor_router) =
+    let (executor_handle, editor_router, trace_rx) =
         spawn(amqp_config, mqtt_config, http_config, grpc_config).await?;
+
+    let (tracker, tracker_handle) = WorkflowTracker::new(64);
+    tokio::spawn(tracker.run(trace_rx));
 
     let amqp_connection = client::AmqpConnection::new(amqp_config)
         .await
         .map_err(|e| format!("Failed to connect to AMQP broker: {e}"))?;
 
-    let amqp_router = create_amqp_router(executor_handle, Arc::clone(&registry));
+    let amqp_router = create_amqp_router(
+        executor_handle,
+        Arc::clone(&registry),
+        tracker_handle.clone(),
+    );
     tokio::spawn(client::run_consumer(
         amqp_connection,
         amqp_config.consumer.clone(),
         amqp_router,
     ));
 
-    let app = editor_router.route("/health_check", get(health_check));
+    let app = editor_router
+        .merge(workflow_events_router(tracker_handle))
+        .route("/health_check", get(health_check));
 
     let listener = tokio::net::TcpListener::bind(http_config.addr())
         .await
@@ -79,6 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Server listening on: http://{}", local_addr);
     tracing::info!("Diagram editor: http://{}/", local_addr);
     tracing::info!("Executor API: POST http://{}/api/executor/run", local_addr);
+    tracing::info!("Workflow SSE: http://{}/api/workflows/events", local_addr);
     axum::serve(listener, app).await?;
 
     Ok(())

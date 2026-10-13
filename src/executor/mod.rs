@@ -19,10 +19,12 @@
 mod amqp_handlers;
 
 use crate::TemplateRegistry;
+use crate::WorkflowTrackerHandle;
 use crate::client::mqtt::MqttSettings;
 use crate::client::{AmqpClient, AmqpRouter};
 use crate::config::{AmqpSettings, GrpcSettings, HttpSettings};
 use crate::node;
+use crate::workflow_updates::setup_trace_forwarding;
 use amqp_handlers::handle_workflow_execute;
 
 use std::sync::Arc;
@@ -30,11 +32,12 @@ use std::thread;
 
 use axum::Router;
 use crossflow::bevy_time::TimePlugin;
+use crossflow::trace::TracedEvent;
 use crossflow::{CrossflowExecutorApp, DiagramElementRegistry, bevy_app, bevy_ecs};
 use crossflow_diagram_editor::{ServerOptions, new_router};
 use std::sync::Arc;
 use std::{thread, time::Duration};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 
 #[derive(Clone)]
 pub struct ExecutorHandle {
@@ -50,9 +53,10 @@ pub async fn spawn(
     mqtt_config: Option<MqttSettings>,
     http_config: &HttpSettings,
     grpc_config: &GrpcSettings,
-) -> Result<(ExecutorHandle, Router), String> {
+) -> Result<(ExecutorHandle, Router, mpsc::UnboundedReceiver<TracedEvent>), String> {
     let amqp_client = create_amqp_client(amqp_config).await?;
     let (router_tx, router_rx) = oneshot::channel();
+    let (trace_tx, trace_rx) = mpsc::unbounded_channel();
     let tokio_handle = TokioHandle(tokio::runtime::Handle::current());
     let grpc_config = grpc_config.clone();
 
@@ -60,6 +64,7 @@ pub async fn spawn(
         let mut app = bevy_app::App::new();
         app.add_plugins((CrossflowExecutorApp::default(), TimePlugin));
         app.insert_resource(tokio_handle);
+        setup_trace_forwarding(&mut app, trace_tx);
 
         let mut registry = DiagramElementRegistry::new();
         node::amqp::register(&mut registry, amqp_client);
@@ -93,17 +98,23 @@ pub async fn spawn(
     let executor_url = String::from(http_config);
     let handle = ExecutorHandle { executor_url };
 
-    Ok((handle, diagram_editor_router))
+    Ok((handle, diagram_editor_router, trace_rx))
 }
 
-pub fn create_amqp_router(handle: ExecutorHandle, registry: Arc<TemplateRegistry>) -> AmqpRouter {
+pub fn create_amqp_router(
+    handle: ExecutorHandle,
+    registry: Arc<TemplateRegistry>,
+    tracker: WorkflowTrackerHandle,
+) -> AmqpRouter {
     AmqpRouter::default().route("", {
         let handle = handle.clone();
         let registry = Arc::clone(&registry);
+        let tracker = tracker.clone();
         move |data| {
             let handle = handle.clone();
             let registry = Arc::clone(&registry);
-            handle_workflow_execute(handle, registry, data)
+            let tracker = tracker.clone();
+            handle_workflow_execute(handle, registry, tracker, data)
         }
     })
 }

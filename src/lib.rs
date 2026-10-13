@@ -22,6 +22,8 @@ pub mod executor;
 mod node;
 pub mod template_registry;
 pub use template_registry::*;
+pub mod workflow_updates;
+pub use workflow_updates::*;
 
 pub(crate) use executor::TokioHandle;
 pub use executor::{ExecutorHandle, create_amqp_client, create_amqp_router, spawn};
