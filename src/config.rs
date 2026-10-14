@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -84,6 +85,11 @@ pub struct Settings {
     pub app: AppSettings,
 }
 
+#[derive(serde::Deserialize)]
+pub struct LabConfig {
+    pub lab: HashMap<String, String>,
+}
+
 pub enum Environment {
     Staging,
     Development,
@@ -120,7 +126,8 @@ fn load_base_configuration_once() -> Result<config::Config, config::ConfigError>
     CONFIG_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     let mut builder = config::Config::builder()
-        .add_source(config::File::new("config.toml", config::FileFormat::Toml));
+        .add_source(config::File::new("config.toml", config::FileFormat::Toml))
+        .add_source(config::File::new("lab.toml", config::FileFormat::Toml));
     let env = Environment::from_env();
     let env_file = env.load_env_file();
     tracing::info!("Loading configuration from env file '{}'", env_file);

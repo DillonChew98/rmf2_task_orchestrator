@@ -1,0 +1,15 @@
+# Values for the ${lab.NAME} placeholders in diagrams/marvel. Restart after a change.
+[lab]
+# mir_host = "<ip>"
+# ur_host = "<ip>:<port>"
+# dsc_host = "<ip>:<port>"
+# tga_host = "<ip>:<port>"
+# ftir_host = "<ip>:<port>"
+
+# MiR position ids on the map. Reconfigure when the waypoints change.
+# spm_waypoint = "<uuid>"
+# dsc_waypoint = "<uuid>"
+# tga_waypoint = "<uuid>"
+# ftir_waypoint = "<uuid>"
+# gpc_waypoint = "<uuid>"
+# charger_waypoint = "<uuid>"

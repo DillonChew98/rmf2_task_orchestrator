@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crossflow::diagram::TraceToggle;
@@ -24,6 +25,7 @@ use serde::Deserialize;
 use crate::TemplateRegistry;
 use crate::WorkflowTrackerHandle;
 use crate::client::amqp::AmqpError;
+use crate::config::{LabConfig, load_base_configuration};
 use crate::executor::ExecutorHandle;
 use crate::workflow_updates::extract_section_workflows;
 
@@ -79,13 +81,21 @@ pub async fn handle_workflow_execute(
     };
 
     let workflow_sections = extract_section_workflows(&diagram_json);
+    diagram.default_trace = TraceToggle::Messages;
+
+    let mut diagram_json = serde_json::to_value(&diagram)
+        .map_err(|e| AmqpError::Parse(format!("Diagram re-serialize: {e}")))?;
+    let lab = load_base_configuration::<LabConfig>()
+        .map_err(|e| AmqpError::Parse(format!("lab.toml: {e}")))?
+        .lab;
+    if let Err(e) = fill_lab_placeholders(&mut diagram_json, &lab) {
+        tracing::warn!("Skipping workflow {}: {e}", message.task_id);
+        return Err(AmqpError::Workflow(e));
+    }
+
     for (workflow_id, sections) in workflow_sections {
         tracker.register(workflow_id, sections);
     }
-    diagram.default_trace = TraceToggle::Messages;
-
-    let diagram_json = serde_json::to_value(&diagram)
-        .map_err(|e| AmqpError::Parse(format!("Diagram re-serialize: {e}")))?;
 
     // The request is the input value passed to the workflow's start node.
     // Nodes get their config from the diagram, so we pass task metadata as context.
@@ -112,7 +122,11 @@ pub async fn handle_workflow_execute(
 
     if response.status().is_success() {
         let result = response.json::<serde_json::Value>().await.ok();
-        tracing::info!("Workflow {} completed: {:?}", message.task_id, result);
+        tracing::info!(
+            "Workflow {} completed: {}",
+            message.task_id,
+            serde_json::to_string_pretty(&result).unwrap_or_default()
+        );
         Ok(())
     } else {
         let status = response.status();
@@ -123,6 +137,73 @@ pub async fn handle_workflow_execute(
             status,
             body
         );
-        Err(AmqpError::Workflow(format!("{status}: {body}")))
+        let pretty = serde_json::from_str::<serde_json::Value>(&body)
+            .and_then(|v| serde_json::to_string_pretty(&v))
+            .unwrap_or(body);
+        Err(AmqpError::Workflow(format!("{status}: {pretty}")))
+    }
+}
+
+// Swaps each `${lab.NAME}` in the diagram's strings for NAME from lab.toml.
+fn fill_lab_placeholders(
+    json: &mut serde_json::Value,
+    lab: &HashMap<String, String>,
+) -> Result<(), String> {
+    match json {
+        serde_json::Value::String(text) => {
+            while let Some(start) = text.find("${lab.") {
+                let (name, _) = text[start + 6..]
+                    .split_once('}')
+                    .ok_or_else(|| format!("unclosed ${{lab. in {text}"))?;
+                let value = lab
+                    .get(name)
+                    .ok_or_else(|| format!("lab.toml has no {name}"))?;
+                *text = text.replace(&format!("${{lab.{name}}}"), value);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for child in items {
+                fill_lab_placeholders(child, lab)?;
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for child in fields.values_mut() {
+                fill_lab_placeholders(child, lab)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_fill_lab_placeholders() {
+        let lab = HashMap::from([("mir_host".to_string(), "10.0.0.5".to_string())]);
+        let mut diagram = json!({
+            "ops": { "move": { "config": {
+                "uri": "http://${lab.mir_host}/api",
+                "headers": { "Authorization": "${MIR_AUTH}" }
+            }}}
+        });
+
+        fill_lab_placeholders(&mut diagram, &lab).unwrap();
+
+        let config = &diagram["ops"]["move"]["config"];
+        assert_eq!(config["uri"], "http://10.0.0.5/api");
+        assert_eq!(config["headers"]["Authorization"], "${MIR_AUTH}");
+    }
+
+    #[test]
+    fn test_fill_lab_placeholders_rejects_unknown_name() {
+        let mut diagram = json!({ "cel": "{'waypoint': '${lab.spn_waypoint}'}" });
+
+        let err = fill_lab_placeholders(&mut diagram, &HashMap::new()).unwrap_err();
+
+        assert_eq!(err, "lab.toml has no spn_waypoint");
     }
 }
