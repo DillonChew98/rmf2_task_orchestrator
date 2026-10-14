@@ -25,4 +25,4 @@ routing_key = ""
 exchange_kind = "fanout"
 
 [app]
-template_directory = "diagrams/lab_examples"
+template_directory = "diagrams/marvel"

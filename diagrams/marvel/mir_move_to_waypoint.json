@@ -1,0 +1,575 @@
+{
+  "templates": {
+    "mir_move_to_waypoint": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "fork_target_and_status",
+          "ops": {
+            "fork_target_and_status": {
+              "type": "fork_clone",
+              "next": [
+                "saved_waypoint",
+                "target_tick",
+                "read_robot_status"
+              ]
+            },
+            "saved_waypoint": {
+              "type": "buffer"
+            },
+            "target_tick": {
+              "type": "buffer",
+              "serialize": true
+            },
+            "target_gate": {
+              "type": "join",
+              "buffers": {
+                "waypoint": "saved_waypoint",
+                "tick": "target_tick"
+              },
+              "clone": [
+                "waypoint"
+              ],
+              "serialize": true,
+              "next": "build_target_request"
+            },
+            "build_target_request": {
+              "type": "transform",
+              "cel": "{'uri': 'http://${lab.mir_host}/api/v2.0.0/positions/' + request.waypoint.waypoint}",
+              "on_error": {
+                "builtin": "dispose"
+              },
+              "next": "fetch_target_position"
+            },
+            "fetch_target_position": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "GET /positions/{guid}: fetch the target position",
+              "config": {
+                "method": "GET",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "${MIR_AUTH}",
+                  "Accept-Language": "en_US"
+                },
+                "retry": {}
+              },
+              "next": "if_target_fetched"
+            },
+            "if_target_fetched": {
+              "type": "fork_result",
+              "ok": "saved_target",
+              "err": "report_setup_failed"
+            },
+            "saved_target": {
+              "type": "buffer"
+            },
+            "read_robot_status": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "GET /status: read the robot status",
+              "config": {
+                "method": "GET",
+                "uri": "http://${lab.mir_host}/api/v2.0.0/status",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "${MIR_AUTH}",
+                  "Accept-Language": "en_US"
+                },
+                "retry": {}
+              },
+              "next": "if_status_read"
+            },
+            "if_status_read": {
+              "type": "fork_result",
+              "ok": "keep_state_fields",
+              "err": "report_setup_failed"
+            },
+            "keep_state_fields": {
+              "type": "transform",
+              "cel": "{'state_id': request.state_id, 'state_text': request.state_text, 'mission_queue_id': request.mission_queue_id, 'mission_text': request.mission_text, 'position': request.position}",
+              "next": "is_robot_free",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "is_robot_free": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is the robot free? Ready, or parked on the charger",
+              "config": {
+                "condition": "state_id == 3 || (state_id == 5 && mission_text.contains('Waiting for new mission'))"
+              },
+              "next": "if_robot_free"
+            },
+            "if_robot_free": {
+              "type": "fork_result",
+              "ok": "saved_free_status",
+              "err": "wait_then_recheck_free"
+            },
+            "wait_then_recheck_free": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Wait 5 s, then check again. Give up after 25 s",
+              "config": {
+                "interval_secs": 5,
+                "timeout_secs": 25
+              },
+              "next": "if_free_retries_left"
+            },
+            "if_free_retries_left": {
+              "type": "fork_result",
+              "ok": "read_robot_status",
+              "err": "report_robot_busy"
+            },
+            "report_robot_busy": {
+              "type": "transform",
+              "next": {
+                "builtin": "terminate"
+              },
+              "cel": "{'result': 'failed', 'phase': 'setup', 'kind': 'robot busy', 'detail': request.message}",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_setup_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'phase': 'setup', 'kind': 'http call failed', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "saved_free_status": {
+              "type": "buffer"
+            },
+            "pair_target_with_status": {
+              "type": "join",
+              "buffers": {
+                "target": "saved_target",
+                "robot": "saved_free_status"
+              },
+              "clone": [
+                "target"
+              ],
+              "serialize": true,
+              "next": "is_robot_away_from_target"
+            },
+            "is_robot_away_from_target": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is the robot more than 0.3 m from the target?",
+              "config": {
+                "condition": "(robot.position.x - target.pos_x) * (robot.position.x - target.pos_x) + (robot.position.y - target.pos_y) * (robot.position.y - target.pos_y) > 0.09"
+              },
+              "next": "if_robot_away"
+            },
+            "if_robot_away": {
+              "type": "fork_result",
+              "ok": "read_arm_safety",
+              "err": "report_already_at_target"
+            },
+            "read_arm_safety": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "Read arm status",
+              "config": {
+                "method": "GET",
+                "uri": "http://${lab.ur_host}/task/status",
+                "headers": {
+                  "Accept": "application/json"
+                },
+                "retry": {}
+              },
+              "next": "if_arm_read"
+            },
+            "if_arm_read": {
+              "type": "fork_result",
+              "ok": "is_mir_safe_to_move",
+              "err": "report_setup_failed"
+            },
+            "is_mir_safe_to_move": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Safe to drive?",
+              "config": {
+                "condition": "mir_safe_to_move == true"
+              },
+              "next": "if_mir_safe"
+            },
+            "if_mir_safe": {
+              "type": "fork_result",
+              "ok": "move_tick",
+              "err": "wait_then_recheck_arm"
+            },
+            "wait_then_recheck_arm": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Wait for the arm",
+              "config": {
+                "interval_secs": 5,
+                "timeout_secs": 30
+              },
+              "next": "if_arm_retries_left"
+            },
+            "if_arm_retries_left": {
+              "type": "fork_result",
+              "ok": "read_arm_safety",
+              "err": "report_arm_not_safe"
+            },
+            "report_arm_not_safe": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'phase': 'setup', 'kind': 'arm not safe', 'detail': request.message}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "move_tick": {
+              "type": "buffer",
+              "serialize": true
+            },
+            "move_gate": {
+              "type": "join",
+              "buffers": {
+                "target": "saved_target",
+                "tick": "move_tick"
+              },
+              "clone": [
+                "target"
+              ],
+              "serialize": true,
+              "next": "build_move_request"
+            },
+            "report_already_at_target": {
+              "type": "transform",
+              "cel": "{'result': 'already at destination', 'target': request.message.target.name, 'position': request.message.robot.position}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "build_move_request": {
+              "type": "transform",
+              "cel": "{'mission_id': 'mirconst-guid-0000-0001-actionlist00', 'parameters': [{'input_name': 'Position', 'value': request.target.guid}]}",
+              "next": "send_move",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "send_move": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "POST /mission_queue: send the Move",
+              "config": {
+                "method": "POST",
+                "uri": "http://${lab.mir_host}/api/v2.0.0/mission_queue",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "${MIR_AUTH}",
+                  "Accept-Language": "en_US"
+                },
+                "retry": {}
+              },
+              "next": "if_move_sent"
+            },
+            "if_move_sent": {
+              "type": "fork_result",
+              "ok": "remember_mission",
+              "err": "why_http_call_failed"
+            },
+            "remember_mission": {
+              "type": "transform",
+              "cel": "{'uri': 'http://${lab.mir_host}/api/v2.0.0/mission_queue/' + string(request.id), 'queue_id': request.id}",
+              "next": "start_polling",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "start_polling": {
+              "type": "fork_clone",
+              "next": [
+                "saved_mission",
+                "poll_tick"
+              ]
+            },
+            "saved_mission": {
+              "type": "buffer"
+            },
+            "poll_tick": {
+              "type": "buffer",
+              "serialize": true
+            },
+            "poll_gate": {
+              "type": "join",
+              "buffers": {
+                "mission": "saved_mission",
+                "tick": "poll_tick"
+              },
+              "clone": [
+                "mission"
+              ],
+              "serialize": true,
+              "next": "build_poll_request"
+            },
+            "build_poll_request": {
+              "type": "transform",
+              "cel": "{'uri': request.mission.uri}",
+              "next": "read_mission_state",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "read_mission_state": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "GET /mission_queue/{id}: how is our own mission doing?",
+              "config": {
+                "method": "GET",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "${MIR_AUTH}",
+                  "Accept-Language": "en_US"
+                },
+                "retry": {}
+              },
+              "next": "if_mission_read"
+            },
+            "if_mission_read": {
+              "type": "fork_result",
+              "ok": "is_mission_finished",
+              "err": "why_http_call_failed"
+            },
+            "is_mission_finished": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Has the mission ended? Done, Abort or Aborted",
+              "config": {
+                "condition": "state == 'Done' || state == 'Abort' || state == 'Aborted'"
+              },
+              "next": "if_mission_finished"
+            },
+            "if_mission_finished": {
+              "type": "fork_result",
+              "ok": "is_mission_done",
+              "err": "wait_then_poll_again"
+            },
+            "is_mission_done": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Did it end well? Done, not Aborted",
+              "config": {
+                "condition": "state == 'Done'"
+              },
+              "next": "if_mission_done"
+            },
+            "if_mission_done": {
+              "type": "fork_result",
+              "ok": "arrived_tick",
+              "err": "why_mission_aborted"
+            },
+            "wait_then_poll_again": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Still Pending or Executing. Wait 5 s, then poll again. Give up after 2 min",
+              "config": {
+                "interval_secs": 5,
+                "timeout_secs": 120
+              },
+              "next": "if_poll_retries_left"
+            },
+            "if_poll_retries_left": {
+              "type": "fork_result",
+              "ok": "poll_tick",
+              "err": "why_mission_timed_out"
+            },
+            "arrived_tick": {
+              "type": "buffer",
+              "serialize": true
+            },
+            "arrived_gate": {
+              "type": "join",
+              "buffers": {
+                "target": "saved_target",
+                "tick": "arrived_tick"
+              },
+              "clone": [
+                "target"
+              ],
+              "serialize": true,
+              "next": "report_final_status"
+            },
+            "report_final_status": {
+              "type": "transform",
+              "cel": "{'result': 'arrived', 'location': request.target.name, 'queue_id': request.tick.id}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "why_mission_aborted": {
+              "type": "transform",
+              "cel": "{'kind': 'mission aborted', 'detail': request.message}",
+              "next": "fan_move_failure",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "fan_move_failure": {
+              "type": "fork_clone",
+              "next": [
+                "saved_move_failure",
+                "clear_mission_queue"
+              ]
+            },
+            "saved_move_failure": {
+              "type": "buffer"
+            },
+            "charge_tick": {
+              "type": "buffer"
+            },
+            "move_failure_gate": {
+              "type": "join",
+              "buffers": {
+                "failure": "saved_move_failure",
+                "tick": "charge_tick"
+              },
+              "serialize": true,
+              "next": "report_move_failed"
+            },
+            "clear_mission_queue": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "DELETE /mission_queue: wipe the queue, aborting the Move",
+              "config": {
+                "method": "DELETE",
+                "uri": "http://${lab.mir_host}/api/v2.0.0/mission_queue",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "${MIR_AUTH}",
+                  "Accept-Language": "en_US"
+                },
+                "retry": {}
+              },
+              "next": "if_queue_cleared"
+            },
+            "if_queue_cleared": {
+              "type": "fork_result",
+              "ok": "send_to_charger",
+              "err": "report_queue_clear_failed"
+            },
+            "send_to_charger": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "POST /mission_queue: ChargeAtStation, send the robot home",
+              "config": {
+                "method": "POST",
+                "uri": "http://${lab.mir_host}/api/v2.0.0/mission_queue",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "${MIR_AUTH}",
+                  "Accept-Language": "en_US"
+                },
+                "body": {
+                  "mission_id": "mirconst-guid-0000-0004-actionlist00",
+                  "parameters": [
+                    {
+                      "input_name": "chargingStationPosition",
+                      "value": "${lab.charger_waypoint}"
+                    },
+                    {
+                      "input_name": "numberOfRetries",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              "next": "if_charge_sent"
+            },
+            "if_charge_sent": {
+              "type": "fork_result",
+              "ok": "charge_tick",
+              "err": "report_charge_failed"
+            },
+            "report_move_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'phase': 'move', 'kind': request.failure.kind, 'detail': request.failure.detail, 'note': 'robot sent to the charger'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_queue_clear_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'phase': 'recovery', 'kind': 'http call failed', 'step': 'clear mission queue', 'detail': request, 'note': 'the queue may still hold the Move, so the robot may still be driving'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_charge_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'phase': 'recovery', 'kind': 'http call failed', 'step': 'send to charger', 'detail': request, 'note': 'the queue is wiped, so the robot has stopped'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "why_http_call_failed": {
+              "type": "transform",
+              "next": "fan_move_failure",
+              "cel": "{'kind': 'http call failed', 'detail': request}",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "why_mission_timed_out": {
+              "type": "transform",
+              "cel": "{'kind': 'mission timed out', 'detail': request.message}",
+              "next": "fan_move_failure",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did the box succeed? Arrived, or already at the destination",
+          "config": {
+            "condition": "result == 'arrived' || result == 'already at destination'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}

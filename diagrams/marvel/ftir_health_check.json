@@ -1,0 +1,80 @@
+{
+  "templates": {
+    "ftir_health_check": {
+      "inputs": ["start"],
+      "outputs": ["ok", "failed"],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "ask_status",
+          "ops": {
+            "ask_status": {
+              "type": "node",
+              "builder": "grpc_request",
+              "display_text": "Read FTIR status",
+              "config": {
+                "service": "sila2.com.bruker.ftir.instrumentstatus.v2.InstrumentStatus",
+                "method": "Subscribe_CurrentInstrumentStatus",
+                "uri": "https://${lab.ftir_host}",
+                "timeout": 10,
+                "request": {}
+              },
+              "stream_out": { "out": "check_status" },
+              "next": "if_answered"
+            },
+            "if_answered": {
+              "type": "fork_result",
+              "ok": { "builtin": "dispose" },
+              "err": "report_no_answer"
+            },
+            "check_status": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is OPUS reachable?",
+              "config": {
+                "condition": "CurrentInstrumentStatus.value != 'Unreachable'"
+              },
+              "next": "if_reachable"
+            },
+            "if_reachable": {
+              "type": "fork_result",
+              "ok": "report_healthy",
+              "err": "report_unhealthy"
+            },
+            "report_healthy": {
+              "type": "transform",
+              "cel": "{'result': 'succeeded', 'reply': request}",
+              "next": { "builtin": "terminate" },
+              "on_error": { "builtin": "dispose" }
+            },
+            "report_no_answer": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'ask_status', 'detail': request}",
+              "next": { "builtin": "terminate" },
+              "on_error": { "builtin": "dispose" }
+            },
+            "report_unhealthy": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'check_status', 'detail': request.error, 'last_reply': request.message}",
+              "next": { "builtin": "terminate" },
+              "on_error": { "builtin": "dispose" }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Is the FTIR reachable?",
+          "config": { "condition": "result == 'succeeded'" },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}

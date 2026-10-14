@@ -1,0 +1,292 @@
+{
+  "templates": {
+    "ur_perform_task": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "fork_params_and_start",
+          "ops": {
+            "fork_params_and_start": {
+              "type": "fork_clone",
+              "next": [
+                "saved_params",
+                "read_arm_status"
+              ]
+            },
+            "saved_params": {
+              "type": "buffer"
+            },
+            "read_arm_status": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "GET /task/status: is the arm free?",
+              "config": {
+                "method": "GET",
+                "uri": "http://${lab.ur_host}/task/status",
+                "headers": {
+                  "Accept": "application/json"
+                },
+                "retry": {}
+              },
+              "next": "if_arm_status_read"
+            },
+            "if_arm_status_read": {
+              "type": "fork_result",
+              "ok": "is_arm_ready",
+              "err": "report_arm_status_read_failed"
+            },
+            "is_arm_ready": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Arm ready? Nothing running and External Control up",
+              "config": {
+                "condition": "ready == true"
+              },
+              "next": "if_arm_ready"
+            },
+            "if_arm_ready": {
+              "type": "fork_result",
+              "ok": "start_tick",
+              "err": "wait_then_recheck_arm"
+            },
+            "wait_then_recheck_arm": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Arm busy. Wait 5 s, give up after 30 s",
+              "config": {
+                "interval_secs": 5,
+                "timeout_secs": 30
+              },
+              "next": "if_arm_wait_left"
+            },
+            "if_arm_wait_left": {
+              "type": "fork_result",
+              "ok": "read_arm_status",
+              "err": "report_arm_not_ready"
+            },
+            "report_arm_not_ready": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'wait_for_arm', 'detail': request.error, 'last_reply': request.message}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_arm_status_read_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'read_arm_status', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "start_tick": {
+              "type": "buffer",
+              "serialize": true
+            },
+            "start_gate": {
+              "type": "join",
+              "buffers": {
+                "params": "saved_params",
+                "tick": "start_tick"
+              },
+              "clone": [
+                "params"
+              ],
+              "serialize": true,
+              "next": "build_start_body"
+            },
+            "build_start_body": {
+              "type": "transform",
+              "cel": "{'task': request.params.task, 'action': request.params.action, 'item': request.params.item}",
+              "on_error": {
+                "builtin": "dispose"
+              },
+              "next": "start_task"
+            },
+            "start_task": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "POST /task/start: run the task from the message body",
+              "config": {
+                "method": "POST",
+                "uri": "http://${lab.ur_host}/task/start",
+                "headers": {
+                  "Accept": "application/json"
+                },
+                "retry": {}
+              },
+              "next": "if_task_started"
+            },
+            "if_task_started": {
+              "type": "fork_result",
+              "ok": "status_tick",
+              "err": "report_start_refused"
+            },
+            "report_start_refused": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'start_task', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "status_tick": {
+              "type": "buffer",
+              "serialize": true
+            },
+            "status_gate": {
+              "type": "join",
+              "buffers": {
+                "params": "saved_params",
+                "tick": "status_tick"
+              },
+              "clone": [
+                "params"
+              ],
+              "serialize": true,
+              "next": "build_status_uri"
+            },
+            "build_status_uri": {
+              "type": "transform",
+              "cel": "{'uri': 'http://${lab.ur_host}/task/status?task=' + request.params.task}",
+              "on_error": {
+                "builtin": "dispose"
+              },
+              "next": "read_task_status"
+            },
+            "read_task_status": {
+              "type": "node",
+              "builder": "http_request",
+              "display_text": "GET /task/status?task=<task>: has it ended?",
+              "config": {
+                "method": "GET",
+                "headers": {
+                  "Accept": "application/json"
+                },
+                "retry": {}
+              },
+              "next": "if_task_status_read"
+            },
+            "if_task_status_read": {
+              "type": "fork_result",
+              "ok": "has_task_ended",
+              "err": "report_task_read_failed"
+            },
+            "report_task_read_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'read_task_status', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "has_task_ended": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Task ended? COMPLETED or ERROR",
+              "config": {
+                "condition": "state == 'COMPLETED' || state == 'ERROR'"
+              },
+              "next": "if_task_ended"
+            },
+            "if_task_ended": {
+              "type": "fork_result",
+              "ok": "did_task_succeed",
+              "err": "wait_then_poll_task"
+            },
+            "wait_then_poll_task": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Still running. Wait 5 s, give up after 120 s",
+              "config": {
+                "interval_secs": 5,
+                "timeout_secs": 120
+              },
+              "next": "if_task_wait_left"
+            },
+            "if_task_wait_left": {
+              "type": "fork_result",
+              "ok": "status_tick",
+              "err": "report_task_timed_out"
+            },
+            "report_task_timed_out": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'wait_for_task', 'detail': request.error, 'last_reply': request.message}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "did_task_succeed": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Ended well? COMPLETED, not ERROR",
+              "config": {
+                "condition": "state == 'COMPLETED'"
+              },
+              "next": "if_task_succeeded"
+            },
+            "if_task_succeeded": {
+              "type": "fork_result",
+              "ok": "report_task_done",
+              "err": "report_task_failed"
+            },
+            "report_task_done": {
+              "type": "transform",
+              "cel": "{'result': 'done', 'status': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_task_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'run_task', 'detail': request.message}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did the box succeed? Task done",
+          "config": {
+            "condition": "result == 'done'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}
