@@ -27,6 +27,13 @@ pub enum SectionStatus {
     Completed,
 }
 
+#[derive(Debug, PartialEq)]
+enum TargetKind {
+    RegisteredSection(String),
+    TopLevel,
+    Internal,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkflowEvent {
     pub workflow_id: WorkflowId,
@@ -197,11 +204,33 @@ impl WorkflowTracker {
         self.extract_section_from_ref(op_ref).map(|s| s.to_string())
     }
 
-    fn handle_message_sent(&mut self, msg: &MessageSent) {
-        let input_section = self.section_from_info(&msg.input.info);
+    fn classify_target(
+        &self,
+        info: &Option<std::sync::Arc<crossflow::trace::OperationInfo>>,
+    ) -> TargetKind {
+        let Some(op_info) = info.as_ref() else {
+            return TargetKind::Internal;
+        };
+        let Some(op_ref) = op_info.id().as_ref() else {
+            return TargetKind::Internal;
+        };
+        match op_ref {
+            OperationRef::Named(named) => match named.namespaces.0.first() {
+                Some(ns) if self.section_name_to_workflow.contains_key(ns.as_ref()) => {
+                    TargetKind::RegisteredSection(ns.to_string())
+                }
+                Some(_) => TargetKind::Internal,
+                None => TargetKind::TopLevel,
+            },
+            _ => TargetKind::Internal,
+        }
+    }
 
-        // Running: first message entering a section
-        if let Some(ref section_name) = input_section {
+    fn handle_message_sent(&mut self, msg: &MessageSent) {
+        let input_kind = self.classify_target(&msg.input.info);
+
+        // Running: first message entering a registered section
+        if let TargetKind::RegisteredSection(ref section_name) = input_kind {
             if !self.sections_running.contains(section_name.as_str()) {
                 if let Some(workflow_id) = self
                     .section_name_to_workflow
@@ -219,7 +248,9 @@ impl WorkflowTracker {
             }
         }
 
-        // Completed: message leaving a section (output source is in a section, input target is not in the same section)
+        // Completed: message from a registered section to a different registered
+        // section or to a top-level op. Messages to builtins (Dispose, Terminate,
+        // etc.) are internal and never signal completion.
         for source in &msg.output {
             let Some(source_section) = self.section_from_info(&source.info) else {
                 continue;
@@ -227,8 +258,12 @@ impl WorkflowTracker {
             if !self.sections_running.contains(source_section.as_str()) {
                 continue;
             }
-            let same_section = input_section.as_deref() == Some(source_section.as_str());
-            if same_section {
+            let is_completion = match &input_kind {
+                TargetKind::RegisteredSection(target) => target.as_str() != source_section.as_str(),
+                TargetKind::TopLevel => true,
+                TargetKind::Internal => false,
+            };
+            if !is_completion {
                 continue;
             }
             let Some(workflow_id) = self
@@ -373,6 +408,68 @@ mod tests {
         }))
     }
 
+    fn message_to_top_level(from_section: &str, from_op: &str, to_op: &str) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(from_section, from_op),
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: Some(Arc::new(OperationInfo::new(
+                Some(OperationRef::Named(NamedOperationRef {
+                    namespaces: NamespaceList(smallvec![]),
+                    exposed_namespace: None,
+                    name: to_op.into(),
+                })),
+                None,
+                None,
+            ))),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message: None,
+        }))
+    }
+
+    fn message_to_dispose(from_section: &str, from_op: &str) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(from_section, from_op),
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: Some(Arc::new(OperationInfo::new(
+                Some(OperationRef::Dispose),
+                None,
+                None,
+            ))),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message: None,
+        }))
+    }
+
     async fn collect_events(
         rx: &mut broadcast::Receiver<WorkflowEvent>,
         count: usize,
@@ -419,7 +516,7 @@ mod tests {
 
         tokio::spawn(tracker.run(trace_rx));
 
-        handle.register("wf-1".into(), vec!["pickup".into()]);
+        handle.register("wf-1".into(), vec!["pickup".into(), "dropoff".into()]);
         tokio::task::yield_now().await;
 
         trace_tx
@@ -433,13 +530,12 @@ mod tests {
 
         drop(trace_tx);
 
-        let events = collect_events(&mut sub, 3).await;
-        assert_eq!(events.len(), 3);
-        assert_eq!(events[0].status, SectionStatus::Pending);
-        assert_eq!(events[1].status, SectionStatus::Running);
-        assert_eq!(events[1].section_id, "pickup");
-        assert_eq!(events[2].status, SectionStatus::Completed);
-        assert_eq!(events[2].section_id, "pickup");
+        let events = collect_events(&mut sub, 10).await;
+        let pickup: Vec<_> = events.iter().filter(|e| e.section_id == "pickup").collect();
+        assert_eq!(pickup.len(), 3);
+        assert_eq!(pickup[0].status, SectionStatus::Pending);
+        assert_eq!(pickup[1].status, SectionStatus::Running);
+        assert_eq!(pickup[2].status, SectionStatus::Completed);
     }
 
     #[tokio::test]
@@ -472,7 +568,7 @@ mod tests {
 
         tokio::spawn(tracker.run(trace_rx));
 
-        handle.register("wf-a".into(), vec!["wf_a_op1".into()]);
+        handle.register("wf-a".into(), vec!["wf_a_op1".into(), "wf_a_op2".into()]);
         handle.register("wf-b".into(), vec!["wf_b_op1".into()]);
         tokio::task::yield_now().await;
 
@@ -492,17 +588,73 @@ mod tests {
 
         let events = collect_events(&mut sub, 10).await;
 
-        let wf_a_events: Vec<_> = events.iter().filter(|e| e.workflow_id == "wf-a").collect();
+        let wf_a_op1: Vec<_> = events
+            .iter()
+            .filter(|e| e.workflow_id == "wf-a" && e.section_id == "wf_a_op1")
+            .collect();
         let wf_b_events: Vec<_> = events.iter().filter(|e| e.workflow_id == "wf-b").collect();
 
-        assert_eq!(wf_a_events.len(), 3);
-        assert_eq!(wf_a_events[0].status, SectionStatus::Pending);
-        assert_eq!(wf_a_events[1].status, SectionStatus::Running);
-        assert_eq!(wf_a_events[2].status, SectionStatus::Completed);
+        assert_eq!(wf_a_op1.len(), 3);
+        assert_eq!(wf_a_op1[0].status, SectionStatus::Pending);
+        assert_eq!(wf_a_op1[1].status, SectionStatus::Running);
+        assert_eq!(wf_a_op1[2].status, SectionStatus::Completed);
 
         assert_eq!(wf_b_events.len(), 2);
         assert_eq!(wf_b_events[0].status, SectionStatus::Pending);
         assert_eq!(wf_b_events[1].status, SectionStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn dispose_does_not_trigger_completion() {
+        let (tracker, handle) = WorkflowTracker::new(64);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register("wf-1".into(), vec!["pickup".into()]);
+        tokio::task::yield_now().await;
+
+        trace_tx
+            .send(message_entering_section("pickup", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_to_dispose("pickup", "if_requested"))
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 3).await;
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].status, SectionStatus::Pending);
+        assert_eq!(events[1].status, SectionStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn top_level_target_triggers_completion() {
+        let (tracker, handle) = WorkflowTracker::new(64);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register("wf-1".into(), vec!["pickup".into()]);
+        tokio::task::yield_now().await;
+
+        trace_tx
+            .send(message_entering_section("pickup", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_to_top_level("pickup", "status_report", "join__end"))
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 3).await;
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].status, SectionStatus::Pending);
+        assert_eq!(events[1].status, SectionStatus::Running);
+        assert_eq!(events[2].status, SectionStatus::Completed);
     }
 
     #[test]
