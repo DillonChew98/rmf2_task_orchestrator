@@ -1,0 +1,213 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="sdt" FeatureVersion="2.0" MaturityLevel="Draft" Originator="org.tainstruments" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+<Identifier>GasControl</Identifier>
+<DisplayName>SDT gas controller</DisplayName>
+<Description>Gas selection and flows.</Description>
+<DataTypeDefinition>
+  <Identifier>Request</Identifier>
+  <DisplayName>Request</DisplayName>
+  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Version</Identifier>
+        <DisplayName>Version</DisplayName>
+        <Description>Envelope schema version. Currently 2.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>CorrelationId</Identifier>
+        <DisplayName>Correlation id</DisplayName>
+        <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>TimeoutSeconds</Identifier>
+        <DisplayName>Timeout (seconds)</DisplayName>
+        <Description>Command timeout in seconds. 0 means the server default.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Payload</Identifier>
+        <DisplayName>Payload</DisplayName>
+        <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>Envelope</Identifier>
+  <DisplayName>Envelope</DisplayName>
+  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Version</Identifier>
+        <DisplayName>Version</DisplayName>
+        <Description>Envelope schema version. Currently 2.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Outcome</Identifier>
+        <DisplayName>Outcome</DisplayName>
+        <Description>Succeeded, Failed, Rejected, or Running.</Description>
+        <DataType>
+          <Constrained>
+            <DataType>
+              <Basic>String</Basic>
+            </DataType>
+            <Constraints>
+              <Set>
+                <Value>Succeeded</Value>
+                <Value>Failed</Value>
+                <Value>Rejected</Value>
+                <Value>Running</Value>
+              </Set>
+            </Constraints>
+          </Constrained>
+        </DataType>
+      </Element>
+      <Element>
+        <Identifier>Code</Identifier>
+        <DisplayName>Code</DisplayName>
+        <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Message</Identifier>
+        <DisplayName>Message</DisplayName>
+        <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>CorrelationId</Identifier>
+        <DisplayName>Correlation id</DisplayName>
+        <Description>Echo of the request correlation id. Empty means none.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Payload</Identifier>
+        <DisplayName>Payload</DisplayName>
+        <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Details</Identifier>
+        <DisplayName>Details</DisplayName>
+        <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>SelectGasRequestPayload</Identifier>
+  <DisplayName>Select gas request payload</DisplayName>
+  <Description>SelectGas Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>SelectGasResult</Identifier>
+  <DisplayName>Select gas result</DisplayName>
+  <Description>SelectGas Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>SetGasFlowRateRequestPayload</Identifier>
+  <DisplayName>Set gas flow rate request payload</DisplayName>
+  <Description>SetGasFlowRate Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>SetGasFlowRateResult</Identifier>
+  <DisplayName>Set gas flow rate result</DisplayName>
+  <Description>SetGasFlowRate Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<Property>
+  <Identifier>CurrentGasStatus</Identifier>
+  <DisplayName>Gas status</DisplayName>
+  <Description>GET /gas/status body as UTF-8 JSON. Subscribeable; Get returns a live snapshot.</Description>
+  <Observable>Yes</Observable>
+  <DataType><Basic>String</Basic></DataType>
+</Property>
+<Command>
+  <Identifier>SelectGas</Identifier>
+  <DisplayName>Select gas</DisplayName>
+  <Description>POST /gas/select. Request.Payload is SelectGasRequestPayload; Result.Payload is SelectGasResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>SetGasFlowRate</Identifier>
+  <DisplayName>Set gas flow rate</DisplayName>
+  <Description>POST /gas/flow-rate. Request.Payload is SetGasFlowRateRequestPayload; Result.Payload is SetGasFlowRateResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<DefinedExecutionError>
+  <Identifier>InternalError</Identifier>
+  <DisplayName>Internal error</DisplayName>
+  <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+</DefinedExecutionError>
+</Feature>

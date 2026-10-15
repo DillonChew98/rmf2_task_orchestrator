@@ -1,0 +1,17 @@
+{
+  "ApplicationControl": "dda14240c6817bb5e1f7b05723e1d93cf3d86f03d74cccc2a18bfb92864bdacb",
+  "ApplicationSettings": "c654ba75dd83395e6062544226aec818c5470c374bf9a2a7eee5947c51d036b8",
+  "Authentication": "b41b224b8555556744f78539d90e1c942f468bac71b3494004919fdd2fd3ce2f",
+  "AutosamplerControl": "33ae1c6b60cb4dad97935aaecaf51f827e1c3ba25230f21193239c33350a66f9",
+  "DialogControl": "37acd8950569d3a277fd785d6d7697c2c225033afe375868aed8f20da44f5ebc",
+  "Discovery": "d3ad5783051b80fb58c22f2561b0149bb562b3c5498d0d633fcc21ed16afe518",
+  "FurnaceControl": "8f62bcd1993cdf9c8cd2b2f2c1d3c62bf843a47c3b7469da99dacddbfe201297",
+  "GasControl": "c14d6eef558b9f40cb7519fc44575d29d97deb5fd618fe1a4ce878da35b61c68",
+  "InstrumentStatus": "4970c28bb2b5abb1b71014cca5d956460bfeb032c17c4c3fe68ba45fdf58d603",
+  "PanWeighing": "8935c653e26de53f901525172be2c7a693b65a4d83040d1b76f1b12ec99b500e",
+  "QueueManagement": "219fe82261015eda5bf8d37965b09145c8a260f65ecdaac6748009b626a467ee",
+  "ReferencePansManagement": "91f1a3a1784e401707e12687836fc8413bc1c9c68a51ad5c576f8caaf05f1b11",
+  "ResultsExport": "4a6fea3b5bc6c19c9003046ca180aa82aed055378fca0b5b9f250565978488f0",
+  "RunControl": "2076d975b9f756c0a36ca52582e0fe32dade124a522f2ea5237a9f693c8b8853",
+  "SampleMode": "d4f803cb4f0178aabef87eb1482cb50099728ff85bd29ef643b53517a23789c0"
+}

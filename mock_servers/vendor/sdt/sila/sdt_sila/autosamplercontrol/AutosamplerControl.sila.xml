@@ -1,0 +1,640 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="sdt" FeatureVersion="2.0" MaturityLevel="Draft" Originator="org.tainstruments" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+  <Identifier>AutosamplerControl</Identifier>
+  <DisplayName>SDT autosampler</DisplayName>
+  <Description>Autosampler motion and configuration.</Description>
+  <DataTypeDefinition>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>TimeoutSeconds</Identifier>
+          <DisplayName>Timeout (seconds)</DisplayName>
+          <Description>Command timeout in seconds. 0 means the server default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>Envelope</Identifier>
+    <DisplayName>Envelope</DisplayName>
+    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Outcome</Identifier>
+          <DisplayName>Outcome</DisplayName>
+          <Description>Succeeded, Failed, Rejected, or Running.</Description>
+          <DataType>
+            <Constrained>
+              <DataType>
+                <Basic>String</Basic>
+              </DataType>
+              <Constraints>
+                <Set>
+                  <Value>Succeeded</Value>
+                  <Value>Failed</Value>
+                  <Value>Rejected</Value>
+                  <Value>Running</Value>
+                </Set>
+              </Constraints>
+            </Constrained>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Code</Identifier>
+          <DisplayName>Code</DisplayName>
+          <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Message</Identifier>
+          <DisplayName>Message</DisplayName>
+          <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Echo of the request correlation id. Empty means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Details</Identifier>
+          <DisplayName>Details</DisplayName>
+          <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>AutosamplerProgress</Identifier>
+    <DisplayName>Autosampler progress</DisplayName>
+    <Description>Intermediate Update Payload during autosampler motion commands.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>GetAutosamplerSettingsJsonResult</Identifier>
+    <DisplayName>Get autosampler settings result</DisplayName>
+    <Description>GetAutosamplerSettingsJson Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>UpdateAutosamplerSettingsRequestPayload</Identifier>
+    <DisplayName>Update autosampler settings request payload</DisplayName>
+    <Description>UpdateAutosamplerSettings Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>UpdateAutosamplerSettingsResult</Identifier>
+    <DisplayName>Update autosampler settings result</DisplayName>
+    <Description>UpdateAutosamplerSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>LoadSamplePanRequestPayload</Identifier>
+    <DisplayName>Load sample pan request payload</DisplayName>
+    <Description>LoadSamplePan Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>UnloadSamplePanRequestPayload</Identifier>
+    <DisplayName>Unload sample pan request payload</DisplayName>
+    <Description>UnloadSamplePan Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>LoadReferencePanRequestPayload</Identifier>
+    <DisplayName>Load reference pan request payload</DisplayName>
+    <Description>LoadReferencePan Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>UnloadReferencePanRequestPayload</Identifier>
+    <DisplayName>Unload reference pan request payload</DisplayName>
+    <Description>UnloadReferencePan Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ParkAutosamplerRequestPayload</Identifier>
+    <DisplayName>Park autosampler request payload</DisplayName>
+    <Description>ParkAutosampler Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Position</Identifier>
+          <DisplayName>Position</DisplayName>
+          <Description>TraySide or FurnaceSide.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>LoadSamplePanResult</Identifier>
+    <DisplayName>Load sample pan result</DisplayName>
+    <Description>LoadSamplePan Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>UnloadSamplePanResult</Identifier>
+    <DisplayName>Unload sample pan result</DisplayName>
+    <Description>UnloadSamplePan Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>LoadReferencePanResult</Identifier>
+    <DisplayName>Load reference pan result</DisplayName>
+    <Description>LoadReferencePan Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>UnloadReferencePanResult</Identifier>
+    <DisplayName>Unload reference pan result</DisplayName>
+    <Description>UnloadReferencePan Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ResetAutosamplerResult</Identifier>
+    <DisplayName>Reset autosampler result</DisplayName>
+    <Description>ResetAutosampler Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ParkAutosamplerResult</Identifier>
+    <DisplayName>Park autosampler result</DisplayName>
+    <Description>ParkAutosampler Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <Property>
+    <Identifier>CurrentAutosamplerStatus</Identifier>
+    <DisplayName>Autosampler status</DisplayName>
+    <Description>GET /autosampler/status body as UTF-8 JSON. Subscribeable; Get returns a live snapshot.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Command>
+    <Identifier>GetAutosamplerSettingsJson</Identifier>
+    <DisplayName>Autosampler settings</DisplayName>
+    <Description>GET /autosampler/settings. Result.Payload is GetAutosamplerSettingsJsonResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>UpdateAutosamplerSettings</Identifier>
+    <DisplayName>Update autosampler settings</DisplayName>
+    <Description>PUT /autosampler/settings. Request.Payload is UpdateAutosamplerSettingsRequestPayload; Result.Payload is UpdateAutosamplerSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>LoadSamplePan</Identifier>
+    <DisplayName>Load sample pan</DisplayName>
+    <Description>POST /autosampler/load-sample. Request.Payload is LoadSamplePanRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is LoadSamplePanResult.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>UnloadSamplePan</Identifier>
+    <DisplayName>Unload sample pan</DisplayName>
+    <Description>POST /autosampler/unload-sample. Request.Payload is UnloadSamplePanRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is UnloadSamplePanResult.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>LoadReferencePan</Identifier>
+    <DisplayName>Load reference pan</DisplayName>
+    <Description>POST /autosampler/load-reference. Request.Payload is LoadReferencePanRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is LoadReferencePanResult.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>UnloadReferencePan</Identifier>
+    <DisplayName>Unload reference pan</DisplayName>
+    <Description>POST /autosampler/unload-reference. Request.Payload is UnloadReferencePanRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is UnloadReferencePanResult.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ResetAutosampler</Identifier>
+    <DisplayName>Reset autosampler</DisplayName>
+    <Description>POST /autosampler/reset. Void request Payload. Update Payload is AutosamplerProgress; Result.Payload is ResetAutosamplerResult.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ParkAutosampler</Identifier>
+    <DisplayName>Park autosampler</DisplayName>
+    <Description>POST /autosampler/park. Request.Payload is ParkAutosamplerRequestPayload. Update Payload is AutosamplerProgress; Result.Payload is ParkAutosamplerResult.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <DefinedExecutionError>
+    <Identifier>InternalError</Identifier>
+    <DisplayName>Internal error</DisplayName>
+    <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+  </DefinedExecutionError>
+</Feature>

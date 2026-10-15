@@ -1,0 +1,337 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="ftir" FeatureVersion="2.0" MaturityLevel="Draft" Originator="com.bruker" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+<Identifier>OpusFunctionService</Identifier>
+<DisplayName>OPUS function executor</DisplayName>
+<Description>Generic access to every OPUS function (401 total) plus discovery helpers.</Description>
+<DataTypeDefinition>
+  <Identifier>Request</Identifier>
+  <DisplayName>Request</DisplayName>
+  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Version</Identifier>
+        <DisplayName>Version</DisplayName>
+        <Description>Envelope schema version. Currently 2.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>CorrelationId</Identifier>
+        <DisplayName>Correlation id</DisplayName>
+        <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>TimeoutSeconds</Identifier>
+        <DisplayName>Timeout (seconds)</DisplayName>
+        <Description>Command timeout in seconds. 0 means the server default.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Payload</Identifier>
+        <DisplayName>Payload</DisplayName>
+        <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>Envelope</Identifier>
+  <DisplayName>Envelope</DisplayName>
+  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Version</Identifier>
+        <DisplayName>Version</DisplayName>
+        <Description>Envelope schema version. Currently 2.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Outcome</Identifier>
+        <DisplayName>Outcome</DisplayName>
+        <Description>Succeeded, Failed, Rejected, or Running.</Description>
+        <DataType>
+          <Constrained>
+            <DataType>
+              <Basic>String</Basic>
+            </DataType>
+            <Constraints>
+              <Set>
+                <Value>Succeeded</Value>
+                <Value>Failed</Value>
+                <Value>Rejected</Value>
+                <Value>Running</Value>
+              </Set>
+            </Constraints>
+          </Constrained>
+        </DataType>
+      </Element>
+      <Element>
+        <Identifier>Code</Identifier>
+        <DisplayName>Code</DisplayName>
+        <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Message</Identifier>
+        <DisplayName>Message</DisplayName>
+        <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>CorrelationId</Identifier>
+        <DisplayName>Correlation id</DisplayName>
+        <Description>Echo of the request correlation id. Empty means none.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Payload</Identifier>
+        <DisplayName>Payload</DisplayName>
+        <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Details</Identifier>
+        <DisplayName>Details</DisplayName>
+        <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ExecuteFunctionRequestPayload</Identifier>
+  <DisplayName>Execute function request payload</DisplayName>
+  <Description>ExecuteFunction Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>FunctionName</Identifier>
+        <DisplayName>Function name</DisplayName>
+        <Description>PascalCase OPUS function name.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>FileId</Identifier>
+        <DisplayName>File id</DisplayName>
+        <Description>OPUS file id; 0 means omit.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>BlockName</Identifier>
+        <DisplayName>Block name</DisplayName>
+        <Description>OPUS block name; empty means omit.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Parameters</Identifier>
+        <DisplayName>Parameters</DisplayName>
+        <Description>OPUS 3-letter parameter codes. Void or empty object means none.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ExecuteFunctionResult</Identifier>
+  <DisplayName>Execute function result</DisplayName>
+  <Description>ExecuteFunction Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Function</Identifier>
+        <DisplayName>Function</DisplayName>
+        <Description>OPUS function that was invoked.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Response</Identifier>
+        <DisplayName>Response</DisplayName>
+        <Description>Raw OPUS response lines.</Description>
+        <DataType><List><DataType><Basic>String</Basic></DataType></List></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ListFunctionsResult</Identifier>
+  <DisplayName>List functions result</DisplayName>
+  <Description>ListFunctions Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Names</Identifier>
+        <DisplayName>Names</DisplayName>
+        <Description>Available OPUS function names.</Description>
+        <DataType><List><DataType><Basic>String</Basic></DataType></List></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>DescribeFunctionRequestPayload</Identifier>
+  <DisplayName>Describe function request payload</DisplayName>
+  <Description>DescribeFunction Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>FunctionName</Identifier>
+        <DisplayName>Function name</DisplayName>
+        <Description>PascalCase OPUS function name.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>DescribeFunctionResult</Identifier>
+  <DisplayName>Describe function result</DisplayName>
+  <Description>DescribeFunction Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Function</Identifier>
+        <DisplayName>Function</DisplayName>
+        <Description>OPUS function name.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>InputParameters</Identifier>
+        <DisplayName>Input parameters</DisplayName>
+        <Description>3-letter input parameter codes.</Description>
+        <DataType><List><DataType><Basic>String</Basic></DataType></List></DataType>
+      </Element>
+      <Element>
+        <Identifier>ReturnParameters</Identifier>
+        <DisplayName>Return parameters</DisplayName>
+        <Description>Return parameter codes.</Description>
+        <DataType><List><DataType><Basic>String</Basic></DataType></List></DataType>
+      </Element>
+      <Element>
+        <Identifier>ParameterDetails</Identifier>
+        <DisplayName>Parameter details</DisplayName>
+        <Description>code to {description, dtype, default} for inputs with metadata.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>RawCommandRequestPayload</Identifier>
+  <DisplayName>Raw command request payload</DisplayName>
+  <Description>RawCommand Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Command</Identifier>
+        <DisplayName>Command</DisplayName>
+        <Description>Raw OPUS C/S interpreter command.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>RawCommandResult</Identifier>
+  <DisplayName>Raw command result</DisplayName>
+  <Description>RawCommand Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Success</Identifier>
+        <DisplayName>Success</DisplayName>
+        <Description>Whether OPUS reported success.</Description>
+        <DataType><Basic>Boolean</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Response</Identifier>
+        <DisplayName>Response</DisplayName>
+        <Description>Raw OPUS response lines.</Description>
+        <DataType><List><DataType><Basic>String</Basic></DataType></List></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<Command>
+  <Identifier>ExecuteFunction</Identifier>
+  <DisplayName>Execute OPUS function</DisplayName>
+  <Description>Invoke any of the 401 OPUS functions by name. Request.Payload is ExecuteFunctionRequestPayload; Result.Payload is ExecuteFunctionResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>ListFunctions</Identifier>
+  <DisplayName>List OPUS functions</DisplayName>
+  <Description>Return the names of all available OPUS functions. Result.Payload is ListFunctionsResult (Void request Payload).</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>DescribeFunction</Identifier>
+  <DisplayName>Describe OPUS function</DisplayName>
+  <Description>Return input/return parameter codes and metadata for an OPUS function. Request.Payload is DescribeFunctionRequestPayload; Result.Payload is DescribeFunctionResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>RawCommand</Identifier>
+  <DisplayName>Send raw C/S command</DisplayName>
+  <Description>Send a raw OPUS C/S interpreter command. Request.Payload is RawCommandRequestPayload; Result.Payload is RawCommandResult. OPUS soft-fail becomes Envelope Failed.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<DefinedExecutionError>
+  <Identifier>InternalError</Identifier>
+  <DisplayName>Internal error</DisplayName>
+  <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+</DefinedExecutionError>
+</Feature>

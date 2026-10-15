@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.sdt.authentication.v2;
+
+/* JWT issuance and verification on the shared /api base. */
+service Authentication {
+  /* POST /auth/login without bearer Authorization header. Request.Payload is LoginRequestPayload; Result.Payload is LoginResult. */
+  rpc Login (sila2.org.tainstruments.sdt.authentication.v2.Login_Parameters) returns (sila2.org.tainstruments.sdt.authentication.v2.Login_Responses) {}
+  /* POST /auth/refresh-token. Request.Payload is RefreshAuthTokenJsonRequestPayload; Result.Payload is RefreshAuthTokenJsonResult. */
+  rpc RefreshAuthTokenJson (sila2.org.tainstruments.sdt.authentication.v2.RefreshAuthTokenJson_Parameters) returns (sila2.org.tainstruments.sdt.authentication.v2.RefreshAuthTokenJson_Responses) {}
+  /* POST /auth/verify-token. Request.Payload is VerifyAuthTokenJsonRequestPayload; Result.Payload is VerifyAuthTokenJsonResult. */
+  rpc VerifyAuthTokenJson (sila2.org.tainstruments.sdt.authentication.v2.VerifyAuthTokenJson_Parameters) returns (sila2.org.tainstruments.sdt.authentication.v2.VerifyAuthTokenJson_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Login Request.Payload. */
+message DataType_LoginRequestPayload {
+  message LoginRequestPayload_Struct {
+    sila2.org.silastandard.String Username = 1;  /* TRIOS username. */
+    sila2.org.silastandard.String Password = 2;  /* TRIOS password. */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_LoginRequestPayload.LoginRequestPayload_Struct LoginRequestPayload = 1;  /* Login Request.Payload. */
+}
+
+/* Login Result.Payload. */
+message DataType_LoginResult {
+  message LoginResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_LoginResult.LoginResult_Struct LoginResult = 1;  /* Login Result.Payload. */
+}
+
+/* RefreshAuthTokenJson Request.Payload. */
+message DataType_RefreshAuthTokenJsonRequestPayload {
+  message RefreshAuthTokenJsonRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_RefreshAuthTokenJsonRequestPayload.RefreshAuthTokenJsonRequestPayload_Struct RefreshAuthTokenJsonRequestPayload = 1;  /* RefreshAuthTokenJson Request.Payload. */
+}
+
+/* RefreshAuthTokenJson Result.Payload. */
+message DataType_RefreshAuthTokenJsonResult {
+  message RefreshAuthTokenJsonResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_RefreshAuthTokenJsonResult.RefreshAuthTokenJsonResult_Struct RefreshAuthTokenJsonResult = 1;  /* RefreshAuthTokenJson Result.Payload. */
+}
+
+/* VerifyAuthTokenJson Request.Payload. */
+message DataType_VerifyAuthTokenJsonRequestPayload {
+  message VerifyAuthTokenJsonRequestPayload_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_VerifyAuthTokenJsonRequestPayload.VerifyAuthTokenJsonRequestPayload_Struct VerifyAuthTokenJsonRequestPayload = 1;  /* VerifyAuthTokenJson Request.Payload. */
+}
+
+/* VerifyAuthTokenJson Result.Payload. */
+message DataType_VerifyAuthTokenJsonResult {
+  message VerifyAuthTokenJsonResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_VerifyAuthTokenJsonResult.VerifyAuthTokenJsonResult_Struct VerifyAuthTokenJsonResult = 1;  /* VerifyAuthTokenJson Result.Payload. */
+}
+
+/* Parameters for Login */
+message Login_Parameters {
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Login */
+message Login_Responses {
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for RefreshAuthTokenJson */
+message RefreshAuthTokenJson_Parameters {
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of RefreshAuthTokenJson */
+message RefreshAuthTokenJson_Responses {
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for VerifyAuthTokenJson */
+message VerifyAuthTokenJson_Parameters {
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of VerifyAuthTokenJson */
+message VerifyAuthTokenJson_Responses {
+  sila2.org.tainstruments.sdt.authentication.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

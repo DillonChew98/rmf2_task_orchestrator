@@ -1,0 +1,532 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="sdt" FeatureVersion="2.0" MaturityLevel="Draft" Originator="org.tainstruments" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+  <Identifier>ApplicationSettings</Identifier>
+  <DisplayName>SDT application settings</DisplayName>
+  <Description>TRIOS analysis, JSON, LIMS, and user settings.</Description>
+  <DataTypeDefinition>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>TimeoutSeconds</Identifier>
+          <DisplayName>Timeout (seconds)</DisplayName>
+          <Description>Command timeout in seconds. 0 means the server default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>Envelope</Identifier>
+    <DisplayName>Envelope</DisplayName>
+    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Outcome</Identifier>
+          <DisplayName>Outcome</DisplayName>
+          <Description>Succeeded, Failed, Rejected, or Running.</Description>
+          <DataType>
+            <Constrained>
+              <DataType>
+                <Basic>String</Basic>
+              </DataType>
+              <Constraints>
+                <Set>
+                  <Value>Succeeded</Value>
+                  <Value>Failed</Value>
+                  <Value>Rejected</Value>
+                  <Value>Running</Value>
+                </Set>
+              </Constraints>
+            </Constrained>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Code</Identifier>
+          <DisplayName>Code</DisplayName>
+          <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Message</Identifier>
+          <DisplayName>Message</DisplayName>
+          <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Echo of the request correlation id. Empty means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Details</Identifier>
+          <DisplayName>Details</DisplayName>
+          <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>GetAnalysisSettingsResult</Identifier>
+    <DisplayName>Get analysis settings result</DisplayName>
+    <Description>GetAnalysisSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetAnalysisSettingsRequestPayload</Identifier>
+    <DisplayName>Set analysis settings request payload</DisplayName>
+    <Description>SetAnalysisSettings Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetAnalysisSettingsResult</Identifier>
+    <DisplayName>Set analysis settings result</DisplayName>
+    <Description>SetAnalysisSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>GetJsonSettingsResult</Identifier>
+    <DisplayName>Get JSON settings result</DisplayName>
+    <Description>GetJsonSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetJsonSettingsRequestPayload</Identifier>
+    <DisplayName>Set JSON settings request payload</DisplayName>
+    <Description>SetJsonSettings Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetJsonSettingsResult</Identifier>
+    <DisplayName>Set JSON settings result</DisplayName>
+    <Description>SetJsonSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>GetLimsSettingsResult</Identifier>
+    <DisplayName>Get LIMS settings result</DisplayName>
+    <Description>GetLimsSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetLimsSettingsRequestPayload</Identifier>
+    <DisplayName>Set LIMS settings request payload</DisplayName>
+    <Description>SetLimsSettings Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetLimsSettingsResult</Identifier>
+    <DisplayName>Set LIMS settings result</DisplayName>
+    <Description>SetLimsSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>GetUserSettingsResult</Identifier>
+    <DisplayName>Get user settings result</DisplayName>
+    <Description>GetUserSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetUserSettingsRequestPayload</Identifier>
+    <DisplayName>Set user settings request payload</DisplayName>
+    <Description>SetUserSettings Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON body. Void or empty object means none. When --payload-json omits Body, remaining keys are treated as the body.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SetUserSettingsResult</Identifier>
+    <DisplayName>Set user settings result</DisplayName>
+    <Description>SetUserSettings Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Body</Identifier>
+          <DisplayName>Body</DisplayName>
+          <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <Command>
+    <Identifier>GetAnalysisSettings</Identifier>
+    <DisplayName>Get analysis settings</DisplayName>
+    <Description>GET /app/settings/analysis. Result.Payload is GetAnalysisSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>SetAnalysisSettings</Identifier>
+    <DisplayName>Set analysis settings</DisplayName>
+    <Description>PUT /app/settings/analysis. Request.Payload is SetAnalysisSettingsRequestPayload; Result.Payload is SetAnalysisSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetJsonSettings</Identifier>
+    <DisplayName>Get JSON settings</DisplayName>
+    <Description>GET /app/settings/json. Result.Payload is GetJsonSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>SetJsonSettings</Identifier>
+    <DisplayName>Set JSON settings</DisplayName>
+    <Description>PUT /app/settings/json. Request.Payload is SetJsonSettingsRequestPayload; Result.Payload is SetJsonSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetLimsSettings</Identifier>
+    <DisplayName>Get LIMS settings</DisplayName>
+    <Description>GET /app/settings/lims. Result.Payload is GetLimsSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>SetLimsSettings</Identifier>
+    <DisplayName>Set LIMS settings</DisplayName>
+    <Description>PUT /app/settings/lims. Request.Payload is SetLimsSettingsRequestPayload; Result.Payload is SetLimsSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetUserSettings</Identifier>
+    <DisplayName>Get user settings</DisplayName>
+    <Description>GET /app/settings/user. Result.Payload is GetUserSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>SetUserSettings</Identifier>
+    <DisplayName>Set user settings</DisplayName>
+    <Description>PUT /app/settings/user. Request.Payload is SetUserSettingsRequestPayload; Result.Payload is SetUserSettingsResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <DefinedExecutionError>
+    <Identifier>InternalError</Identifier>
+    <DisplayName>Internal error</DisplayName>
+    <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+  </DefinedExecutionError>
+</Feature>

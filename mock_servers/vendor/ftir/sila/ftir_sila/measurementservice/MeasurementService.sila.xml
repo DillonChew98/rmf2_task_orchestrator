@@ -1,0 +1,906 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="ftir" FeatureVersion="3.0" MaturityLevel="Draft" Originator="com.bruker" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+  <Identifier>MeasurementService</Identifier>
+  <DisplayName>FTIR measurement</DisplayName>
+  <Description>High-level FTIR measurement workflow: background, sample measurement, spectral data readback, and Allotrope FTIR ASM export. Exposes ASM-mirroring properties for last-result identity fields.</Description>
+  <DataTypeDefinition>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>TimeoutSeconds</Identifier>
+          <DisplayName>Timeout (seconds)</DisplayName>
+          <Description>Command timeout in seconds. 0 means the server default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>Envelope</Identifier>
+    <DisplayName>Envelope</DisplayName>
+    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Outcome</Identifier>
+          <DisplayName>Outcome</DisplayName>
+          <Description>Succeeded, Failed, Rejected, or Running.</Description>
+          <DataType>
+            <Constrained>
+              <DataType>
+                <Basic>String</Basic>
+              </DataType>
+              <Constraints>
+                <Set>
+                  <Value>Succeeded</Value>
+                  <Value>Failed</Value>
+                  <Value>Rejected</Value>
+                  <Value>Running</Value>
+                </Set>
+              </Constraints>
+            </Constrained>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Code</Identifier>
+          <DisplayName>Code</DisplayName>
+          <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Message</Identifier>
+          <DisplayName>Message</DisplayName>
+          <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Echo of the request correlation id. Empty means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Details</Identifier>
+          <DisplayName>Details</DisplayName>
+          <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>IntensityTrace</Identifier>
+    <DisplayName>Intensity trace</DisplayName>
+    <Description>One spectral intensity channel (SiLA forbids nested List of Real).</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Values</Identifier>
+          <DisplayName>Values</DisplayName>
+          <Description>Intensity samples for one spectral trace.</Description>
+          <DataType>
+            <List>
+              <DataType>
+                <Basic>Real</Basic>
+              </DataType>
+            </List>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>SpectrumBlock</Identifier>
+    <DisplayName>Spectrum block</DisplayName>
+    <Description>One readable OPUS spectral block.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>BlockName</Identifier>
+          <DisplayName>Block name</DisplayName>
+          <Description>OPUS block name, e.g. AB.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>NPoints</Identifier>
+          <DisplayName>N points</DisplayName>
+          <Description>Number of spectral data points.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>NTraces</Identifier>
+          <DisplayName>N traces</DisplayName>
+          <Description>Number of spectral traces (channels).</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>WavenumberMin</Identifier>
+          <DisplayName>Wavenumber min</DisplayName>
+          <Description>Minimum wavenumber (cm-1).</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>WavenumberMax</Identifier>
+          <DisplayName>Wavenumber max</DisplayName>
+          <Description>Maximum wavenumber (cm-1).</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>FilePath</Identifier>
+          <DisplayName>File path</DisplayName>
+          <Description>Source OPUS file path.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Wavenumbers</Identifier>
+          <DisplayName>Wavenumbers</DisplayName>
+          <Description>Wavenumber axis (cm-1); empty when IncludeData is false.</Description>
+          <DataType>
+            <List>
+              <DataType>
+                <Basic>Real</Basic>
+              </DataType>
+            </List>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Intensities</Identifier>
+          <DisplayName>Intensities</DisplayName>
+          <Description>Per-trace intensity series; empty when IncludeData is false.</Description>
+          <DataType>
+            <List>
+              <DataType>
+                <DataTypeIdentifier>IntensityTrace</DataTypeIdentifier>
+              </DataType>
+            </List>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>MeasureProgress</Identifier>
+    <DisplayName>Measure progress</DisplayName>
+    <Description>Intermediate Update Payload during MeasureBackground / MeasureSample.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Percent</Identifier>
+          <DisplayName>Percent</DisplayName>
+          <Description>Progress 0-100.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Status</Identifier>
+          <DisplayName>Status</DisplayName>
+          <Description>Human-readable progress status from OPUS.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>MeasureBackgroundRequestPayload</Identifier>
+    <DisplayName>Measure background request payload</DisplayName>
+    <Description>MeasureBackground Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Resolution</Identifier>
+          <DisplayName>Resolution</DisplayName>
+          <Description>Spectral resolution cm-1 (OPUS RES); 0 means default.</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>BackgroundScans</Identifier>
+          <DisplayName>Background scans</DisplayName>
+          <Description>Number of background scans (OPUS NSR); 0 means default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>OpticalVelocity</Identifier>
+          <DisplayName>Optical velocity</DisplayName>
+          <Description>OPUS VEL in kHz; 0 means omit.</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Aperture</Identifier>
+          <DisplayName>Aperture</DisplayName>
+          <Description>OPUS APT (e.g. "6 mm"); empty means omit.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>DetectorGain</Identifier>
+          <DisplayName>Detector gain</DisplayName>
+          <Description>OPUS RGN; 0 means omit.</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>ExperimentFile</Identifier>
+          <DisplayName>Experiment file</DisplayName>
+          <Description>Absolute .XPM path; empty means omit. When set, RES/NSR of 0 are omitted.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Well</Identifier>
+          <DisplayName>Well</DisplayName>
+          <Description>Optional HTS-XT well label (e.g. A1). Empty means measure at current stage position.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>ExtraParameters</Identifier>
+          <DisplayName>Extra parameters</DisplayName>
+          <Description>Additional OPUS 3-letter codes. Void or empty object means none.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>MeasureBackgroundResult</Identifier>
+    <DisplayName>Measure background result</DisplayName>
+    <Description>MeasureBackground Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Success</Identifier>
+          <DisplayName>Success</DisplayName>
+          <Description>Whether OPUS reported success.</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>MeasureSampleRequestPayload</Identifier>
+    <DisplayName>Measure sample request payload</DisplayName>
+    <Description>MeasureSample Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Resolution</Identifier>
+          <DisplayName>Resolution</DisplayName>
+          <Description>Spectral resolution cm-1 (OPUS RES); 0 means default.</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>SampleScans</Identifier>
+          <DisplayName>Sample scans</DisplayName>
+          <Description>Number of sample scans (OPUS NSS); 0 means default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>BackgroundScans</Identifier>
+          <DisplayName>Background scans</DisplayName>
+          <Description>Number of background scans (OPUS NSR); 0 means default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>OpticalVelocity</Identifier>
+          <DisplayName>Optical velocity</DisplayName>
+          <Description>OPUS VEL in kHz; 0 means omit.</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Aperture</Identifier>
+          <DisplayName>Aperture</DisplayName>
+          <Description>OPUS APT (e.g. "6 mm"); empty means omit.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>DetectorGain</Identifier>
+          <DisplayName>Detector gain</DisplayName>
+          <Description>OPUS SGN; 0 means omit.</Description>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>OutputPath</Identifier>
+          <DisplayName>Output path</DisplayName>
+          <Description>Absolute OPUS intermediate output path on the instrument PC.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>ExperimentFile</Identifier>
+          <DisplayName>Experiment file</DisplayName>
+          <Description>Absolute .XPM path; empty means omit. When set, RES/NSS/NSR of 0 are omitted.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Well</Identifier>
+          <DisplayName>Well</DisplayName>
+          <Description>Optional HTS-XT well label (e.g. B3). Empty means measure at current stage position.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>ExtraParameters</Identifier>
+          <DisplayName>Extra parameters</DisplayName>
+          <Description>Additional OPUS 3-letter codes. Void or empty object means none.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>IncludeData</Identifier>
+          <DisplayName>Include data</DisplayName>
+          <Description>True to include full arrays in Result.Payload.Spectra.</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>ExportAsm</Identifier>
+          <DisplayName>Export ASM</DisplayName>
+          <Description>True to write an Allotrope FTIR ASM JSON beside the OPUS file (default true).</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>AsmOutputPath</Identifier>
+          <DisplayName>ASM output path</DisplayName>
+          <Description>Explicit ASM JSON path; empty derives {opus_stem}.asm.json beside the OPUS file.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>SampleName</Identifier>
+          <DisplayName>Sample name</DisplayName>
+          <Description>OPUS SNM and ASM sample identifier.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Operator</Identifier>
+          <DisplayName>Operator</DisplayName>
+          <Description>Experiment operator (maps to ASM analyst when not overridden).</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Project</Identifier>
+          <DisplayName>Project</DisplayName>
+          <Description>Experiment project name stored with the result and ASM export.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>AsmMetadata</Identifier>
+          <DisplayName>ASM metadata</DisplayName>
+          <Description>Optional ASM document fields. Void or empty object means none.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>MeasureSampleResult</Identifier>
+    <DisplayName>Measure sample result</DisplayName>
+    <Description>MeasureSample Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>FilePath</Identifier>
+          <DisplayName>File path</DisplayName>
+          <Description>Path to the saved OPUS file.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>AsmPath</Identifier>
+          <DisplayName>ASM path</DisplayName>
+          <Description>Path to the ASM JSON export; empty if not written.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Spectra</Identifier>
+          <DisplayName>Spectra</DisplayName>
+          <Description>Readable spectral blocks from the OPUS file.</Description>
+          <DataType>
+            <List>
+              <DataType>
+                <DataTypeIdentifier>SpectrumBlock</DataTypeIdentifier>
+              </DataType>
+            </List>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>RawResponse</Identifier>
+          <DisplayName>Raw response</DisplayName>
+          <Description>Raw OPUS response lines.</Description>
+          <DataType>
+            <List>
+              <DataType>
+                <Basic>String</Basic>
+              </DataType>
+            </List>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ReadSpectrumRequestPayload</Identifier>
+    <DisplayName>Read spectrum request payload</DisplayName>
+    <Description>ReadSpectrum Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>FilePath</Identifier>
+          <DisplayName>File path</DisplayName>
+          <Description>Absolute path to an OPUS data file.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>IncludeData</Identifier>
+          <DisplayName>Include data</DisplayName>
+          <Description>True to include full arrays in Spectra.</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ReadSpectrumResult</Identifier>
+    <DisplayName>Read spectrum result</DisplayName>
+    <Description>ReadSpectrum Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Spectra</Identifier>
+          <DisplayName>Spectra</DisplayName>
+          <Description>Readable spectral blocks.</Description>
+          <DataType>
+            <List>
+              <DataType>
+                <DataTypeIdentifier>SpectrumBlock</DataTypeIdentifier>
+              </DataType>
+            </List>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ReadParametersRequestPayload</Identifier>
+    <DisplayName>Read parameters request payload</DisplayName>
+    <Description>ReadParameters Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>FilePath</Identifier>
+          <DisplayName>File path</DisplayName>
+          <Description>Absolute path to an OPUS data file.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ReadParametersResult</Identifier>
+    <DisplayName>Read parameters result</DisplayName>
+    <Description>ReadParameters Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Parameters</Identifier>
+          <DisplayName>Parameters</DisplayName>
+          <Description>OPUS parameter blocks as a nested object.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ExportAsmRequestPayload</Identifier>
+    <DisplayName>Export ASM request payload</DisplayName>
+    <Description>ExportAsm Request.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>FilePath</Identifier>
+          <DisplayName>File path</DisplayName>
+          <Description>Absolute path to an OPUS data file.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>AsmOutputPath</Identifier>
+          <DisplayName>ASM output path</DisplayName>
+          <Description>Explicit ASM JSON path; empty derives from FilePath.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>SampleName</Identifier>
+          <DisplayName>Sample name</DisplayName>
+          <Description>ASM sample identifier.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Operator</Identifier>
+          <DisplayName>Operator</DisplayName>
+          <Description>Experiment operator (maps to ASM analyst when not overridden).</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Project</Identifier>
+          <DisplayName>Project</DisplayName>
+          <Description>Experiment project name stored with the result and ASM export.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>AsmMetadata</Identifier>
+          <DisplayName>ASM metadata</DisplayName>
+          <Description>Optional ASM document fields. Void or empty object means none.</Description>
+          <DataType>
+            <Basic>Any</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ExportAsmResult</Identifier>
+    <DisplayName>Export ASM result</DisplayName>
+    <Description>ExportAsm Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>AsmPath</Identifier>
+          <DisplayName>ASM path</DisplayName>
+          <Description>Path to the written ASM JSON document.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <Property>
+    <Identifier>DetectorType</Identifier>
+    <DisplayName>Detector type</DisplayName>
+    <Description>ASM detector type from the last successful measure/export (empty string if unknown).</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>BeamsplitterType</Identifier>
+    <DisplayName>Beamsplitter type</DisplayName>
+    <Description>ASM beamsplitter type from the last successful measure/export (empty string if unknown).</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>EquipmentSerialNumber</Identifier>
+    <DisplayName>Equipment serial number</DisplayName>
+    <Description>ASM equipment serial number from the last successful measure/export (empty string if unknown).</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>LastSampleIdentifier</Identifier>
+    <DisplayName>Last sample identifier</DisplayName>
+    <Description>ASM sample identifier from the last successful ASM write.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>LastMeasurementIdentifier</Identifier>
+    <DisplayName>Last measurement identifier</DisplayName>
+    <Description>ASM measurement identifier from the last successful ASM write.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>LastMeasurementTime</Identifier>
+    <DisplayName>Last measurement time</DisplayName>
+    <Description>ASM measurement time (ISO-8601) from the last successful ASM write.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>LastAnalyst</Identifier>
+    <DisplayName>Last analyst</DisplayName>
+    <Description>ASM analyst from the last successful ASM write.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>LastAsmMissingRequiredJson</Identifier>
+    <DisplayName>Last ASM missing required keys (JSON)</DisplayName>
+    <Description>JSON array of missing REC/2024/12 required keys after the last ASM write (empty [] if none or never written).</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Command>
+    <Identifier>MeasureBackground</Identifier>
+    <DisplayName>Measure background</DisplayName>
+    <Description>Acquire a background (reference) spectrum via OPUS MeasureReference. Request.Payload is MeasureBackgroundRequestPayload. Streams Update envelopes (MeasureProgress) during the OPUS thread; Request.TimeoutSeconds sets lifetime_of_execution when non-zero.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>MeasureSample</Identifier>
+    <DisplayName>Measure sample</DisplayName>
+    <Description>Run OPUS MeasureSample. Request.Payload is MeasureSampleRequestPayload. Result.Payload is MeasureSampleResult. OPUS soft-fail becomes Envelope Failed with opus.measurement.failed. Streams Update envelopes (MeasureProgress) during the OPUS thread.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>Update</Identifier>
+      <DisplayName>Update</DisplayName>
+      <Description>Intermediate envelope with Outcome Running.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ReadSpectrum</Identifier>
+    <DisplayName>Read spectrum file</DisplayName>
+    <Description>Load an OPUS file and extract readable spectral blocks. Request.Payload is ReadSpectrumRequestPayload; Result.Payload is ReadSpectrumResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ReadParameters</Identifier>
+    <DisplayName>Read parameter blocks</DisplayName>
+    <Description>Read all OPUS parameter blocks from a data file. Request.Payload is ReadParametersRequestPayload; Result.Payload is ReadParametersResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ExportAsm</Identifier>
+    <DisplayName>Export ASM</DisplayName>
+    <Description>Read an existing OPUS data file and write an Allotrope FTIR ASM (REC/2024/12) JSON document. Request.Payload is ExportAsmRequestPayload; Result.Payload is ExportAsmResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <DefinedExecutionError>
+    <Identifier>InternalError</Identifier>
+    <DisplayName>Internal error</DisplayName>
+    <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+  </DefinedExecutionError>
+</Feature>

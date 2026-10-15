@@ -1,0 +1,377 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.tainstruments.sdt.queuemanagement.v2;
+
+/* Running / design queue operations. Payload shapes are JSON objects. */
+service QueueManagement {
+  /* GET /queue/experiments. Request.Payload is ListQueueExperimentsRequestPayload; Result.Payload is ListQueueExperimentsResult. */
+  rpc ListQueueExperiments (sila2.org.tainstruments.sdt.queuemanagement.v2.ListQueueExperiments_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.ListQueueExperiments_Responses) {}
+  /* GET /queue/status. Request.Payload is GetQueueStatusJsonRequestPayload; Result.Payload is GetQueueStatusJsonResult. */
+  rpc GetQueueStatusJson (sila2.org.tainstruments.sdt.queuemanagement.v2.GetQueueStatusJson_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.GetQueueStatusJson_Responses) {}
+  /* GET /queue/validate. Request.Payload is ValidateQueueJsonRequestPayload; Result.Payload is ValidateQueueJsonResult. */
+  rpc ValidateQueueJson (sila2.org.tainstruments.sdt.queuemanagement.v2.ValidateQueueJson_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.ValidateQueueJson_Responses) {}
+  /* POST /queue/experiments/from-sequence. Request.Payload is AddExperimentsFromSequenceRequestPayload; Result.Payload is AddExperimentsFromSequenceResult. */
+  rpc AddExperimentsFromSequence (sila2.org.tainstruments.sdt.queuemanagement.v2.AddExperimentsFromSequence_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.AddExperimentsFromSequence_Responses) {}
+  /* POST /queue/experiments/validate. Request.Payload is ValidateExperimentPayloadRequestPayload; Result.Payload is ValidateExperimentPayloadResult. */
+  rpc ValidateExperimentPayload (sila2.org.tainstruments.sdt.queuemanagement.v2.ValidateExperimentPayload_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.ValidateExperimentPayload_Responses) {}
+  /* POST /queue/experiments/new. Request.Payload is AddNewExperimentsRequestPayload; Result.Payload is AddNewExperimentsResult. */
+  rpc AddNewExperiments (sila2.org.tainstruments.sdt.queuemanagement.v2.AddNewExperiments_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.AddNewExperiments_Responses) {}
+  /* POST /queue/experiments/copy. Request.Payload is CopyExperimentToQueueRequestPayload; Result.Payload is CopyExperimentToQueueResult. */
+  rpc CopyExperimentToQueue (sila2.org.tainstruments.sdt.queuemanagement.v2.CopyExperimentToQueue_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.CopyExperimentToQueue_Responses) {}
+  /* GET /queue/experiments/{id}. Request.Payload is GetExperimentDetailsRequestPayload; Result.Payload is GetExperimentDetailsResult. */
+  rpc GetExperimentDetails (sila2.org.tainstruments.sdt.queuemanagement.v2.GetExperimentDetails_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.GetExperimentDetails_Responses) {}
+  /* PATCH /queue/experiments/{id}. Request.Payload is ModifyExperimentInQueueRequestPayload; Result.Payload is ModifyExperimentInQueueResult. */
+  rpc ModifyExperimentInQueue (sila2.org.tainstruments.sdt.queuemanagement.v2.ModifyExperimentInQueue_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.ModifyExperimentInQueue_Responses) {}
+  /* DELETE /queue/experiments/{id}. Request.Payload is RemoveExperimentFromQueueRequestPayload; Result.Payload is RemoveExperimentFromQueueResult. */
+  rpc RemoveExperimentFromQueue (sila2.org.tainstruments.sdt.queuemanagement.v2.RemoveExperimentFromQueue_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.RemoveExperimentFromQueue_Responses) {}
+  /* PUT /queue/experiments/{id}/position. Request.Payload is MoveExperimentInQueueRequestPayload; Result.Payload is MoveExperimentInQueueResult. */
+  rpc MoveExperimentInQueue (sila2.org.tainstruments.sdt.queuemanagement.v2.MoveExperimentInQueue_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.MoveExperimentInQueue_Responses) {}
+  /* GET /queue/experiments/{id}/validate. Request.Payload is ValidateQueuedExperimentRequestPayload; Result.Payload is ValidateQueuedExperimentResult. */
+  rpc ValidateQueuedExperiment (sila2.org.tainstruments.sdt.queuemanagement.v2.ValidateQueuedExperiment_Parameters) returns (sila2.org.tainstruments.sdt.queuemanagement.v2.ValidateQueuedExperiment_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* ListQueueExperiments Request.Payload. */
+message DataType_ListQueueExperimentsRequestPayload {
+  message ListQueueExperimentsRequestPayload_Struct {
+    sila2.org.silastandard.Integer Index = 1;  /* 1-based experiment index; 0/omit to list all. */
+    sila2.org.silastandard.String QueueType = 2;  /* design | running; empty/omit for server default. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ListQueueExperimentsRequestPayload.ListQueueExperimentsRequestPayload_Struct ListQueueExperimentsRequestPayload = 1;  /* ListQueueExperiments Request.Payload. */
+}
+
+/* GetQueueStatusJson Request.Payload. */
+message DataType_GetQueueStatusJsonRequestPayload {
+  message GetQueueStatusJsonRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* design | running; empty/omit for server default. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_GetQueueStatusJsonRequestPayload.GetQueueStatusJsonRequestPayload_Struct GetQueueStatusJsonRequestPayload = 1;  /* GetQueueStatusJson Request.Payload. */
+}
+
+/* ValidateQueueJson Request.Payload. */
+message DataType_ValidateQueueJsonRequestPayload {
+  message ValidateQueueJsonRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* design | running; empty/omit for server default. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ValidateQueueJsonRequestPayload.ValidateQueueJsonRequestPayload_Struct ValidateQueueJsonRequestPayload = 1;  /* ValidateQueueJson Request.Payload. */
+}
+
+/* AddExperimentsFromSequence Request.Payload. */
+message DataType_AddExperimentsFromSequenceRequestPayload {
+  message AddExperimentsFromSequenceRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* design | running; empty/omit for server default. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_AddExperimentsFromSequenceRequestPayload.AddExperimentsFromSequenceRequestPayload_Struct AddExperimentsFromSequenceRequestPayload = 1;  /* AddExperimentsFromSequence Request.Payload. */
+}
+
+/* ValidateExperimentPayload Request.Payload. */
+message DataType_ValidateExperimentPayloadRequestPayload {
+  message ValidateExperimentPayloadRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* design | running; empty/omit for server default. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ValidateExperimentPayloadRequestPayload.ValidateExperimentPayloadRequestPayload_Struct ValidateExperimentPayloadRequestPayload = 1;  /* ValidateExperimentPayload Request.Payload. */
+}
+
+/* AddNewExperiments Request.Payload. */
+message DataType_AddNewExperimentsRequestPayload {
+  message AddNewExperimentsRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* design | running; empty/omit for server default. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_AddNewExperimentsRequestPayload.AddNewExperimentsRequestPayload_Struct AddNewExperimentsRequestPayload = 1;  /* AddNewExperiments Request.Payload. */
+}
+
+/* CopyExperimentToQueue Request.Payload. */
+message DataType_CopyExperimentToQueueRequestPayload {
+  message CopyExperimentToQueueRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* design | running; empty/omit for server default. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_CopyExperimentToQueueRequestPayload.CopyExperimentToQueueRequestPayload_Struct CopyExperimentToQueueRequestPayload = 1;  /* CopyExperimentToQueue Request.Payload. */
+}
+
+/* GetExperimentDetails Request.Payload. */
+message DataType_GetExperimentDetailsRequestPayload {
+  message GetExperimentDetailsRequestPayload_Struct {
+    sila2.org.silastandard.String ExperimentId = 1;  /* Queued experiment identifier. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_GetExperimentDetailsRequestPayload.GetExperimentDetailsRequestPayload_Struct GetExperimentDetailsRequestPayload = 1;  /* GetExperimentDetails Request.Payload. */
+}
+
+/* ModifyExperimentInQueue Request.Payload. */
+message DataType_ModifyExperimentInQueueRequestPayload {
+  message ModifyExperimentInQueueRequestPayload_Struct {
+    sila2.org.silastandard.String ExperimentId = 1;  /* Queued experiment identifier. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except ExperimentId) are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ModifyExperimentInQueueRequestPayload.ModifyExperimentInQueueRequestPayload_Struct ModifyExperimentInQueueRequestPayload = 1;  /* ModifyExperimentInQueue Request.Payload. */
+}
+
+/* RemoveExperimentFromQueue Request.Payload. */
+message DataType_RemoveExperimentFromQueueRequestPayload {
+  message RemoveExperimentFromQueueRequestPayload_Struct {
+    sila2.org.silastandard.String ExperimentId = 1;  /* Queued experiment identifier. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_RemoveExperimentFromQueueRequestPayload.RemoveExperimentFromQueueRequestPayload_Struct RemoveExperimentFromQueueRequestPayload = 1;  /* RemoveExperimentFromQueue Request.Payload. */
+}
+
+/* MoveExperimentInQueue Request.Payload. */
+message DataType_MoveExperimentInQueueRequestPayload {
+  message MoveExperimentInQueueRequestPayload_Struct {
+    sila2.org.silastandard.String ExperimentId = 1;  /* Queued experiment identifier. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except ExperimentId) are treated as the body. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_MoveExperimentInQueueRequestPayload.MoveExperimentInQueueRequestPayload_Struct MoveExperimentInQueueRequestPayload = 1;  /* MoveExperimentInQueue Request.Payload. */
+}
+
+/* ValidateQueuedExperiment Request.Payload. */
+message DataType_ValidateQueuedExperimentRequestPayload {
+  message ValidateQueuedExperimentRequestPayload_Struct {
+    sila2.org.silastandard.String ExperimentId = 1;  /* Queued experiment identifier. */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ValidateQueuedExperimentRequestPayload.ValidateQueuedExperimentRequestPayload_Struct ValidateQueuedExperimentRequestPayload = 1;  /* ValidateQueuedExperiment Request.Payload. */
+}
+
+/* ListQueueExperiments Result.Payload. */
+message DataType_ListQueueExperimentsResult {
+  message ListQueueExperimentsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ListQueueExperimentsResult.ListQueueExperimentsResult_Struct ListQueueExperimentsResult = 1;  /* ListQueueExperiments Result.Payload. */
+}
+
+/* GetQueueStatusJson Result.Payload. */
+message DataType_GetQueueStatusJsonResult {
+  message GetQueueStatusJsonResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_GetQueueStatusJsonResult.GetQueueStatusJsonResult_Struct GetQueueStatusJsonResult = 1;  /* GetQueueStatusJson Result.Payload. */
+}
+
+/* ValidateQueueJson Result.Payload. */
+message DataType_ValidateQueueJsonResult {
+  message ValidateQueueJsonResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ValidateQueueJsonResult.ValidateQueueJsonResult_Struct ValidateQueueJsonResult = 1;  /* ValidateQueueJson Result.Payload. */
+}
+
+/* AddExperimentsFromSequence Result.Payload. */
+message DataType_AddExperimentsFromSequenceResult {
+  message AddExperimentsFromSequenceResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_AddExperimentsFromSequenceResult.AddExperimentsFromSequenceResult_Struct AddExperimentsFromSequenceResult = 1;  /* AddExperimentsFromSequence Result.Payload. */
+}
+
+/* ValidateExperimentPayload Result.Payload. */
+message DataType_ValidateExperimentPayloadResult {
+  message ValidateExperimentPayloadResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ValidateExperimentPayloadResult.ValidateExperimentPayloadResult_Struct ValidateExperimentPayloadResult = 1;  /* ValidateExperimentPayload Result.Payload. */
+}
+
+/* AddNewExperiments Result.Payload. */
+message DataType_AddNewExperimentsResult {
+  message AddNewExperimentsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_AddNewExperimentsResult.AddNewExperimentsResult_Struct AddNewExperimentsResult = 1;  /* AddNewExperiments Result.Payload. */
+}
+
+/* CopyExperimentToQueue Result.Payload. */
+message DataType_CopyExperimentToQueueResult {
+  message CopyExperimentToQueueResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_CopyExperimentToQueueResult.CopyExperimentToQueueResult_Struct CopyExperimentToQueueResult = 1;  /* CopyExperimentToQueue Result.Payload. */
+}
+
+/* GetExperimentDetails Result.Payload. */
+message DataType_GetExperimentDetailsResult {
+  message GetExperimentDetailsResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_GetExperimentDetailsResult.GetExperimentDetailsResult_Struct GetExperimentDetailsResult = 1;  /* GetExperimentDetails Result.Payload. */
+}
+
+/* ModifyExperimentInQueue Result.Payload. */
+message DataType_ModifyExperimentInQueueResult {
+  message ModifyExperimentInQueueResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ModifyExperimentInQueueResult.ModifyExperimentInQueueResult_Struct ModifyExperimentInQueueResult = 1;  /* ModifyExperimentInQueue Result.Payload. */
+}
+
+/* RemoveExperimentFromQueue Result.Payload. */
+message DataType_RemoveExperimentFromQueueResult {
+  message RemoveExperimentFromQueueResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_RemoveExperimentFromQueueResult.RemoveExperimentFromQueueResult_Struct RemoveExperimentFromQueueResult = 1;  /* RemoveExperimentFromQueue Result.Payload. */
+}
+
+/* MoveExperimentInQueue Result.Payload. */
+message DataType_MoveExperimentInQueueResult {
+  message MoveExperimentInQueueResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_MoveExperimentInQueueResult.MoveExperimentInQueueResult_Struct MoveExperimentInQueueResult = 1;  /* MoveExperimentInQueue Result.Payload. */
+}
+
+/* ValidateQueuedExperiment Result.Payload. */
+message DataType_ValidateQueuedExperimentResult {
+  message ValidateQueuedExperimentResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_ValidateQueuedExperimentResult.ValidateQueuedExperimentResult_Struct ValidateQueuedExperimentResult = 1;  /* ValidateQueuedExperiment Result.Payload. */
+}
+
+/* Parameters for ListQueueExperiments */
+message ListQueueExperiments_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ListQueueExperiments */
+message ListQueueExperiments_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetQueueStatusJson */
+message GetQueueStatusJson_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetQueueStatusJson */
+message GetQueueStatusJson_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ValidateQueueJson */
+message ValidateQueueJson_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ValidateQueueJson */
+message ValidateQueueJson_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for AddExperimentsFromSequence */
+message AddExperimentsFromSequence_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of AddExperimentsFromSequence */
+message AddExperimentsFromSequence_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ValidateExperimentPayload */
+message ValidateExperimentPayload_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ValidateExperimentPayload */
+message ValidateExperimentPayload_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for AddNewExperiments */
+message AddNewExperiments_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of AddNewExperiments */
+message AddNewExperiments_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for CopyExperimentToQueue */
+message CopyExperimentToQueue_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of CopyExperimentToQueue */
+message CopyExperimentToQueue_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for GetExperimentDetails */
+message GetExperimentDetails_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of GetExperimentDetails */
+message GetExperimentDetails_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ModifyExperimentInQueue */
+message ModifyExperimentInQueue_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ModifyExperimentInQueue */
+message ModifyExperimentInQueue_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for RemoveExperimentFromQueue */
+message RemoveExperimentFromQueue_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of RemoveExperimentFromQueue */
+message RemoveExperimentFromQueue_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for MoveExperimentInQueue */
+message MoveExperimentInQueue_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MoveExperimentInQueue */
+message MoveExperimentInQueue_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ValidateQueuedExperiment */
+message ValidateQueuedExperiment_Parameters {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ValidateQueuedExperiment */
+message ValidateQueuedExperiment_Responses {
+  sila2.org.tainstruments.sdt.queuemanagement.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

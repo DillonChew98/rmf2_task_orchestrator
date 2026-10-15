@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mock-servers"
+version = "0.1.0"
+description = "Mock SiLA 2 servers standing in for the X3 DSC, SDT, GPC and FTIR instruments, and mock MiR and UR HTTP servers"
+requires-python = ">=3.11"
+dependencies = [
+    # SilaServer / SilaClient. Same floor as all four instrument projects.
+    # Pulls zeroconf, which provides the mDNS advertising.
+    "sila2>=0.12",
+    # The shutdown path touches server.grpc_server directly, as the real servers do.
+    "grpcio",
+    # Required by --auto-generate-tls.
+    "cryptography",
+    # Not optional: ftir_automation imports numpy at module level (animl.py,
+    # asm.py, core.py, models/instrument.py). Without it the ftir mock cannot
+    # import the real package at all.
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-xdist"]
+
+[project.scripts]
+mock-x3dsc = "mock_servers.x3dsc.server:main"
+mock-sdt = "mock_servers.sdt.server:main"
+mock-gpc = "mock_servers.gpc.server:main"
+mock-ftir = "mock_servers.ftir.server:main"
+mock-mir = "mock_servers.mir.server:main"
+mock-ur = "mock_servers.ur.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mock_servers*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Each test FILE gets its own process, and that is not a speed tweak.
+# sila2's client generates a protobuf module per feature and imports it into the
+# global descriptor pool. All four instruments have a feature called
+# InstrumentStatus, so connecting clients to two of them in one process dies with
+# KeyError in the generated _pb2 module. --dist loadfile keeps each instrument's
+# e2e file in its own interpreter, which sidesteps it entirely.
+addopts = "-n 4 --dist loadfile"

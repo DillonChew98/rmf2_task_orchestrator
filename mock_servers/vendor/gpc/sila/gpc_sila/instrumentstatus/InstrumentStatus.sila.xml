@@ -1,0 +1,396 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="gpc" FeatureVersion="2.0" MaturityLevel="Draft" Originator="org.tainstruments" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+  <Identifier>InstrumentStatus</Identifier>
+  <DisplayName>WinGPC instrument status</DisplayName>
+  <Description>Read-only LED, sequence summary, and instrument snapshot accessors. Allowed in Connect, Run, Pause, and Maintenance states. CurrentSystemStatus and CurrentAnalysisStatus are observable so dashboards can subscribe.</Description>
+  <DataTypeDefinition>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>TimeoutSeconds</Identifier>
+          <DisplayName>Timeout (seconds)</DisplayName>
+          <Description>Command timeout in seconds. 0 means the server default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>Envelope</Identifier>
+    <DisplayName>Envelope</DisplayName>
+    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Outcome</Identifier>
+          <DisplayName>Outcome</DisplayName>
+          <Description>Succeeded, Failed, Rejected, or Running.</Description>
+          <DataType>
+            <Constrained>
+              <DataType>
+                <Basic>String</Basic>
+              </DataType>
+              <Constraints>
+                <Set>
+                  <Value>Succeeded</Value>
+                  <Value>Failed</Value>
+                  <Value>Rejected</Value>
+                  <Value>Running</Value>
+                </Set>
+              </Constraints>
+            </Constrained>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Code</Identifier>
+          <DisplayName>Code</DisplayName>
+          <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Message</Identifier>
+          <DisplayName>Message</DisplayName>
+          <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Echo of the request correlation id. Empty means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Details</Identifier>
+          <DisplayName>Details</DisplayName>
+          <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <Property>
+    <Identifier>CurrentSystemStatus</Identifier>
+    <DisplayName>Current system status</DisplayName>
+    <Description>System LED color (green, yellow, red, gray, ...). Refreshed on each get-call; emits to subscribers.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>CurrentAnalysisStatus</Identifier>
+    <DisplayName>Current analysis status</DisplayName>
+    <Description>Analysis LED color (green, yellow, red, gray, ...). Refreshed on each get-call; emits to subscribers.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Command>
+    <Identifier>GetColor</Identifier>
+    <DisplayName>Get color by AutomationId</DisplayName>
+    <Description>Read the LED color from a Pane control by its AutomationId. Payload must include AutoId.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetText</Identifier>
+    <DisplayName>Get text by AutomationId</DisplayName>
+    <Description>Read window_text() from a Text control by its AutomationId. Payload must include AutoId.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetSystemStatus</Identifier>
+    <DisplayName>Get system status</DisplayName>
+    <Description>Read the system status LED color (AutomationId: ledSystemState). Result Payload includes color.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetAnalysisStatus</Identifier>
+    <DisplayName>Get analysis status</DisplayName>
+    <Description>Read the analysis LED color (AutomationId: ledAnalysis). Result Payload includes color.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetStartButtonState</Identifier>
+    <DisplayName>Get start button state</DisplayName>
+    <Description>Return whether the Start checkbox-button (AutomationId: checkBoxButtonStart) is currently toggled on. Result Payload includes IsOn.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetSequenceSummary</Identifier>
+    <DisplayName>Get sequence summary</DisplayName>
+    <Description>Read injections elapsed/left, time elapsed/left, solvent elapsed/left from the Sequence window. Result Payload is the SequenceSummary object.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetCurrentSequenceStep</Identifier>
+    <DisplayName>Get current sequence step</DisplayName>
+    <Description>Read the current sequence step (sample name, position, injection time). Result Payload is the CurrentSequenceStep object.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetSystemInfo</Identifier>
+    <DisplayName>Get system info</DisplayName>
+    <Description>Read instrument label, state text, and ARGB LED color from the Instrument Status window. Result Payload is a list of module objects.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetInstrumentSnapshot</Identifier>
+    <DisplayName>Get instrument snapshot</DisplayName>
+    <Description>Single batched read of system LED, analysis LED, sequence summary, current step, and system info. Per-subsystem failures are logged and replaced with empty defaults. Result Payload is the snapshot object.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>InvalidateCache</Identifier>
+    <DisplayName>Invalidate UIA cache</DisplayName>
+    <Description>Clear cached child-window references (use after a UI restructure).</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <DefinedExecutionError>
+    <Identifier>InternalError</Identifier>
+    <DisplayName>Internal error</DisplayName>
+    <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+  </DefinedExecutionError>
+</Feature>

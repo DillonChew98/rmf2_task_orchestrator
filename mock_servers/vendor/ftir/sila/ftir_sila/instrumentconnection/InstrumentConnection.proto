@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.bruker.ftir.instrumentconnection.v2;
+
+/* Persistent OPUS HTTP session for instrument work and GUI visibility. Connect ensures the session is online; Disconnect releases it. */
+service InstrumentConnection {
+  /* Ensure the persistent OPUS HTTP session is online. Result Payload is InstrumentSnapshot (Void request Payload). */
+  rpc Connect (sila2.com.bruker.ftir.instrumentconnection.v2.Connect_Parameters) returns (sila2.com.bruker.ftir.instrumentconnection.v2.Connect_Responses) {}
+  /* Release the persistent OPUS HTTP session (idempotent; does not stop OPUS). Result Payload is DisconnectResult with State=Disconnected. */
+  rpc Disconnect (sila2.com.bruker.ftir.instrumentconnection.v2.Disconnect_Parameters) returns (sila2.com.bruker.ftir.instrumentconnection.v2.Disconnect_Responses) {}
+  /* Restore the OPUS application window. Result Payload is ShowOpusResult. */
+  rpc ShowOpus (sila2.com.bruker.ftir.instrumentconnection.v2.ShowOpus_Parameters) returns (sila2.com.bruker.ftir.instrumentconnection.v2.ShowOpus_Responses) {}
+  /* Hide the OPUS application window. Result Payload is HideOpusResult. */
+  rpc HideOpus (sila2.com.bruker.ftir.instrumentconnection.v2.HideOpus_Parameters) returns (sila2.com.bruker.ftir.instrumentconnection.v2.HideOpus_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+}
+
+/* Point-in-time OPUS / FTIR connection snapshot (Connect Result.Payload). */
+message DataType_InstrumentSnapshot {
+  message InstrumentSnapshot_Struct {
+    sila2.org.silastandard.Boolean Connected = 1;  /* Whether a working OPUS HTTP session is established. */
+    sila2.org.silastandard.String OpusVersion = 2;  /* OPUS version string, e.g. "9.2". */
+    sila2.org.silastandard.String OpusVersionExt = 3;  /* Extended OPUS version string with build details. */
+    sila2.org.silastandard.String HostIp = 4;  /* IP address of the OPUS host as reported by OPUS. */
+    sila2.org.silastandard.String Language = 5;  /* OPUS UI language, e.g. "English". */
+  }
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_InstrumentSnapshot.InstrumentSnapshot_Struct InstrumentSnapshot = 1;  /* Point-in-time OPUS / FTIR connection snapshot (Connect Result.Payload). */
+}
+
+/* Disconnect Result.Payload. */
+message DataType_DisconnectResult {
+  message DisconnectResult_Struct {
+    sila2.org.silastandard.String State = 1;  /* Connection state after disconnect. */
+  }
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_DisconnectResult.DisconnectResult_Struct DisconnectResult = 1;  /* Disconnect Result.Payload. */
+}
+
+/* ShowOpus Result.Payload. */
+message DataType_ShowOpusResult {
+  message ShowOpusResult_Struct {
+    sila2.org.silastandard.Boolean Shown = 1;  /* Whether the OPUS window was shown. */
+  }
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_ShowOpusResult.ShowOpusResult_Struct ShowOpusResult = 1;  /* ShowOpus Result.Payload. */
+}
+
+/* HideOpus Result.Payload. */
+message DataType_HideOpusResult {
+  message HideOpusResult_Struct {
+    sila2.org.silastandard.Boolean Hidden = 1;  /* Whether the OPUS window was hidden. */
+  }
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_HideOpusResult.HideOpusResult_Struct HideOpusResult = 1;  /* HideOpus Result.Payload. */
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ShowOpus */
+message ShowOpus_Parameters {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ShowOpus */
+message ShowOpus_Responses {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for HideOpus */
+message HideOpus_Parameters {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of HideOpus */
+message HideOpus_Responses {
+  sila2.com.bruker.ftir.instrumentconnection.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}

@@ -1,0 +1,348 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.com.bruker.ftir.measurementservice.v3;
+
+/* High-level FTIR measurement workflow: background, sample measurement, spectral data readback, and Allotrope FTIR ASM export. Exposes ASM-mirroring properties for last-result identity fields. */
+service MeasurementService {
+  /* Acquire a background (reference) spectrum via OPUS MeasureReference. Request.Payload is MeasureBackgroundRequestPayload. Streams Update envelopes (MeasureProgress) during the OPUS thread; Request.TimeoutSeconds sets lifetime_of_execution when non-zero. */
+  rpc MeasureBackground (sila2.com.bruker.ftir.measurementservice.v3.MeasureBackground_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of MeasureBackground */
+  rpc MeasureBackground_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of MeasureBackground */
+  rpc MeasureBackground_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.com.bruker.ftir.measurementservice.v3.MeasureBackground_IntermediateResponses) {}
+  /* Retrieve result of MeasureBackground */
+  rpc MeasureBackground_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.com.bruker.ftir.measurementservice.v3.MeasureBackground_Responses) {}
+  /* Run OPUS MeasureSample. Request.Payload is MeasureSampleRequestPayload. Result.Payload is MeasureSampleResult. OPUS soft-fail becomes Envelope Failed with opus.measurement.failed. Streams Update envelopes (MeasureProgress) during the OPUS thread. */
+  rpc MeasureSample (sila2.com.bruker.ftir.measurementservice.v3.MeasureSample_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of MeasureSample */
+  rpc MeasureSample_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of MeasureSample */
+  rpc MeasureSample_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.com.bruker.ftir.measurementservice.v3.MeasureSample_IntermediateResponses) {}
+  /* Retrieve result of MeasureSample */
+  rpc MeasureSample_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.com.bruker.ftir.measurementservice.v3.MeasureSample_Responses) {}
+  /* Load an OPUS file and extract readable spectral blocks. Request.Payload is ReadSpectrumRequestPayload; Result.Payload is ReadSpectrumResult. */
+  rpc ReadSpectrum (sila2.com.bruker.ftir.measurementservice.v3.ReadSpectrum_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.ReadSpectrum_Responses) {}
+  /* Read all OPUS parameter blocks from a data file. Request.Payload is ReadParametersRequestPayload; Result.Payload is ReadParametersResult. */
+  rpc ReadParameters (sila2.com.bruker.ftir.measurementservice.v3.ReadParameters_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.ReadParameters_Responses) {}
+  /* Read an existing OPUS data file and write an Allotrope FTIR ASM (REC/2024/12) JSON document. Request.Payload is ExportAsmRequestPayload; Result.Payload is ExportAsmResult. */
+  rpc ExportAsm (sila2.com.bruker.ftir.measurementservice.v3.ExportAsm_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.ExportAsm_Responses) {}
+  /* ASM detector type from the last successful measure/export (empty string if unknown). */
+  rpc Get_DetectorType (sila2.com.bruker.ftir.measurementservice.v3.Get_DetectorType_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_DetectorType_Responses) {}
+  /* ASM beamsplitter type from the last successful measure/export (empty string if unknown). */
+  rpc Get_BeamsplitterType (sila2.com.bruker.ftir.measurementservice.v3.Get_BeamsplitterType_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_BeamsplitterType_Responses) {}
+  /* ASM equipment serial number from the last successful measure/export (empty string if unknown). */
+  rpc Get_EquipmentSerialNumber (sila2.com.bruker.ftir.measurementservice.v3.Get_EquipmentSerialNumber_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_EquipmentSerialNumber_Responses) {}
+  /* ASM sample identifier from the last successful ASM write. */
+  rpc Get_LastSampleIdentifier (sila2.com.bruker.ftir.measurementservice.v3.Get_LastSampleIdentifier_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_LastSampleIdentifier_Responses) {}
+  /* ASM measurement identifier from the last successful ASM write. */
+  rpc Get_LastMeasurementIdentifier (sila2.com.bruker.ftir.measurementservice.v3.Get_LastMeasurementIdentifier_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_LastMeasurementIdentifier_Responses) {}
+  /* ASM measurement time (ISO-8601) from the last successful ASM write. */
+  rpc Get_LastMeasurementTime (sila2.com.bruker.ftir.measurementservice.v3.Get_LastMeasurementTime_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_LastMeasurementTime_Responses) {}
+  /* ASM analyst from the last successful ASM write. */
+  rpc Get_LastAnalyst (sila2.com.bruker.ftir.measurementservice.v3.Get_LastAnalyst_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_LastAnalyst_Responses) {}
+  /* JSON array of missing REC/2024/12 required keys after the last ASM write (empty [] if none or never written). */
+  rpc Get_LastAsmMissingRequiredJson (sila2.com.bruker.ftir.measurementservice.v3.Get_LastAsmMissingRequiredJson_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_LastAsmMissingRequiredJson_Responses) {}
+}
+
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+message DataType_Request {
+  message Request_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
+    sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
+    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
+}
+
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+message DataType_Envelope {
+  message Envelope_Struct {
+    sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
+    sila2.org.silastandard.String Outcome = 2;  /* Succeeded, Failed, Rejected, or Running. */
+    sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
+    sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
+    sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
+    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Details is Void when unused. */
+}
+
+/* One spectral intensity channel (SiLA forbids nested List of Real). */
+message DataType_IntensityTrace {
+  message IntensityTrace_Struct {
+    repeated sila2.org.silastandard.Real Values = 1;  /* Intensity samples for one spectral trace. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_IntensityTrace.IntensityTrace_Struct IntensityTrace = 1;  /* One spectral intensity channel (SiLA forbids nested List of Real). */
+}
+
+/* One readable OPUS spectral block. */
+message DataType_SpectrumBlock {
+  message SpectrumBlock_Struct {
+    sila2.org.silastandard.String BlockName = 1;  /* OPUS block name, e.g. AB. */
+    sila2.org.silastandard.Integer NPoints = 2;  /* Number of spectral data points. */
+    sila2.org.silastandard.Integer NTraces = 3;  /* Number of spectral traces (channels). */
+    sila2.org.silastandard.Real WavenumberMin = 4;  /* Minimum wavenumber (cm-1). */
+    sila2.org.silastandard.Real WavenumberMax = 5;  /* Maximum wavenumber (cm-1). */
+    sila2.org.silastandard.String FilePath = 6;  /* Source OPUS file path. */
+    repeated sila2.org.silastandard.Real Wavenumbers = 7;  /* Wavenumber axis (cm-1); empty when IncludeData is false. */
+    repeated sila2.com.bruker.ftir.measurementservice.v3.DataType_IntensityTrace Intensities = 8;  /* Per-trace intensity series; empty when IncludeData is false. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_SpectrumBlock.SpectrumBlock_Struct SpectrumBlock = 1;  /* One readable OPUS spectral block. */
+}
+
+/* Intermediate Update Payload during MeasureBackground / MeasureSample. */
+message DataType_MeasureProgress {
+  message MeasureProgress_Struct {
+    sila2.org.silastandard.Integer Percent = 1;  /* Progress 0-100. */
+    sila2.org.silastandard.String Status = 2;  /* Human-readable progress status from OPUS. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_MeasureProgress.MeasureProgress_Struct MeasureProgress = 1;  /* Intermediate Update Payload during MeasureBackground / MeasureSample. */
+}
+
+/* MeasureBackground Request.Payload. */
+message DataType_MeasureBackgroundRequestPayload {
+  message MeasureBackgroundRequestPayload_Struct {
+    sila2.org.silastandard.Real Resolution = 1;  /* Spectral resolution cm-1 (OPUS RES); 0 means default. */
+    sila2.org.silastandard.Integer BackgroundScans = 2;  /* Number of background scans (OPUS NSR); 0 means default. */
+    sila2.org.silastandard.Real OpticalVelocity = 3;  /* OPUS VEL in kHz; 0 means omit. */
+    sila2.org.silastandard.String Aperture = 4;  /* OPUS APT (e.g. "6 mm"); empty means omit. */
+    sila2.org.silastandard.Real DetectorGain = 5;  /* OPUS RGN; 0 means omit. */
+    sila2.org.silastandard.String ExperimentFile = 6;  /* Absolute .XPM path; empty means omit. When set, RES/NSR of 0 are omitted. */
+    sila2.org.silastandard.String Well = 7;  /* Optional HTS-XT well label (e.g. A1). Empty means measure at current stage position. */
+    sila2.org.silastandard.Any ExtraParameters = 8;  /* Additional OPUS 3-letter codes. Void or empty object means none. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_MeasureBackgroundRequestPayload.MeasureBackgroundRequestPayload_Struct MeasureBackgroundRequestPayload = 1;  /* MeasureBackground Request.Payload. */
+}
+
+/* MeasureBackground Result.Payload. */
+message DataType_MeasureBackgroundResult {
+  message MeasureBackgroundResult_Struct {
+    sila2.org.silastandard.Boolean Success = 1;  /* Whether OPUS reported success. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_MeasureBackgroundResult.MeasureBackgroundResult_Struct MeasureBackgroundResult = 1;  /* MeasureBackground Result.Payload. */
+}
+
+/* MeasureSample Request.Payload. */
+message DataType_MeasureSampleRequestPayload {
+  message MeasureSampleRequestPayload_Struct {
+    sila2.org.silastandard.Real Resolution = 1;  /* Spectral resolution cm-1 (OPUS RES); 0 means default. */
+    sila2.org.silastandard.Integer SampleScans = 2;  /* Number of sample scans (OPUS NSS); 0 means default. */
+    sila2.org.silastandard.Integer BackgroundScans = 3;  /* Number of background scans (OPUS NSR); 0 means default. */
+    sila2.org.silastandard.Real OpticalVelocity = 4;  /* OPUS VEL in kHz; 0 means omit. */
+    sila2.org.silastandard.String Aperture = 5;  /* OPUS APT (e.g. "6 mm"); empty means omit. */
+    sila2.org.silastandard.Real DetectorGain = 6;  /* OPUS SGN; 0 means omit. */
+    sila2.org.silastandard.String OutputPath = 7;  /* Absolute OPUS intermediate output path on the instrument PC. */
+    sila2.org.silastandard.String ExperimentFile = 8;  /* Absolute .XPM path; empty means omit. When set, RES/NSS/NSR of 0 are omitted. */
+    sila2.org.silastandard.String Well = 9;  /* Optional HTS-XT well label (e.g. B3). Empty means measure at current stage position. */
+    sila2.org.silastandard.Any ExtraParameters = 10;  /* Additional OPUS 3-letter codes. Void or empty object means none. */
+    sila2.org.silastandard.Boolean IncludeData = 11;  /* True to include full arrays in Result.Payload.Spectra. */
+    sila2.org.silastandard.Boolean ExportAsm = 12;  /* True to write an Allotrope FTIR ASM JSON beside the OPUS file (default true). */
+    sila2.org.silastandard.String AsmOutputPath = 13;  /* Explicit ASM JSON path; empty derives {opus_stem}.asm.json beside the OPUS file. */
+    sila2.org.silastandard.String SampleName = 14;  /* OPUS SNM and ASM sample identifier. */
+    sila2.org.silastandard.String Operator = 15;  /* Experiment operator (maps to ASM analyst when not overridden). */
+    sila2.org.silastandard.String Project = 16;  /* Experiment project name stored with the result and ASM export. */
+    sila2.org.silastandard.Any AsmMetadata = 17;  /* Optional ASM document fields. Void or empty object means none. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_MeasureSampleRequestPayload.MeasureSampleRequestPayload_Struct MeasureSampleRequestPayload = 1;  /* MeasureSample Request.Payload. */
+}
+
+/* MeasureSample Result.Payload. */
+message DataType_MeasureSampleResult {
+  message MeasureSampleResult_Struct {
+    sila2.org.silastandard.String FilePath = 1;  /* Path to the saved OPUS file. */
+    sila2.org.silastandard.String AsmPath = 2;  /* Path to the ASM JSON export; empty if not written. */
+    repeated sila2.com.bruker.ftir.measurementservice.v3.DataType_SpectrumBlock Spectra = 3;  /* Readable spectral blocks from the OPUS file. */
+    repeated sila2.org.silastandard.String RawResponse = 4;  /* Raw OPUS response lines. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_MeasureSampleResult.MeasureSampleResult_Struct MeasureSampleResult = 1;  /* MeasureSample Result.Payload. */
+}
+
+/* ReadSpectrum Request.Payload. */
+message DataType_ReadSpectrumRequestPayload {
+  message ReadSpectrumRequestPayload_Struct {
+    sila2.org.silastandard.String FilePath = 1;  /* Absolute path to an OPUS data file. */
+    sila2.org.silastandard.Boolean IncludeData = 2;  /* True to include full arrays in Spectra. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_ReadSpectrumRequestPayload.ReadSpectrumRequestPayload_Struct ReadSpectrumRequestPayload = 1;  /* ReadSpectrum Request.Payload. */
+}
+
+/* ReadSpectrum Result.Payload. */
+message DataType_ReadSpectrumResult {
+  message ReadSpectrumResult_Struct {
+    repeated sila2.com.bruker.ftir.measurementservice.v3.DataType_SpectrumBlock Spectra = 1;  /* Readable spectral blocks. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_ReadSpectrumResult.ReadSpectrumResult_Struct ReadSpectrumResult = 1;  /* ReadSpectrum Result.Payload. */
+}
+
+/* ReadParameters Request.Payload. */
+message DataType_ReadParametersRequestPayload {
+  message ReadParametersRequestPayload_Struct {
+    sila2.org.silastandard.String FilePath = 1;  /* Absolute path to an OPUS data file. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_ReadParametersRequestPayload.ReadParametersRequestPayload_Struct ReadParametersRequestPayload = 1;  /* ReadParameters Request.Payload. */
+}
+
+/* ReadParameters Result.Payload. */
+message DataType_ReadParametersResult {
+  message ReadParametersResult_Struct {
+    sila2.org.silastandard.Any Parameters = 1;  /* OPUS parameter blocks as a nested object. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_ReadParametersResult.ReadParametersResult_Struct ReadParametersResult = 1;  /* ReadParameters Result.Payload. */
+}
+
+/* ExportAsm Request.Payload. */
+message DataType_ExportAsmRequestPayload {
+  message ExportAsmRequestPayload_Struct {
+    sila2.org.silastandard.String FilePath = 1;  /* Absolute path to an OPUS data file. */
+    sila2.org.silastandard.String AsmOutputPath = 2;  /* Explicit ASM JSON path; empty derives from FilePath. */
+    sila2.org.silastandard.String SampleName = 3;  /* ASM sample identifier. */
+    sila2.org.silastandard.String Operator = 4;  /* Experiment operator (maps to ASM analyst when not overridden). */
+    sila2.org.silastandard.String Project = 5;  /* Experiment project name stored with the result and ASM export. */
+    sila2.org.silastandard.Any AsmMetadata = 6;  /* Optional ASM document fields. Void or empty object means none. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_ExportAsmRequestPayload.ExportAsmRequestPayload_Struct ExportAsmRequestPayload = 1;  /* ExportAsm Request.Payload. */
+}
+
+/* ExportAsm Result.Payload. */
+message DataType_ExportAsmResult {
+  message ExportAsmResult_Struct {
+    sila2.org.silastandard.String AsmPath = 1;  /* Path to the written ASM JSON document. */
+  }
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_ExportAsmResult.ExportAsmResult_Struct ExportAsmResult = 1;  /* ExportAsm Result.Payload. */
+}
+
+/* Parameters for MeasureBackground */
+message MeasureBackground_Parameters {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MeasureBackground */
+message MeasureBackground_Responses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of MeasureBackground */
+message MeasureBackground_IntermediateResponses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for MeasureSample */
+message MeasureSample_Parameters {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of MeasureSample */
+message MeasureSample_Responses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of MeasureSample */
+message MeasureSample_IntermediateResponses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
+}
+
+/* Parameters for ReadSpectrum */
+message ReadSpectrum_Parameters {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ReadSpectrum */
+message ReadSpectrum_Responses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ReadParameters */
+message ReadParameters_Parameters {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ReadParameters */
+message ReadParameters_Responses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for ExportAsm */
+message ExportAsm_Parameters {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of ExportAsm */
+message ExportAsm_Responses {
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for DetectorType */
+message Get_DetectorType_Parameters {
+}
+
+/* Responses of DetectorType */
+message Get_DetectorType_Responses {
+  sila2.org.silastandard.String DetectorType = 1;  /* ASM detector type from the last successful measure/export (empty string if unknown). */
+}
+
+/* Parameters for BeamsplitterType */
+message Get_BeamsplitterType_Parameters {
+}
+
+/* Responses of BeamsplitterType */
+message Get_BeamsplitterType_Responses {
+  sila2.org.silastandard.String BeamsplitterType = 1;  /* ASM beamsplitter type from the last successful measure/export (empty string if unknown). */
+}
+
+/* Parameters for EquipmentSerialNumber */
+message Get_EquipmentSerialNumber_Parameters {
+}
+
+/* Responses of EquipmentSerialNumber */
+message Get_EquipmentSerialNumber_Responses {
+  sila2.org.silastandard.String EquipmentSerialNumber = 1;  /* ASM equipment serial number from the last successful measure/export (empty string if unknown). */
+}
+
+/* Parameters for LastSampleIdentifier */
+message Get_LastSampleIdentifier_Parameters {
+}
+
+/* Responses of LastSampleIdentifier */
+message Get_LastSampleIdentifier_Responses {
+  sila2.org.silastandard.String LastSampleIdentifier = 1;  /* ASM sample identifier from the last successful ASM write. */
+}
+
+/* Parameters for LastMeasurementIdentifier */
+message Get_LastMeasurementIdentifier_Parameters {
+}
+
+/* Responses of LastMeasurementIdentifier */
+message Get_LastMeasurementIdentifier_Responses {
+  sila2.org.silastandard.String LastMeasurementIdentifier = 1;  /* ASM measurement identifier from the last successful ASM write. */
+}
+
+/* Parameters for LastMeasurementTime */
+message Get_LastMeasurementTime_Parameters {
+}
+
+/* Responses of LastMeasurementTime */
+message Get_LastMeasurementTime_Responses {
+  sila2.org.silastandard.String LastMeasurementTime = 1;  /* ASM measurement time (ISO-8601) from the last successful ASM write. */
+}
+
+/* Parameters for LastAnalyst */
+message Get_LastAnalyst_Parameters {
+}
+
+/* Responses of LastAnalyst */
+message Get_LastAnalyst_Responses {
+  sila2.org.silastandard.String LastAnalyst = 1;  /* ASM analyst from the last successful ASM write. */
+}
+
+/* Parameters for LastAsmMissingRequiredJson */
+message Get_LastAsmMissingRequiredJson_Parameters {
+}
+
+/* Responses of LastAsmMissingRequiredJson */
+message Get_LastAsmMissingRequiredJson_Responses {
+  sila2.org.silastandard.String LastAsmMissingRequiredJson = 1;  /* JSON array of missing REC/2024/12 required keys after the last ASM write (empty [] if none or never written). */
+}

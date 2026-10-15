@@ -1,0 +1,738 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="sdt" FeatureVersion="2.0" MaturityLevel="Draft" Originator="org.tainstruments" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+<Identifier>QueueManagement</Identifier>
+<DisplayName>SDT queue</DisplayName>
+<Description>Running / design queue operations. Payload shapes are JSON objects.</Description>
+<DataTypeDefinition>
+  <Identifier>Request</Identifier>
+  <DisplayName>Request</DisplayName>
+  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Version</Identifier>
+        <DisplayName>Version</DisplayName>
+        <Description>Envelope schema version. Currently 2.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>CorrelationId</Identifier>
+        <DisplayName>Correlation id</DisplayName>
+        <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>TimeoutSeconds</Identifier>
+        <DisplayName>Timeout (seconds)</DisplayName>
+        <Description>Command timeout in seconds. 0 means the server default.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Payload</Identifier>
+        <DisplayName>Payload</DisplayName>
+        <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>Envelope</Identifier>
+  <DisplayName>Envelope</DisplayName>
+  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Version</Identifier>
+        <DisplayName>Version</DisplayName>
+        <Description>Envelope schema version. Currently 2.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Outcome</Identifier>
+        <DisplayName>Outcome</DisplayName>
+        <Description>Succeeded, Failed, Rejected, or Running.</Description>
+        <DataType>
+          <Constrained>
+            <DataType>
+              <Basic>String</Basic>
+            </DataType>
+            <Constraints>
+              <Set>
+                <Value>Succeeded</Value>
+                <Value>Failed</Value>
+                <Value>Rejected</Value>
+                <Value>Running</Value>
+              </Set>
+            </Constraints>
+          </Constrained>
+        </DataType>
+      </Element>
+      <Element>
+        <Identifier>Code</Identifier>
+        <DisplayName>Code</DisplayName>
+        <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Message</Identifier>
+        <DisplayName>Message</DisplayName>
+        <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>CorrelationId</Identifier>
+        <DisplayName>Correlation id</DisplayName>
+        <Description>Echo of the request correlation id. Empty means none.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Payload</Identifier>
+        <DisplayName>Payload</DisplayName>
+        <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Details</Identifier>
+        <DisplayName>Details</DisplayName>
+        <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ListQueueExperimentsRequestPayload</Identifier>
+  <DisplayName>List queue experiments request payload</DisplayName>
+  <Description>ListQueueExperiments Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Index</Identifier>
+        <DisplayName>Index</DisplayName>
+        <Description>1-based experiment index; 0/omit to list all.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>GetQueueStatusJsonRequestPayload</Identifier>
+  <DisplayName>Get queue status request payload</DisplayName>
+  <Description>GetQueueStatusJson Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ValidateQueueJsonRequestPayload</Identifier>
+  <DisplayName>Validate queue request payload</DisplayName>
+  <Description>ValidateQueueJson Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>AddExperimentsFromSequenceRequestPayload</Identifier>
+  <DisplayName>Add experiments from sequence request payload</DisplayName>
+  <Description>AddExperimentsFromSequence Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ValidateExperimentPayloadRequestPayload</Identifier>
+  <DisplayName>Validate experiment payload request payload</DisplayName>
+  <Description>ValidateExperimentPayload Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>AddNewExperimentsRequestPayload</Identifier>
+  <DisplayName>Add new experiments request payload</DisplayName>
+  <Description>AddNewExperiments Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>CopyExperimentToQueueRequestPayload</Identifier>
+  <DisplayName>Copy experiment to queue request payload</DisplayName>
+  <Description>CopyExperimentToQueue Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>design | running; empty/omit for server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except QueueType) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>GetExperimentDetailsRequestPayload</Identifier>
+  <DisplayName>Get experiment details request payload</DisplayName>
+  <Description>GetExperimentDetails Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>ExperimentId</Identifier>
+        <DisplayName>Experiment id</DisplayName>
+        <Description>Queued experiment identifier.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ModifyExperimentInQueueRequestPayload</Identifier>
+  <DisplayName>Modify experiment in queue request payload</DisplayName>
+  <Description>ModifyExperimentInQueue Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>ExperimentId</Identifier>
+        <DisplayName>Experiment id</DisplayName>
+        <Description>Queued experiment identifier.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except ExperimentId) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>RemoveExperimentFromQueueRequestPayload</Identifier>
+  <DisplayName>Remove experiment from queue request payload</DisplayName>
+  <Description>RemoveExperimentFromQueue Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>ExperimentId</Identifier>
+        <DisplayName>Experiment id</DisplayName>
+        <Description>Queued experiment identifier.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>MoveExperimentInQueueRequestPayload</Identifier>
+  <DisplayName>Move experiment in queue request payload</DisplayName>
+  <Description>MoveExperimentInQueue Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>ExperimentId</Identifier>
+        <DisplayName>Experiment id</DisplayName>
+        <Description>Queued experiment identifier.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON body. When --payload-json omits Body, remaining keys (except ExperimentId) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ValidateQueuedExperimentRequestPayload</Identifier>
+  <DisplayName>Validate queued experiment request payload</DisplayName>
+  <Description>ValidateQueuedExperiment Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>ExperimentId</Identifier>
+        <DisplayName>Experiment id</DisplayName>
+        <Description>Queued experiment identifier.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ListQueueExperimentsResult</Identifier>
+  <DisplayName>List queue experiments result</DisplayName>
+  <Description>ListQueueExperiments Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>GetQueueStatusJsonResult</Identifier>
+  <DisplayName>Get queue status result</DisplayName>
+  <Description>GetQueueStatusJson Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ValidateQueueJsonResult</Identifier>
+  <DisplayName>Validate queue result</DisplayName>
+  <Description>ValidateQueueJson Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>AddExperimentsFromSequenceResult</Identifier>
+  <DisplayName>Add experiments from sequence result</DisplayName>
+  <Description>AddExperimentsFromSequence Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ValidateExperimentPayloadResult</Identifier>
+  <DisplayName>Validate experiment payload result</DisplayName>
+  <Description>ValidateExperimentPayload Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>AddNewExperimentsResult</Identifier>
+  <DisplayName>Add new experiments result</DisplayName>
+  <Description>AddNewExperiments Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>CopyExperimentToQueueResult</Identifier>
+  <DisplayName>Copy experiment to queue result</DisplayName>
+  <Description>CopyExperimentToQueue Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>GetExperimentDetailsResult</Identifier>
+  <DisplayName>Get experiment details result</DisplayName>
+  <Description>GetExperimentDetails Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ModifyExperimentInQueueResult</Identifier>
+  <DisplayName>Modify experiment in queue result</DisplayName>
+  <Description>ModifyExperimentInQueue Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>RemoveExperimentFromQueueResult</Identifier>
+  <DisplayName>Remove experiment from queue result</DisplayName>
+  <Description>RemoveExperimentFromQueue Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>MoveExperimentInQueueResult</Identifier>
+  <DisplayName>Move experiment in queue result</DisplayName>
+  <Description>MoveExperimentInQueue Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>ValidateQueuedExperimentResult</Identifier>
+  <DisplayName>Validate queued experiment result</DisplayName>
+  <Description>ValidateQueuedExperiment Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<Command>
+  <Identifier>ListQueueExperiments</Identifier>
+  <DisplayName>List queue experiments</DisplayName>
+  <Description>GET /queue/experiments. Request.Payload is ListQueueExperimentsRequestPayload; Result.Payload is ListQueueExperimentsResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>GetQueueStatusJson</Identifier>
+  <DisplayName>Queue status</DisplayName>
+  <Description>GET /queue/status. Request.Payload is GetQueueStatusJsonRequestPayload; Result.Payload is GetQueueStatusJsonResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>ValidateQueueJson</Identifier>
+  <DisplayName>Validate queue</DisplayName>
+  <Description>GET /queue/validate. Request.Payload is ValidateQueueJsonRequestPayload; Result.Payload is ValidateQueueJsonResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>AddExperimentsFromSequence</Identifier>
+  <DisplayName>Add experiments from sequence</DisplayName>
+  <Description>POST /queue/experiments/from-sequence. Request.Payload is AddExperimentsFromSequenceRequestPayload; Result.Payload is AddExperimentsFromSequenceResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>ValidateExperimentPayload</Identifier>
+  <DisplayName>Validate experiment definition</DisplayName>
+  <Description>POST /queue/experiments/validate. Request.Payload is ValidateExperimentPayloadRequestPayload; Result.Payload is ValidateExperimentPayloadResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>AddNewExperiments</Identifier>
+  <DisplayName>Add new experiments</DisplayName>
+  <Description>POST /queue/experiments/new. Request.Payload is AddNewExperimentsRequestPayload; Result.Payload is AddNewExperimentsResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>CopyExperimentToQueue</Identifier>
+  <DisplayName>Copy experiment to queue</DisplayName>
+  <Description>POST /queue/experiments/copy. Request.Payload is CopyExperimentToQueueRequestPayload; Result.Payload is CopyExperimentToQueueResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>GetExperimentDetails</Identifier>
+  <DisplayName>Get experiment details</DisplayName>
+  <Description>GET /queue/experiments/{id}. Request.Payload is GetExperimentDetailsRequestPayload; Result.Payload is GetExperimentDetailsResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>ModifyExperimentInQueue</Identifier>
+  <DisplayName>Modify queued experiment</DisplayName>
+  <Description>PATCH /queue/experiments/{id}. Request.Payload is ModifyExperimentInQueueRequestPayload; Result.Payload is ModifyExperimentInQueueResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>RemoveExperimentFromQueue</Identifier>
+  <DisplayName>Remove queued experiment</DisplayName>
+  <Description>DELETE /queue/experiments/{id}. Request.Payload is RemoveExperimentFromQueueRequestPayload; Result.Payload is RemoveExperimentFromQueueResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>MoveExperimentInQueue</Identifier>
+  <DisplayName>Move experiment position</DisplayName>
+  <Description>PUT /queue/experiments/{id}/position. Request.Payload is MoveExperimentInQueueRequestPayload; Result.Payload is MoveExperimentInQueueResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>ValidateQueuedExperiment</Identifier>
+  <DisplayName>Validate queued experiment</DisplayName>
+  <Description>GET /queue/experiments/{id}/validate. Request.Payload is ValidateQueuedExperimentRequestPayload; Result.Payload is ValidateQueuedExperimentResult.</Description>
+  <Observable>No</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<DefinedExecutionError>
+  <Identifier>InternalError</Identifier>
+  <DisplayName>Internal error</DisplayName>
+  <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+</DefinedExecutionError>
+</Feature>

@@ -1,0 +1,328 @@
+<Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="ftir" FeatureVersion="2.0" MaturityLevel="Draft" Originator="com.bruker" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
+  <Identifier>InstrumentConnection</Identifier>
+  <DisplayName>FTIR OPUS connection</DisplayName>
+  <Description>Persistent OPUS HTTP session for instrument work and GUI visibility. Connect ensures the session is online; Disconnect releases it.</Description>
+  <DataTypeDefinition>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Caller correlation id. Empty means none. Echoed on the response.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>TimeoutSeconds</Identifier>
+          <DisplayName>Timeout (seconds)</DisplayName>
+          <Description>Command timeout in seconds. 0 means the server default.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>Envelope</Identifier>
+    <DisplayName>Envelope</DisplayName>
+    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Version</Identifier>
+          <DisplayName>Version</DisplayName>
+          <Description>Envelope schema version. Currently 2.</Description>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Outcome</Identifier>
+          <DisplayName>Outcome</DisplayName>
+          <Description>Succeeded, Failed, Rejected, or Running.</Description>
+          <DataType>
+            <Constrained>
+              <DataType>
+                <Basic>String</Basic>
+              </DataType>
+              <Constraints>
+                <Set>
+                  <Value>Succeeded</Value>
+                  <Value>Failed</Value>
+                  <Value>Rejected</Value>
+                  <Value>Running</Value>
+                </Set>
+              </Constraints>
+            </Constrained>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Code</Identifier>
+          <DisplayName>Code</DisplayName>
+          <Description>Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Message</Identifier>
+          <DisplayName>Message</DisplayName>
+          <Description>Human-readable outcome message. Defaults to success on Succeeded.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>CorrelationId</Identifier>
+          <DisplayName>Correlation id</DisplayName>
+          <Description>Echo of the request correlation id. Empty means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Payload</Identifier>
+          <DisplayName>Payload</DisplayName>
+          <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Details</Identifier>
+          <DisplayName>Details</DisplayName>
+          <Description>UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>InstrumentSnapshot</Identifier>
+    <DisplayName>Instrument snapshot</DisplayName>
+    <Description>Point-in-time OPUS / FTIR connection snapshot (Connect Result.Payload).</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Connected</Identifier>
+          <DisplayName>Connected</DisplayName>
+          <Description>Whether a working OPUS HTTP session is established.</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>OpusVersion</Identifier>
+          <DisplayName>OPUS version</DisplayName>
+          <Description>OPUS version string, e.g. "9.2".</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>OpusVersionExt</Identifier>
+          <DisplayName>OPUS version (extended)</DisplayName>
+          <Description>Extended OPUS version string with build details.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>HostIp</Identifier>
+          <DisplayName>Host IP</DisplayName>
+          <Description>IP address of the OPUS host as reported by OPUS.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+        <Element>
+          <Identifier>Language</Identifier>
+          <DisplayName>Language</DisplayName>
+          <Description>OPUS UI language, e.g. "English".</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>DisconnectResult</Identifier>
+    <DisplayName>Disconnect result</DisplayName>
+    <Description>Disconnect Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>State</Identifier>
+          <DisplayName>State</DisplayName>
+          <Description>Connection state after disconnect.</Description>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>ShowOpusResult</Identifier>
+    <DisplayName>Show OPUS result</DisplayName>
+    <Description>ShowOpus Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Shown</Identifier>
+          <DisplayName>Shown</DisplayName>
+          <Description>Whether the OPUS window was shown.</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <DataTypeDefinition>
+    <Identifier>HideOpusResult</Identifier>
+    <DisplayName>Hide OPUS result</DisplayName>
+    <Description>HideOpus Result.Payload.</Description>
+    <DataType>
+      <Structure>
+        <Element>
+          <Identifier>Hidden</Identifier>
+          <DisplayName>Hidden</DisplayName>
+          <Description>Whether the OPUS window was hidden.</Description>
+          <DataType>
+            <Basic>Boolean</Basic>
+          </DataType>
+        </Element>
+      </Structure>
+    </DataType>
+  </DataTypeDefinition>
+  <Command>
+    <Identifier>Connect</Identifier>
+    <DisplayName>Connect to OPUS</DisplayName>
+    <Description>Ensure the persistent OPUS HTTP session is online. Result Payload is InstrumentSnapshot (Void request Payload).</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>Disconnect</Identifier>
+    <DisplayName>Disconnect from OPUS</DisplayName>
+    <Description>Release the persistent OPUS HTTP session (idempotent; does not stop OPUS). Result Payload is DisconnectResult with State=Disconnected.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ShowOpus</Identifier>
+    <DisplayName>Show OPUS window</DisplayName>
+    <Description>Restore the OPUS application window. Result Payload is ShowOpusResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>HideOpus</Identifier>
+    <DisplayName>Hide OPUS window</DisplayName>
+    <Description>Hide the OPUS application window. Result Payload is HideOpusResult.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Request</Identifier>
+      <DisplayName>Request</DisplayName>
+      <Description>Standard command request.</Description>
+      <DataType>
+        <DataTypeIdentifier>Request</DataTypeIdentifier>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>Result</Identifier>
+      <DisplayName>Result</DisplayName>
+      <Description>Standard command envelope.</Description>
+      <DataType>
+        <DataTypeIdentifier>Envelope</DataTypeIdentifier>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InternalError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <DefinedExecutionError>
+    <Identifier>InternalError</Identifier>
+    <DisplayName>Internal error</DisplayName>
+    <Description>The server could not build an envelope (connection drop, unexpected exception, or cancellation).</Description>
+  </DefinedExecutionError>
+</Feature>
