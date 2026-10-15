@@ -15,7 +15,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.sdt.runcontrol.v2.RunControl",
                 "method": "ControlStart",
-                "uri": "https://${lab.tga_host}",
+                "uri": "${lab.tga_host}",
                 "request": {
                   "Request": {
                     "Request": {
@@ -54,7 +54,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.sdt.runcontrol.v2.RunControl",
                 "method": "ControlStart_Info",
-                "uri": "https://${lab.tga_host}"
+                "uri": "${lab.tga_host}"
               },
               "stream_out": { "out": { "builtin": "dispose" } },
               "next": "if_finished"
@@ -84,7 +84,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.sdt.runcontrol.v2.RunControl",
                 "method": "ControlStart_Result",
-                "uri": "https://${lab.tga_host}"
+                "uri": "${lab.tga_host}"
               },
               "stream_out": { "out": "check_outcome" },
               "next": "if_result_read"

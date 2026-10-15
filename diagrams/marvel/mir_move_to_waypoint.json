@@ -77,7 +77,7 @@
               "display_text": "GET /status: read the robot status",
               "config": {
                 "method": "GET",
-                "uri": "http://${lab.mir_host}/api/v2.0.0/status",
+                "uri": "${lab.mir_host}/api/v2.0.0/status",
                 "headers": {
                   "Accept": "application/json",
                   "Authorization": "${MIR_AUTH}",
@@ -184,7 +184,7 @@
               "display_text": "Read arm status",
               "config": {
                 "method": "GET",
-                "uri": "http://${lab.ur_host}/task/status",
+                "uri": "${lab.ur_host}/task/status",
                 "headers": {
                   "Accept": "application/json"
                 },
@@ -276,7 +276,7 @@
               "display_text": "POST /mission_queue: send the Move",
               "config": {
                 "method": "POST",
-                "uri": "http://${lab.mir_host}/api/v2.0.0/mission_queue",
+                "uri": "${lab.mir_host}/api/v2.0.0/mission_queue",
                 "headers": {
                   "Accept": "application/json",
                   "Authorization": "${MIR_AUTH}",
@@ -458,7 +458,7 @@
               "display_text": "DELETE /mission_queue: wipe the queue, aborting the Move",
               "config": {
                 "method": "DELETE",
-                "uri": "http://${lab.mir_host}/api/v2.0.0/mission_queue",
+                "uri": "${lab.mir_host}/api/v2.0.0/mission_queue",
                 "headers": {
                   "Accept": "application/json",
                   "Authorization": "${MIR_AUTH}",
@@ -479,7 +479,7 @@
               "display_text": "POST /mission_queue: ChargeAtStation, send the robot home",
               "config": {
                 "method": "POST",
-                "uri": "http://${lab.mir_host}/api/v2.0.0/mission_queue",
+                "uri": "${lab.mir_host}/api/v2.0.0/mission_queue",
                 "headers": {
                   "Accept": "application/json",
                   "Authorization": "${MIR_AUTH}",

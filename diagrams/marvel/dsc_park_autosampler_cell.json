@@ -15,7 +15,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.xdsc.autosamplercontrol.v2.AutosamplerControl",
                 "method": "ParkAutosampler",
-                "uri": "https://${lab.dsc_host}",
+                "uri": "${lab.dsc_host}",
                 "timeout": 10,
                 "request": {
                   "Request": {
@@ -57,7 +57,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.xdsc.autosamplercontrol.v2.AutosamplerControl",
                 "method": "ParkAutosampler_Intermediate",
-                "uri": "https://${lab.dsc_host}",
+                "uri": "${lab.dsc_host}",
                 "timeout": 60
               },
               "stream_out": { "out": { "builtin": "dispose" } },
@@ -88,7 +88,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.xdsc.autosamplercontrol.v2.AutosamplerControl",
                 "method": "ParkAutosampler_Result",
-                "uri": "https://${lab.dsc_host}",
+                "uri": "${lab.dsc_host}",
                 "timeout": 10
               },
               "stream_out": { "out": "check_outcome" },

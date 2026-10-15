@@ -21,7 +21,7 @@
               "config": {
                 "service": "sila2.com.bruker.ftir.stagecontrolservice.v2.StageControlService",
                 "method": "CloseDrawer",
-                "uri": "https://${lab.ftir_host}",
+                "uri": "${lab.ftir_host}",
                 "timeout": 10,
                 "request": {
                   "Request": {
@@ -80,7 +80,7 @@
               "config": {
                 "service": "sila2.com.bruker.ftir.stagecontrolservice.v2.StageControlService",
                 "method": "CloseDrawer_Info",
-                "uri": "https://${lab.ftir_host}",
+                "uri": "${lab.ftir_host}",
                 "timeout": 30
               },
               "stream_out": {
@@ -122,7 +122,7 @@
               "config": {
                 "service": "sila2.com.bruker.ftir.stagecontrolservice.v2.StageControlService",
                 "method": "CloseDrawer_Result",
-                "uri": "https://${lab.ftir_host}",
+                "uri": "${lab.ftir_host}",
                 "timeout": 10
               },
               "stream_out": {

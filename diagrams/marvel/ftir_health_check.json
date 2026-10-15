@@ -15,7 +15,7 @@
               "config": {
                 "service": "sila2.com.bruker.ftir.instrumentstatus.v2.InstrumentStatus",
                 "method": "Subscribe_CurrentInstrumentStatus",
-                "uri": "https://${lab.ftir_host}",
+                "uri": "${lab.ftir_host}",
                 "timeout": 10,
                 "request": {}
               },

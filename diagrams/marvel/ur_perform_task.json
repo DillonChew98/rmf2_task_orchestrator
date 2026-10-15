@@ -29,7 +29,7 @@
               "display_text": "GET /task/status: is the arm free?",
               "config": {
                 "method": "GET",
-                "uri": "http://${lab.ur_host}/task/status",
+                "uri": "${lab.ur_host}/task/status",
                 "headers": {
                   "Accept": "application/json"
                 },
@@ -121,7 +121,7 @@
               "display_text": "POST /task/start: run the task from the message body",
               "config": {
                 "method": "POST",
-                "uri": "http://${lab.ur_host}/task/start",
+                "uri": "${lab.ur_host}/task/start",
                 "headers": {
                   "Accept": "application/json"
                 },

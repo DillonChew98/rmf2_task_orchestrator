@@ -15,7 +15,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.sdt.furnacecontrol.v2.FurnaceControl",
                 "method": "CloseFurnace",
-                "uri": "https://${lab.tga_host}",
+                "uri": "${lab.tga_host}",
                 "timeout": 45,
                 "request": {
                   "Request": {

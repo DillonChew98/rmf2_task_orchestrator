@@ -15,7 +15,7 @@
               "config": {
                 "service": "sila2.org.tainstruments.sdt.queuemanagement.v2.QueueManagement",
                 "method": "AddNewExperiments",
-                "uri": "https://${lab.tga_host}",
+                "uri": "${lab.tga_host}",
                 "timeout": 45,
                 "request": {
                   "Request": {
