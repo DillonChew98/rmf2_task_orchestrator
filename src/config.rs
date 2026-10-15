@@ -23,7 +23,19 @@ use std::sync::OnceLock;
 pub struct AmqpSettings {
     pub host: String,
     pub port: u16,
+    #[serde(default = "default_amqp_username")]
+    pub username: String,
+    #[serde(default = "default_amqp_password")]
+    pub password: String,
     pub consumer: ConsumerSettings,
+}
+
+fn default_amqp_username() -> String {
+    "guest".to_string()
+}
+
+fn default_amqp_password() -> String {
+    "guest".to_string()
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -42,7 +54,10 @@ fn default_exchange_kind() -> String {
 
 impl From<&AmqpSettings> for String {
     fn from(config: &AmqpSettings) -> String {
-        format!("amqp://{}:{}", config.host, config.port)
+        format!(
+            "amqp://{}:{}@{}:{}",
+            config.username, config.password, config.host, config.port
+        )
     }
 }
 

@@ -19,6 +19,8 @@ pub enum SectionStatus {
     Pending,
     Running,
     Completed,
+    Failed,
+    Skipped,
 }
 
 impl SectionStatus {
@@ -27,6 +29,8 @@ impl SectionStatus {
             Self::Pending => "pending",
             Self::Running => "running",
             Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
         }
     }
 
@@ -34,7 +38,20 @@ impl SectionStatus {
         match s {
             "running" => Self::Running,
             "completed" => Self::Completed,
+            "failed" => Self::Failed,
+            "skipped" => Self::Skipped,
             _ => Self::Pending,
+        }
+    }
+
+    fn from_message(message: &crossflow::trace::TracedMessage) -> Self {
+        match message {
+            Some(Ok(value)) => match value.get("status").and_then(|v| v.as_str()) {
+                Some("failed") => Self::Failed,
+                Some("skipped") => Self::Skipped,
+                _ => Self::Completed,
+            },
+            _ => Self::Completed,
         }
     }
 }
@@ -43,6 +60,7 @@ impl SectionStatus {
 enum TargetKind {
     RegisteredSection(String),
     TopLevel,
+    Terminate,
     Internal,
 }
 
@@ -154,15 +172,26 @@ pub fn extract_sub_sections(
     result
 }
 
+enum DbCommand {
+    Clear(String),
+    Upsert {
+        workflow_id: String,
+        section_id: String,
+        parent_section_id: String,
+        status: String,
+    },
+}
+
 pub struct WorkflowTracker {
     workflows: HashMap<WorkflowId, WorkflowState>,
     section_name_to_workflow: HashMap<SectionId, WorkflowId>,
     sections_running: HashSet<SectionId>,
+    section_terminal_hints: HashMap<SectionId, SectionStatus>,
     sub_section_registry: HashSet<(SectionId, String)>,
     sub_sections_running: HashSet<(SectionId, String)>,
     broadcast_tx: broadcast::Sender<WorkflowEvent>,
     register_rx: mpsc::UnboundedReceiver<WorkflowRegistration>,
-    db: Option<sqlx::PgPool>,
+    db_cmd_tx: Option<mpsc::UnboundedSender<DbCommand>>,
 }
 
 #[derive(Clone)]
@@ -203,15 +232,23 @@ impl WorkflowTracker {
         let (broadcast_tx, _) = broadcast::channel(broadcast_capacity);
         let (register_tx, register_rx) = mpsc::unbounded_channel();
 
+        let db_cmd_tx = db.as_ref().map(|pool| {
+            let (tx, rx) = mpsc::unbounded_channel();
+            let pool = pool.clone();
+            tokio::spawn(Self::db_writer(pool, rx));
+            tx
+        });
+
         let tracker = Self {
             workflows: HashMap::new(),
             section_name_to_workflow: HashMap::new(),
             sections_running: HashSet::new(),
+            section_terminal_hints: HashMap::new(),
             sub_section_registry: HashSet::new(),
             sub_sections_running: HashSet::new(),
             broadcast_tx: broadcast_tx.clone(),
             register_rx,
-            db: db.clone(),
+            db_cmd_tx,
         };
 
         let handle = WorkflowTrackerHandle {
@@ -221,6 +258,46 @@ impl WorkflowTracker {
         };
 
         (tracker, handle)
+    }
+
+    async fn db_writer(pool: sqlx::PgPool, mut rx: mpsc::UnboundedReceiver<DbCommand>) {
+        while let Some(cmd) = rx.recv().await {
+            match cmd {
+                DbCommand::Clear(workflow_id) => {
+                    if let Err(e) =
+                        sqlx::query("DELETE FROM workflow_sections WHERE workflow_id = $1")
+                            .bind(&workflow_id)
+                            .execute(&pool)
+                            .await
+                    {
+                        tracing::error!("Failed to clear workflow {workflow_id} from DB: {e}");
+                    }
+                }
+                DbCommand::Upsert {
+                    workflow_id,
+                    section_id,
+                    parent_section_id,
+                    status,
+                } => {
+                    if let Err(e) = sqlx::query(
+                        "INSERT INTO workflow_sections \
+                             (workflow_id, section_id, parent_section_id, status, updated_at) \
+                         VALUES ($1, $2, $3, $4, NOW()) \
+                         ON CONFLICT (workflow_id, parent_section_id, section_id) \
+                         DO UPDATE SET status = $4, updated_at = NOW()",
+                    )
+                    .bind(&workflow_id)
+                    .bind(&section_id)
+                    .bind(&parent_section_id)
+                    .bind(&status)
+                    .execute(&pool)
+                    .await
+                    {
+                        tracing::error!("Failed to persist workflow status: {e}");
+                    }
+                }
+            }
+        }
     }
 
     pub async fn run(mut self, mut trace_rx: mpsc::UnboundedReceiver<TracedEvent>) {
@@ -245,6 +322,8 @@ impl WorkflowTracker {
             registration.sections,
             registration.sub_sections,
         );
+
+        self.clear_workflow_from_db(&registration.workflow_id);
 
         let mut sections = HashMap::new();
         let mut sub_sections = HashMap::new();
@@ -330,6 +409,7 @@ impl WorkflowTracker {
                 Some(_) => TargetKind::Internal,
                 None => TargetKind::TopLevel,
             },
+            OperationRef::Terminate(_) => TargetKind::Terminate,
             _ => TargetKind::Internal,
         }
     }
@@ -369,6 +449,8 @@ impl WorkflowTracker {
     fn handle_message_sent(&mut self, msg: &MessageSent) {
         let input_kind = self.classify_target(&msg.input.info);
 
+        // When a new section starts Running, complete predecessor sections
+        // in the same workflow (data exited them to reach this section).
         if let TargetKind::RegisteredSection(ref section_name) = input_kind {
             if !self.sections_running.contains(section_name.as_str()) {
                 if let Some(workflow_id) = self
@@ -376,7 +458,31 @@ impl WorkflowTracker {
                     .get(section_name.as_str())
                     .cloned()
                 {
+                    let terminal = SectionStatus::from_message(&msg.message);
+                    let predecessors: Vec<String> = self
+                        .sections_running
+                        .iter()
+                        .filter(|s| {
+                            self.section_name_to_workflow.get(s.as_str()) == Some(&workflow_id)
+                        })
+                        .cloned()
+                        .collect();
+                    for prev in &predecessors {
+                        self.sections_running.remove(prev);
+                        if let Some(state) = self.workflows.get_mut(&workflow_id) {
+                            state.sections.insert(prev.clone(), terminal.clone());
+                        }
+                        self.broadcast_event(
+                            workflow_id.clone(),
+                            prev.clone(),
+                            None,
+                            terminal.clone(),
+                        );
+                    }
+
                     self.sections_running.insert(section_name.clone());
+                    self.section_terminal_hints
+                        .insert(section_name.clone(), terminal);
                     if let Some(state) = self.workflows.get_mut(&workflow_id) {
                         state
                             .sections
@@ -392,6 +498,8 @@ impl WorkflowTracker {
             }
         }
 
+        // Source-based completion (secondary mechanism when source trace info
+        // is available).
         for source in &msg.output {
             let Some(source_section) = self.section_from_info(&source.info) else {
                 continue;
@@ -401,7 +509,7 @@ impl WorkflowTracker {
             }
             let is_completion = match &input_kind {
                 TargetKind::RegisteredSection(target) => target.as_str() != source_section.as_str(),
-                TargetKind::TopLevel => true,
+                TargetKind::TopLevel | TargetKind::Terminate => true,
                 TargetKind::Internal => false,
             };
             if !is_completion {
@@ -414,18 +522,39 @@ impl WorkflowTracker {
             else {
                 continue;
             };
+            let terminal = SectionStatus::from_message(&msg.message);
             self.sections_running.remove(source_section.as_str());
             if let Some(state) = self.workflows.get_mut(&workflow_id) {
                 state
                     .sections
-                    .insert(source_section.clone(), SectionStatus::Completed);
+                    .insert(source_section.clone(), terminal.clone());
             }
-            self.broadcast_event(
-                workflow_id,
-                source_section.clone(),
-                None,
-                SectionStatus::Completed,
-            );
+            self.broadcast_event(workflow_id, source_section.clone(), None, terminal);
+        }
+
+        // Terminate fallback: when the workflow terminates and source info is
+        // unavailable, complete all remaining running sections.
+        if input_kind == TargetKind::Terminate {
+            let remaining: Vec<(String, String)> = self
+                .sections_running
+                .iter()
+                .filter_map(|s| {
+                    let wf = self.section_name_to_workflow.get(s.as_str())?.clone();
+                    Some((s.clone(), wf))
+                })
+                .collect();
+            let fallback = SectionStatus::from_message(&msg.message);
+            for (section, workflow_id) in remaining {
+                self.sections_running.remove(&section);
+                let terminal = self
+                    .section_terminal_hints
+                    .remove(&section)
+                    .unwrap_or_else(|| fallback.clone());
+                if let Some(state) = self.workflows.get_mut(&workflow_id) {
+                    state.sections.insert(section.clone(), terminal.clone());
+                }
+                self.broadcast_event(workflow_id, section, None, terminal);
+            }
         }
 
         let input_sub = self.sub_section_from_info(&msg.input.info);
@@ -435,6 +564,18 @@ impl WorkflowTracker {
                 if let Some(workflow_id) =
                     self.section_name_to_workflow.get(key.0.as_str()).cloned()
                 {
+                    if !self.sections_running.contains(key.0.as_str()) {
+                        self.sections_running.insert(key.0.clone());
+                        if let Some(state) = self.workflows.get_mut(&workflow_id) {
+                            state.sections.insert(key.0.clone(), SectionStatus::Running);
+                        }
+                        self.broadcast_event(
+                            workflow_id.clone(),
+                            key.0.clone(),
+                            None,
+                            SectionStatus::Running,
+                        );
+                    }
                     self.sub_sections_running.insert(key.clone());
                     if let Some(state) = self.workflows.get_mut(&workflow_id) {
                         state
@@ -471,18 +612,49 @@ impl WorkflowTracker {
             else {
                 continue;
             };
+            let terminal = SectionStatus::from_message(&msg.message);
             self.sub_sections_running.remove(&source_sub);
             if let Some(state) = self.workflows.get_mut(&workflow_id) {
                 state
                     .sub_sections
-                    .insert(source_sub.clone(), SectionStatus::Completed);
+                    .insert(source_sub.clone(), terminal.clone());
             }
             self.broadcast_event(
-                workflow_id,
+                workflow_id.clone(),
                 source_sub.1.clone(),
                 Some(source_sub.0.clone()),
-                SectionStatus::Completed,
+                terminal.clone(),
             );
+
+            // When all sub-sections of a parent complete, complete the parent.
+            let parent = source_sub.0.clone();
+            let all_subs: Vec<_> = self
+                .sub_section_registry
+                .iter()
+                .filter(|(p, _)| p == &parent)
+                .cloned()
+                .collect();
+            let all_completed = if let Some(state) = self.workflows.get(&workflow_id) {
+                all_subs.iter().all(|key| {
+                    state.sub_sections.get(key).is_some_and(|s| {
+                        matches!(
+                            s,
+                            SectionStatus::Completed
+                                | SectionStatus::Failed
+                                | SectionStatus::Skipped
+                        )
+                    })
+                })
+            } else {
+                false
+            };
+            if all_completed && self.sections_running.contains(&parent) {
+                self.sections_running.remove(&parent);
+                if let Some(state) = self.workflows.get_mut(&workflow_id) {
+                    state.sections.insert(parent.clone(), terminal.clone());
+                }
+                self.broadcast_event(workflow_id, parent, None, terminal);
+            }
         }
     }
 
@@ -523,6 +695,12 @@ impl WorkflowTracker {
         let _ = self.broadcast_tx.send(event);
     }
 
+    fn clear_workflow_from_db(&self, workflow_id: &str) {
+        if let Some(ref tx) = self.db_cmd_tx {
+            let _ = tx.send(DbCommand::Clear(workflow_id.to_string()));
+        }
+    }
+
     fn persist_status(
         &self,
         workflow_id: &str,
@@ -530,31 +708,14 @@ impl WorkflowTracker {
         parent_section_id: &str,
         status: &SectionStatus,
     ) {
-        let Some(ref db) = self.db else {
-            return;
-        };
-        let db = db.clone();
-        let wf = workflow_id.to_string();
-        let sec = section_id.to_string();
-        let par = parent_section_id.to_string();
-        let st = status.as_str().to_string();
-        tokio::spawn(async move {
-            if let Err(e) = sqlx::query(
-                "INSERT INTO workflow_sections (workflow_id, section_id, parent_section_id, status, updated_at) \
-                 VALUES ($1, $2, $3, $4, NOW()) \
-                 ON CONFLICT (workflow_id, parent_section_id, section_id) \
-                 DO UPDATE SET status = $4, updated_at = NOW()",
-            )
-            .bind(&wf)
-            .bind(&sec)
-            .bind(&par)
-            .bind(&st)
-            .execute(&db)
-            .await
-            {
-                tracing::error!("Failed to persist workflow status: {e}");
-            }
-        });
+        if let Some(ref tx) = self.db_cmd_tx {
+            let _ = tx.send(DbCommand::Upsert {
+                workflow_id: workflow_id.to_string(),
+                section_id: section_id.to_string(),
+                parent_section_id: parent_section_id.to_string(),
+                status: status.as_str().to_string(),
+            });
+        }
     }
 }
 
@@ -565,7 +726,7 @@ mod tests {
         bevy_ecs::prelude::Entity,
         diagram::{NamedOperationRef, NamespaceList},
         re_exports::smallvec,
-        trace::{OperationInfo, TraceSource, TraceTarget},
+        trace::{OperationInfo, TraceSource, TraceTarget, TracedMessage},
     };
     use std::sync::Arc;
 
@@ -607,6 +768,16 @@ mod tests {
         to_section: &str,
         to_op: &str,
     ) -> TracedEvent {
+        message_leaving_section_with(from_section, from_op, to_section, to_op, None)
+    }
+
+    fn message_leaving_section_with(
+        from_section: &str,
+        from_op: &str,
+        to_section: &str,
+        to_op: &str,
+        message: TracedMessage,
+    ) -> TracedEvent {
         let source = TraceSource {
             session_stack: smallvec![make_entity(1)],
             source: make_entity(98),
@@ -627,7 +798,7 @@ mod tests {
         TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
             output: smallvec![source],
             input,
-            message: None,
+            message,
         }))
     }
 
@@ -892,6 +1063,86 @@ mod tests {
         assert_eq!(events[2].status, SectionStatus::Completed);
     }
 
+    #[tokio::test]
+    async fn failed_message_sets_failed_status() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register(
+            "wf-1".into(),
+            vec!["pickup".into(), "dropoff".into()],
+            HashMap::new(),
+        );
+        tokio::task::yield_now().await;
+
+        trace_tx
+            .send(message_entering_section("pickup", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_leaving_section_with(
+                "pickup",
+                "done",
+                "dropoff",
+                "start",
+                Some(Ok(
+                    serde_json::json!({"status": "failed", "detail": "boom"}),
+                )),
+            ))
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 10).await;
+        let pickup: Vec<_> = events.iter().filter(|e| e.section_id == "pickup").collect();
+        assert_eq!(pickup.len(), 3);
+        assert_eq!(pickup[0].status, SectionStatus::Pending);
+        assert_eq!(pickup[1].status, SectionStatus::Running);
+        assert_eq!(pickup[2].status, SectionStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn skipped_message_sets_skipped_status() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register(
+            "wf-1".into(),
+            vec!["pickup".into(), "dropoff".into()],
+            HashMap::new(),
+        );
+        tokio::task::yield_now().await;
+
+        trace_tx
+            .send(message_entering_section("pickup", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_leaving_section_with(
+                "pickup",
+                "done",
+                "dropoff",
+                "start",
+                Some(Ok(
+                    serde_json::json!({"status": "skipped", "because": "input not ok"}),
+                )),
+            ))
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 10).await;
+        let pickup: Vec<_> = events.iter().filter(|e| e.section_id == "pickup").collect();
+        assert_eq!(pickup.len(), 3);
+        assert_eq!(pickup[0].status, SectionStatus::Pending);
+        assert_eq!(pickup[1].status, SectionStatus::Running);
+        assert_eq!(pickup[2].status, SectionStatus::Skipped);
+    }
+
     #[test]
     fn extract_section_workflows_groups_by_workflow_id() {
         let diagram = serde_json::json!({
@@ -910,6 +1161,391 @@ mod tests {
         assert!(result["wo1"].contains(&"wo1_op1".to_string()));
         assert!(result["wo1"].contains(&"wo1_op2".to_string()));
         assert_eq!(result["wo2"], vec!["wo2_op1".to_string()]);
+    }
+
+    fn message_no_source_info_entering_section_with(
+        section: &str,
+        op: &str,
+        message: TracedMessage,
+    ) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: None,
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(section, op),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message,
+        }))
+    }
+
+    fn message_no_source_info_entering_section(section: &str, op: &str) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: None,
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(section, op),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message: None,
+        }))
+    }
+
+    fn message_to_terminate(from_section: &str, from_op: &str) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(from_section, from_op),
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: Some(Arc::new(OperationInfo::new(
+                Some(OperationRef::Terminate(
+                    crossflow::diagram::NamespaceList::default(),
+                )),
+                None,
+                None,
+            ))),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message: None,
+        }))
+    }
+
+    fn message_to_terminate_no_source_info() -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: None,
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: Some(Arc::new(OperationInfo::new(
+                Some(OperationRef::Terminate(
+                    crossflow::diagram::NamespaceList::default(),
+                )),
+                None,
+                None,
+            ))),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message: None,
+        }))
+    }
+
+    fn sub_namespaced_op_info(parent: &str, child: &str, op: &str) -> Option<Arc<OperationInfo>> {
+        Some(Arc::new(OperationInfo::new(
+            Some(OperationRef::Named(NamedOperationRef {
+                namespaces: NamespaceList(smallvec![parent.into(), child.into()]),
+                exposed_namespace: None,
+                name: op.into(),
+            })),
+            None,
+            None,
+        )))
+    }
+
+    fn message_entering_sub_section(parent: &str, child: &str, op: &str) -> TracedEvent {
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: sub_namespaced_op_info(parent, child, op),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![],
+            input,
+            message: None,
+        }))
+    }
+
+    fn message_leaving_sub_section(
+        from_parent: &str,
+        from_child: &str,
+        from_op: &str,
+        to_parent: &str,
+        to_op: &str,
+    ) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: sub_namespaced_op_info(from_parent, from_child, from_op),
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(to_parent, to_op),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message: None,
+        }))
+    }
+
+    #[tokio::test]
+    async fn predecessor_completes_when_next_section_starts() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register(
+            "wf-1".into(),
+            vec!["sec_a".into(), "sec_b".into(), "sec_c".into()],
+            HashMap::new(),
+        );
+        tokio::task::yield_now().await;
+
+        // Source info is None (simulates fork_result output entity with no Trace)
+        trace_tx
+            .send(message_no_source_info_entering_section("sec_a", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_no_source_info_entering_section("sec_b", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_no_source_info_entering_section("sec_c", "start"))
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 20).await;
+
+        let sec_a: Vec<_> = events.iter().filter(|e| e.section_id == "sec_a").collect();
+        assert_eq!(sec_a.len(), 3, "sec_a events: {sec_a:?}");
+        assert_eq!(sec_a[0].status, SectionStatus::Pending);
+        assert_eq!(sec_a[1].status, SectionStatus::Running);
+        assert_eq!(sec_a[2].status, SectionStatus::Completed);
+
+        let sec_b: Vec<_> = events.iter().filter(|e| e.section_id == "sec_b").collect();
+        assert_eq!(sec_b.len(), 3, "sec_b events: {sec_b:?}");
+        assert_eq!(sec_b[0].status, SectionStatus::Pending);
+        assert_eq!(sec_b[1].status, SectionStatus::Running);
+        assert_eq!(sec_b[2].status, SectionStatus::Completed);
+
+        let sec_c: Vec<_> = events.iter().filter(|e| e.section_id == "sec_c").collect();
+        assert_eq!(sec_c.len(), 2, "sec_c events: {sec_c:?}");
+        assert_eq!(sec_c[0].status, SectionStatus::Pending);
+        assert_eq!(sec_c[1].status, SectionStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn terminate_completes_last_section() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register(
+            "wf-1".into(),
+            vec!["sec_a".into(), "sec_b".into()],
+            HashMap::new(),
+        );
+        tokio::task::yield_now().await;
+
+        trace_tx
+            .send(message_entering_section("sec_a", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_no_source_info_entering_section("sec_b", "start"))
+            .unwrap();
+        trace_tx
+            .send(message_to_terminate_no_source_info())
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 20).await;
+
+        let sec_b: Vec<_> = events.iter().filter(|e| e.section_id == "sec_b").collect();
+        assert_eq!(sec_b.len(), 3, "sec_b events: {sec_b:?}");
+        assert_eq!(sec_b[0].status, SectionStatus::Pending);
+        assert_eq!(sec_b[1].status, SectionStatus::Running);
+        assert_eq!(sec_b[2].status, SectionStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn terminate_uses_incoming_status_hint_for_last_section() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register(
+            "wf-1".into(),
+            vec!["sec_a".into(), "sec_b".into()],
+            HashMap::new(),
+        );
+        tokio::task::yield_now().await;
+
+        // sec_a starts running
+        trace_tx
+            .send(message_entering_section("sec_a", "start"))
+            .unwrap();
+        // sec_b enters with a "skipped" message (predecessor was skipped)
+        trace_tx
+            .send(message_no_source_info_entering_section_with(
+                "sec_b",
+                "start",
+                Some(Ok(
+                    serde_json::json!({"status": "skipped", "because": "input not ok"}),
+                )),
+            ))
+            .unwrap();
+        // Terminate fires — sec_b should use its hint (skipped), not the
+        // terminate message
+        trace_tx
+            .send(message_to_terminate_no_source_info())
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 20).await;
+
+        let sec_a: Vec<_> = events.iter().filter(|e| e.section_id == "sec_a").collect();
+        assert_eq!(sec_a.len(), 3, "sec_a events: {sec_a:?}");
+        assert_eq!(sec_a[2].status, SectionStatus::Skipped);
+
+        let sec_b: Vec<_> = events.iter().filter(|e| e.section_id == "sec_b").collect();
+        assert_eq!(sec_b.len(), 3, "sec_b events: {sec_b:?}");
+        assert_eq!(sec_b[0].status, SectionStatus::Pending);
+        assert_eq!(sec_b[1].status, SectionStatus::Running);
+        assert_eq!(sec_b[2].status, SectionStatus::Skipped);
+    }
+
+    #[tokio::test]
+    async fn all_sub_sections_completed_completes_parent() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        handle.register(
+            "wf-1".into(),
+            vec!["parent_sec".into()],
+            [("parent_sec".into(), vec!["sub_a".into(), "sub_b".into()])]
+                .into_iter()
+                .collect(),
+        );
+        tokio::task::yield_now().await;
+
+        // Enter sub_a (starts parent + sub_a Running)
+        trace_tx
+            .send(message_entering_sub_section("parent_sec", "sub_a", "start"))
+            .unwrap();
+        // sub_a exits to a non-sub-section op in parent
+        trace_tx
+            .send(message_leaving_sub_section(
+                "parent_sec",
+                "sub_a",
+                "done",
+                "parent_sec",
+                "bridge",
+            ))
+            .unwrap();
+        // Enter sub_b
+        trace_tx
+            .send(message_entering_sub_section("parent_sec", "sub_b", "start"))
+            .unwrap();
+        // sub_b exits to parent's output
+        trace_tx
+            .send(message_leaving_sub_section(
+                "parent_sec",
+                "sub_b",
+                "done",
+                "parent_sec",
+                "output",
+            ))
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 20).await;
+
+        let parent: Vec<_> = events
+            .iter()
+            .filter(|e| e.section_id == "parent_sec" && e.parent_section_id.is_none())
+            .collect();
+        assert!(
+            parent.iter().any(|e| e.status == SectionStatus::Running),
+            "parent should have Running event"
+        );
+        assert!(
+            parent.iter().any(|e| e.status == SectionStatus::Completed),
+            "parent should have Completed event after all subs done: {parent:?}"
+        );
+
+        let sub_a: Vec<_> = events.iter().filter(|e| e.section_id == "sub_a").collect();
+        assert!(
+            sub_a.iter().any(|e| e.status == SectionStatus::Completed),
+            "sub_a should complete"
+        );
+
+        let sub_b: Vec<_> = events.iter().filter(|e| e.section_id == "sub_b").collect();
+        assert!(
+            sub_b.iter().any(|e| e.status == SectionStatus::Completed),
+            "sub_b should complete"
+        );
     }
 
     #[test]

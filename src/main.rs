@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-use axum::{http::StatusCode, routing::get};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -25,10 +24,6 @@ use rmf2_task_orchestrator::config::{Settings, load_base_configuration};
 use rmf2_task_orchestrator::db::init_db;
 use rmf2_task_orchestrator::{TemplateFolderSource, TemplateRegistry};
 use rmf2_task_orchestrator::{WorkflowTracker, create_amqp_router, spawn, workflow_events_router};
-
-async fn health_check() -> StatusCode {
-    StatusCode::OK
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -98,9 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         amqp_router,
     ));
 
-    let app = editor_router
-        .merge(workflow_events_router(tracker_handle))
-        .route("/health_check", get(health_check));
+    let app = editor_router.merge(workflow_events_router(tracker_handle));
 
     let listener = tokio::net::TcpListener::bind(http_config.addr())
         .await

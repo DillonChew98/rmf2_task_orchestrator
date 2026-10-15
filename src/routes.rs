@@ -33,6 +33,23 @@ fn apply_event_to_snapshot(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/health_check",
+    responses((status = 200, description = "Service is up"))
+)]
+async fn health_check() -> StatusCode {
+    StatusCode::OK
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/workflows/events",
+    responses(
+        (status = 200, content_type = "text/event-stream", body = WorkflowSnapshot,
+         description = "SSE stream of `workflow_status` events, each carrying a WorkflowSnapshot as JSON"),
+    )
+)]
 async fn sse_workflow_events(
     State(handle): State<WorkflowTrackerHandle>,
 ) -> Sse<impl futures_lite::Stream<Item = Result<Event, Infallible>>> {
@@ -127,7 +144,7 @@ async fn get_workflow_status(
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(get_workflow_status),
+    paths(health_check, sse_workflow_events, get_workflow_status),
     components(schemas(WorkflowSnapshot, SectionSnapshot, SectionStatus))
 )]
 struct WorkflowApi;
@@ -139,6 +156,7 @@ pub fn workflow_events_router(handle: WorkflowTrackerHandle) -> axum::Router {
     axum::Router::new()
         .route("/api/workflows/events", get(sse_workflow_events))
         .route("/api/workflows/status", get(get_workflow_status))
+        .route("/health_check", get(health_check))
         .merge(swagger)
         .with_state(handle)
 }
