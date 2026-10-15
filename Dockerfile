@@ -11,7 +11,7 @@ COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
-ENV PNPM_VERSION=11 NODE_VERSION=22
+ENV PNPM_VERSION=11 NODE_VERSION=22 BUILD_FRONTEND=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl clang pkg-config libssl-dev ca-certificates gnupg protobuf-compiler \
     && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
@@ -33,6 +33,7 @@ FROM ${RUNTIME_IMAGE} AS runtime
 WORKDIR /app
 COPY --from=builder /app/target/release/rmf2_task_orchestrator /app/rmf2_task_orchestrator
 COPY config.toml /app/config.toml
+COPY lab.toml /app/lab.toml
 COPY diagrams /app/diagrams
 EXPOSE 2727
 ENTRYPOINT ["/app/rmf2_task_orchestrator"]

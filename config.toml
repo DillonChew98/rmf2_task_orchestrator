@@ -24,5 +24,8 @@ queue = "@RECEIVE@-rmf_schedule"
 routing_key = ""
 exchange_kind = "fanout"
 
+[database]
+url = "postgres://rmf2:rmf2@localhost:5432/rmf2_task_orchestrator"
+
 [app]
 template_directory = "diagrams/marvel"
