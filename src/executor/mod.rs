@@ -28,15 +28,13 @@ use crate::workflow_updates::setup_trace_forwarding;
 use amqp_handlers::handle_workflow_execute;
 
 use std::sync::Arc;
-use std::thread;
+use std::{thread, time::Duration};
 
 use axum::Router;
 use crossflow::bevy_time::TimePlugin;
 use crossflow::trace::TracedEvent;
 use crossflow::{CrossflowExecutorApp, DiagramElementRegistry, bevy_app, bevy_ecs};
 use crossflow_diagram_editor::{ServerOptions, new_router};
-use std::sync::Arc;
-use std::{thread, time::Duration};
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Clone)]
