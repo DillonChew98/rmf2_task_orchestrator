@@ -94,6 +94,20 @@ Alternatively, the workflow can be edited and run on the live editor at <http://
 ![Diagram Editor](docs/images/diagram_editor_example.png)
 
 
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Diagram editor UI |
+| `GET` | `/health_check` | Returns `200 OK` if the service is up |
+| `POST` | `/n/run` | Execute a workflow diagram |
+| `GET` | `/api/workflows/events` | SSE stream of real-time section status updates |
+| `GET` | `/api/workflows/status` | Current workflow status from the database (optional `?workflow_id=` filter) |
+| `GET` | `/swagger-ui` | Interactive API docs (Swagger UI) |
+
+Workflows can also be triggered via AMQP by publishing to the configured
+exchange (see `[amqp.consumer]` in `config.toml`).
+
 ## Configuration
 
 ### `config.toml` — service connections
