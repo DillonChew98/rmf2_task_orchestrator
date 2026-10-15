@@ -29,7 +29,7 @@ use crossflow::bevy_time::TimePlugin;
 use crossflow::{CrossflowExecutorApp, DiagramElementRegistry, bevy_app, bevy_ecs};
 use crossflow_diagram_editor::{ServerOptions, new_router};
 use std::sync::Arc;
-use std::thread;
+use std::{thread, time::Duration};
 use tokio::sync::oneshot;
 
 #[derive(Clone)]
@@ -63,7 +63,10 @@ pub async fn spawn(
         let diagram_editor_router = new_router(&mut app, registry, ServerOptions::default());
         let _ = router_tx.send(diagram_editor_router);
 
-        app.run();
+        loop {
+            app.update();
+            thread::sleep(Duration::from_millis(1));
+        }
     });
 
     let diagram_editor_router = router_rx
