@@ -18,11 +18,14 @@
 
 pub mod client;
 pub mod config;
+pub mod db;
 pub mod executor;
 mod node;
 pub mod template_registry;
 pub use template_registry::*;
+pub mod routes;
 pub mod workflow_updates;
+pub use routes::workflow_events_router;
 pub use workflow_updates::*;
 
 pub(crate) use executor::TokioHandle;

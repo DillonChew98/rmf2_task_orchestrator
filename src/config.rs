@@ -77,12 +77,18 @@ pub struct AppSettings {
 }
 
 #[derive(serde::Deserialize, Clone)]
+pub struct DatabaseSettings {
+    pub url: String,
+}
+
+#[derive(serde::Deserialize, Clone)]
 pub struct Settings {
     pub http: HttpSettings,
     pub amqp: AmqpSettings,
     #[serde(default)]
     pub grpc: GrpcSettings,
     pub app: AppSettings,
+    pub database: Option<DatabaseSettings>,
 }
 
 #[derive(serde::Deserialize)]

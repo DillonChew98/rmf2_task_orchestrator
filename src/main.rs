@@ -22,6 +22,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use rmf2_task_orchestrator::client;
 use rmf2_task_orchestrator::config::{Settings, load_base_configuration};
+use rmf2_task_orchestrator::db::init_db;
 use rmf2_task_orchestrator::{TemplateFolderSource, TemplateRegistry};
 use rmf2_task_orchestrator::{WorkflowTracker, create_amqp_router, spawn, workflow_events_router};
 
@@ -57,7 +58,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (executor_handle, editor_router, trace_rx) =
         spawn(amqp_config, mqtt_config, http_config, grpc_config).await?;
 
-    let (tracker, tracker_handle) = WorkflowTracker::new(64);
+    let db_pool = match config.database {
+        Some(ref db_config) => match sqlx::PgPool::connect(&db_config.url).await {
+            Ok(pool) => {
+                init_db(&pool)
+                    .await
+                    .map_err(|e| format!("Failed to init database: {e}"))?;
+                tracing::info!("Connected to Postgres");
+                Some(pool)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to connect to database: {e}. Workflow status will not be persisted."
+                );
+                None
+            }
+        },
+        None => {
+            tracing::info!("No database configured, workflow status will not be persisted");
+            None
+        }
+    };
+
+    let (tracker, tracker_handle) = WorkflowTracker::new(64, db_pool);
     tokio::spawn(tracker.run(trace_rx));
 
     let amqp_connection = client::AmqpConnection::new(amqp_config)

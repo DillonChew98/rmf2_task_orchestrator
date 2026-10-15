@@ -1,0 +1,144 @@
+use std::collections::HashMap;
+use std::convert::Infallible;
+
+use axum::extract::{Query, State};
+use axum::http::StatusCode;
+use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::routing::get;
+use serde::Deserialize;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
+use utoipa::OpenApi;
+
+use crate::workflow_updates::{
+    SectionSnapshot, SectionStatus, WorkflowId, WorkflowSnapshot, WorkflowTrackerHandle,
+};
+
+fn apply_event_to_snapshot(
+    state: &mut HashMap<WorkflowId, HashMap<String, SectionSnapshot>>,
+    event: &crate::workflow_updates::WorkflowEvent,
+) {
+    let workflow = state.entry(event.workflow_id.clone()).or_default();
+    match &event.parent_section_id {
+        Some(parent) => {
+            let section = workflow.entry(parent.clone()).or_default();
+            section
+                .sub_sections
+                .insert(event.section_id.clone(), event.status.clone());
+        }
+        None => {
+            let section = workflow.entry(event.section_id.clone()).or_default();
+            section.status = event.status.clone();
+        }
+    }
+}
+
+async fn sse_workflow_events(
+    State(handle): State<WorkflowTrackerHandle>,
+) -> Sse<impl futures_lite::Stream<Item = Result<Event, Infallible>>> {
+    let rx = handle.subscribe();
+    let mut snapshot_state: HashMap<WorkflowId, HashMap<String, SectionSnapshot>> = HashMap::new();
+    let stream = BroadcastStream::new(rx).filter_map(move |result| match result {
+        Ok(event) => {
+            apply_event_to_snapshot(&mut snapshot_state, &event);
+            let snapshot = WorkflowSnapshot {
+                workflow_id: event.workflow_id.clone(),
+                sections: snapshot_state
+                    .get(&event.workflow_id)
+                    .cloned()
+                    .unwrap_or_default(),
+            };
+            let data = serde_json::to_string(&snapshot).ok()?;
+            Some(Ok(Event::default().event("workflow_status").data(data)))
+        }
+        Err(_) => None,
+    });
+    Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+#[derive(Deserialize, utoipa::IntoParams)]
+struct WorkflowStatusParams {
+    workflow_id: Option<String>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/workflows/status",
+    params(WorkflowStatusParams),
+    responses(
+        (status = 200, body = Vec<WorkflowSnapshot>),
+        (status = 503, description = "No database configured"),
+    )   
+)]
+async fn get_workflow_status(
+    State(handle): State<WorkflowTrackerHandle>,
+    Query(params): Query<WorkflowStatusParams>,
+) -> Result<axum::Json<Vec<WorkflowSnapshot>>, StatusCode> {
+    let Some(db) = handle.db() else {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    };
+
+    let rows: Vec<(String, String, String, String)> = if let Some(ref wf_id) = params.workflow_id {
+        sqlx::query_as(
+            "SELECT workflow_id, section_id, parent_section_id, status \
+             FROM workflow_sections WHERE workflow_id = $1 \
+             ORDER BY workflow_id, parent_section_id, section_id",
+        )
+        .bind(wf_id)
+        .fetch_all(db)
+        .await
+    } else {
+        sqlx::query_as(
+            "SELECT workflow_id, section_id, parent_section_id, status \
+             FROM workflow_sections \
+             ORDER BY workflow_id, parent_section_id, section_id",
+        )
+        .fetch_all(db)
+        .await
+    }
+    .map_err(|e| {
+        tracing::error!("Failed to query workflow status: {e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut workflows: HashMap<String, HashMap<String, SectionSnapshot>> = HashMap::new();
+    for (wf_id, sec_id, parent_id, status) in rows {
+        let workflow = workflows.entry(wf_id).or_default();
+        let parsed = SectionStatus::from_db(&status);
+        if parent_id.is_empty() {
+            let section = workflow.entry(sec_id).or_default();
+            section.status = parsed;
+        } else {
+            let section = workflow.entry(parent_id).or_default();
+            section.sub_sections.insert(sec_id, parsed);
+        }
+    }
+
+    let snapshots: Vec<WorkflowSnapshot> = workflows
+        .into_iter()
+        .map(|(workflow_id, sections)| WorkflowSnapshot {
+            workflow_id,
+            sections,
+        })
+        .collect();
+
+    Ok(axum::Json(snapshots))
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(get_workflow_status),
+    components(schemas(WorkflowSnapshot, SectionSnapshot, SectionStatus))
+)]
+struct WorkflowApi;
+
+pub fn workflow_events_router(handle: WorkflowTrackerHandle) -> axum::Router {
+    let swagger = utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
+        .url("/api-docs/openapi.json", WorkflowApi::openapi());
+
+    axum::Router::new()
+        .route("/api/workflows/events", get(sse_workflow_events))
+        .route("/api/workflows/status", get(get_workflow_status))
+        .merge(swagger)
+        .with_state(handle)
+}

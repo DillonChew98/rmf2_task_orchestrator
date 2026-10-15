@@ -27,7 +27,7 @@ use crate::WorkflowTrackerHandle;
 use crate::client::amqp::AmqpError;
 use crate::config::{LabConfig, load_base_configuration};
 use crate::executor::ExecutorHandle;
-use crate::workflow_updates::extract_section_workflows;
+use crate::workflow_updates::{extract_section_workflows, extract_sub_sections};
 
 // AMQP message containing a workflow execution request.
 // The workflow diagram is embedded in the payload field.
@@ -81,6 +81,7 @@ pub async fn handle_workflow_execute(
     };
 
     let workflow_sections = extract_section_workflows(&diagram_json);
+    let sub_sections = extract_sub_sections(&diagram_json);
     diagram.default_trace = TraceToggle::Messages;
 
     let mut diagram_json = serde_json::to_value(&diagram)
@@ -94,7 +95,11 @@ pub async fn handle_workflow_execute(
     }
 
     for (workflow_id, sections) in workflow_sections {
-        tracker.register(workflow_id, sections);
+        let relevant_subs: HashMap<String, Vec<String>> = sections
+            .iter()
+            .filter_map(|s| sub_sections.get(s).map(|v| (s.clone(), v.clone())))
+            .collect();
+        tracker.register(workflow_id, sections, relevant_subs);
     }
 
     // The request is the input value passed to the workflow's start node.
