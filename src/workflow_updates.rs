@@ -626,7 +626,10 @@ impl WorkflowTracker {
                 terminal.clone(),
             );
 
-            // When all sub-sections of a parent complete, complete the parent.
+            // When all sub-sections of a parent reach a terminal state,
+            // derive the parent status from the sub-section outcomes — not
+            // from the raw message, which carries intermediate data whose
+            // "status" field can mean something completely different.
             let parent = source_sub.0.clone();
             let all_subs: Vec<_> = self
                 .sub_section_registry
@@ -634,26 +637,41 @@ impl WorkflowTracker {
                 .filter(|(p, _)| p == &parent)
                 .cloned()
                 .collect();
-            let all_completed = if let Some(state) = self.workflows.get(&workflow_id) {
-                all_subs.iter().all(|key| {
-                    state.sub_sections.get(key).is_some_and(|s| {
-                        matches!(
-                            s,
-                            SectionStatus::Completed
-                                | SectionStatus::Failed
-                                | SectionStatus::Skipped
-                        )
-                    })
-                })
-            } else {
-                false
-            };
-            if all_completed && self.sections_running.contains(&parent) {
+            let (all_terminal, any_failed, any_skipped) =
+                if let Some(state) = self.workflows.get(&workflow_id) {
+                    let mut all = true;
+                    let mut failed = false;
+                    let mut skipped = false;
+                    for key in &all_subs {
+                        match state.sub_sections.get(key) {
+                            Some(SectionStatus::Failed) => failed = true,
+                            Some(SectionStatus::Skipped) => skipped = true,
+                            Some(SectionStatus::Completed) => {}
+                            _ => {
+                                all = false;
+                                break;
+                            }
+                        }
+                    }
+                    (all, failed, skipped)
+                } else {
+                    (false, false, false)
+                };
+            if all_terminal && self.sections_running.contains(&parent) {
                 self.sections_running.remove(&parent);
+                let parent_terminal = if any_failed {
+                    SectionStatus::Failed
+                } else if any_skipped {
+                    SectionStatus::Skipped
+                } else {
+                    SectionStatus::Completed
+                };
                 if let Some(state) = self.workflows.get_mut(&workflow_id) {
-                    state.sections.insert(parent.clone(), terminal.clone());
+                    state
+                        .sections
+                        .insert(parent.clone(), parent_terminal.clone());
                 }
-                self.broadcast_event(workflow_id, parent, None, terminal);
+                self.broadcast_event(workflow_id, parent, None, parent_terminal);
             }
         }
     }
