@@ -79,6 +79,7 @@ pub async fn spawn(
             node::grpc::register(&mut registry, grpc_runtime, &grpc_config);
         }
         node::http::register(&mut app, &mut registry, None);
+        node::opcua::register(&mut app, &mut registry);
 
         let diagram_editor_router = new_router(&mut app, registry, ServerOptions::default());
         let _ = router_tx.send(diagram_editor_router);
