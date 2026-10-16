@@ -91,6 +91,21 @@ curl -X POST http://localhost:2727/api/executor/run \
 
 Alternatively, the workflow can be edited and run on the live editor at <http://localhost:2727>.
 
+### Send mock workflows via AMQP
+
+Send all mock workflows at once:
+
+```bash
+pip install pika
+python3 scripts/send_diagram.py
+```
+
+Or send a single workflow:
+
+```bash
+python3 scripts/send_diagram.py diagrams/mock_workflows/gpc_mock_workflow.json
+```
+
 ![Diagram Editor](docs/images/diagram_editor_example.png)
 
 
