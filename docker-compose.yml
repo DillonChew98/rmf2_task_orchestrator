@@ -17,6 +17,7 @@ services:
       - .env.development
     volumes:
       - ./assets/certs:/app/assets/certs:ro
+      - ./lab.toml:/app/lab.toml:ro
     restart: unless-stopped
 
   rabbitmq:

@@ -162,7 +162,7 @@
             },
             "build_status_uri": {
               "type": "transform",
-              "cel": "{'uri': 'http://${lab.ur_host}/task/status?task=' + request.params.task}",
+              "cel": "{'uri': '${lab.ur_host}/task/status?task=' + request.params.task}",
               "on_error": {
                 "builtin": "dispose"
               },

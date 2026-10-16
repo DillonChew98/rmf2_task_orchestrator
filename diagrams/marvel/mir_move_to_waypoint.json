@@ -42,7 +42,7 @@
             },
             "build_target_request": {
               "type": "transform",
-              "cel": "{'uri': 'http://${lab.mir_host}/api/v2.0.0/positions/' + request.waypoint.waypoint}",
+              "cel": "{'uri': '${lab.mir_host}/api/v2.0.0/positions/' + request.waypoint.waypoint}",
               "on_error": {
                 "builtin": "dispose"
               },
@@ -293,7 +293,7 @@
             },
             "remember_mission": {
               "type": "transform",
-              "cel": "{'uri': 'http://${lab.mir_host}/api/v2.0.0/mission_queue/' + string(request.id), 'queue_id': request.id}",
+              "cel": "{'uri': '${lab.mir_host}/api/v2.0.0/mission_queue/' + string(request.id), 'queue_id': request.id}",
               "next": "start_polling",
               "on_error": {
                 "builtin": "dispose"
