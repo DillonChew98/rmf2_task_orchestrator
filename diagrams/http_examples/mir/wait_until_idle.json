@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Wait until MiR is idle",
+  "start": "get_status",
+  "ops": {
+    "get_status": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /status",
+      "config": {
+        "method": "GET",
+        "uri": "${lab.mir_host}/api/v2.0.0/status",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        },
+        "retry": {}
+      },
+      "next": "status_result"
+    },
+    "status_result": {
+      "type": "fork_result",
+      "ok": "extract_state",
+      "err": {
+        "builtin": "terminate"
+      }
+    },
+    "extract_state": {
+      "type": "transform",
+      "cel": "{'state_id': request.state_id, 'state_text': request.state_text, 'mission_queue_id': request.mission_queue_id, 'mission_text': request.mission_text}",
+      "next": "check_free"
+    },
+    "check_free": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "Is the robot free? Ready, or parked on the charger",
+      "config": {
+        "condition": "state_id == 3 || (state_id == 5 && mission_text.contains('Waiting for new mission'))"
+      },
+      "next": "free_result"
+    },
+    "free_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": "wait_before_retry"
+    },
+    "wait_before_retry": {
+      "type": "node",
+      "builder": "timeout",
+      "display_text": "Wait 2 s, give up after 60 s",
+      "config": {
+        "interval_secs": 2,
+        "timeout_secs": 60
+      },
+      "next": "retry_result"
+    },
+    "retry_result": {
+      "type": "fork_result",
+      "ok": "get_status",
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

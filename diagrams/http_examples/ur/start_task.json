@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Start UR task",
+  "start": "start_task",
+  "ops": {
+    "start_task": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "POST /task/start",
+      "config": {
+        "method": "POST",
+        "uri": "${lab.ur_host}/task/start",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "body": {
+          "task": "grabgpc",
+          "action": "place"
+        }
+      },
+      "next": "start_result"
+    },
+    "start_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

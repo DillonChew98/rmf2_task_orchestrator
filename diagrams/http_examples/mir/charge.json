@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Charge MiR",
+  "start": "queue_charge",
+  "ops": {
+    "queue_charge": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "POST /mission_queue - ChargeAtStation",
+      "config": {
+        "method": "POST",
+        "uri": "${lab.mir_host}/api/v2.0.0/mission_queue",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        },
+        "body": {
+          "mission_id": "mirconst-guid-0000-0004-actionlist00",
+          "parameters": [
+            {
+              "input_name": "chargingStationPosition",
+              "value": "${lab.charger_waypoint}"
+            },
+            {
+              "input_name": "numberOfRetries",
+              "value": 4
+            }
+          ]
+        }
+      },
+      "next": "queue_charge_result"
+    },
+    "queue_charge_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

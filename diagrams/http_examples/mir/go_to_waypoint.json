@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Send MiR to waypoint",
+  "start": "queue_move",
+  "ops": {
+    "queue_move": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "POST /mission_queue - Move to TGA",
+      "config": {
+        "method": "POST",
+        "uri": "${lab.mir_host}/api/v2.0.0/mission_queue",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        },
+        "body": {
+          "mission_id": "mirconst-guid-0000-0001-actionlist00",
+          "parameters": [
+            {
+              "input_name": "Position",
+              "value": "${lab.tga_waypoint}"
+            }
+          ]
+        }
+      },
+      "next": "queue_move_result"
+    },
+    "queue_move_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

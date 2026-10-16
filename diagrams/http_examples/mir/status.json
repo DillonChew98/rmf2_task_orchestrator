@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Get MiR status",
+  "start": "get_status",
+  "ops": {
+    "get_status": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /status",
+      "config": {
+        "method": "GET",
+        "uri": "${lab.mir_host}/api/v2.0.0/status",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        },
+        "retry": {}
+      },
+      "next": "status_result"
+    },
+    "status_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

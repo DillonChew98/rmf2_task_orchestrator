@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Get MiR action id",
+  "start": "get_queue",
+  "ops": {
+    "get_queue": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /mission_queue",
+      "config": {
+        "method": "GET",
+        "uri": "${lab.mir_host}/api/v2.0.0/mission_queue",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        },
+        "retry": {}
+      },
+      "next": "queue_result"
+    },
+    "queue_result": {
+      "type": "fork_result",
+      "ok": "pick_newest",
+      "err": {
+        "builtin": "terminate"
+      }
+    },
+    "pick_newest": {
+      "type": "transform",
+      "cel": "{'uri': '${lab.mir_host}/api/v2.0.0/mission_queue/' + string(request[size(request) - 1].id) + '/actions'}",
+      "next": "get_actions"
+    },
+    "get_actions": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /mission_queue/{id}/actions",
+      "config": {
+        "method": "GET",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        },
+        "retry": {}
+      },
+      "next": "actions_result"
+    },
+    "actions_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}
