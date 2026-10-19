@@ -70,6 +70,8 @@ pub struct WorkflowEvent {
     pub section_id: SectionId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_section_id: Option<SectionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
     pub status: SectionStatus,
     pub timestamp: u64,
 }
@@ -91,6 +93,7 @@ pub struct WorkflowRegistration {
     pub workflow_id: WorkflowId,
     pub sections: Vec<SectionId>,
     pub sub_sections: HashMap<SectionId, Vec<SectionId>>,
+    pub display_names: HashMap<SectionId, String>,
 }
 
 struct WorkflowState {
@@ -133,6 +136,22 @@ pub fn extract_section_workflows(
         map.entry(wf_id.to_string()).or_default().push(name.clone());
     }
     map
+}
+
+pub fn extract_display_names(diagram_json: &serde_json::Value) -> HashMap<SectionId, String> {
+    let mut names = HashMap::new();
+    let Some(ops) = diagram_json.get("ops").and_then(|v| v.as_object()) else {
+        return names;
+    };
+    for (op_id, op) in ops {
+        if op.get("type").and_then(|v| v.as_str()) != Some("section") {
+            continue;
+        }
+        if let Some(display) = op.get("display_text").and_then(|v| v.as_str()) {
+            names.insert(op_id.clone(), display.to_string());
+        }
+    }
+    names
 }
 
 pub fn extract_sub_sections(
@@ -189,6 +208,7 @@ pub struct WorkflowTracker {
     section_terminal_hints: HashMap<SectionId, SectionStatus>,
     sub_section_registry: HashSet<(SectionId, String)>,
     sub_sections_running: HashSet<(SectionId, String)>,
+    display_names: HashMap<SectionId, String>,
     broadcast_tx: broadcast::Sender<WorkflowEvent>,
     register_rx: mpsc::UnboundedReceiver<WorkflowRegistration>,
     db_cmd_tx: Option<mpsc::UnboundedSender<DbCommand>>,
@@ -207,11 +227,13 @@ impl WorkflowTrackerHandle {
         workflow_id: WorkflowId,
         sections: Vec<SectionId>,
         sub_sections: HashMap<SectionId, Vec<SectionId>>,
+        display_names: HashMap<SectionId, String>,
     ) {
         let _ = self.register_tx.send(WorkflowRegistration {
             workflow_id,
             sections,
             sub_sections,
+            display_names,
         });
     }
 
@@ -246,6 +268,7 @@ impl WorkflowTracker {
             section_terminal_hints: HashMap::new(),
             sub_section_registry: HashSet::new(),
             sub_sections_running: HashSet::new(),
+            display_names: HashMap::new(),
             broadcast_tx: broadcast_tx.clone(),
             register_rx,
             db_cmd_tx,
@@ -324,6 +347,7 @@ impl WorkflowTracker {
         );
 
         self.clear_workflow_from_db(&registration.workflow_id);
+        self.display_names.extend(registration.display_names);
 
         let mut sections = HashMap::new();
         let mut sub_sections = HashMap::new();
@@ -703,10 +727,12 @@ impl WorkflowTracker {
             &status,
         );
 
+        let display_name = self.display_names.get(&section_id).cloned();
         let event = WorkflowEvent {
             workflow_id,
             section_id,
             parent_section_id,
+            display_name,
             status,
             timestamp,
         };
@@ -908,6 +934,7 @@ mod tests {
             "wf-1".into(),
             vec!["pickup".into(), "dropoff".into()],
             HashMap::new(),
+            HashMap::new(),
         );
 
         drop(trace_tx);
@@ -935,6 +962,7 @@ mod tests {
         handle.register(
             "wf-1".into(),
             vec!["pickup".into(), "dropoff".into()],
+            HashMap::new(),
             HashMap::new(),
         );
         tokio::task::yield_now().await;
@@ -966,7 +994,13 @@ mod tests {
 
         tokio::spawn(tracker.run(trace_rx));
 
-        handle.register("wf-1".into(), vec!["pickup".into()], HashMap::new());
+        handle.register(
+            "wf-1".into(),
+            vec!["pickup".into()],
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+        );
         tokio::task::yield_now().await;
 
         trace_tx
@@ -992,8 +1026,15 @@ mod tests {
             "wf-a".into(),
             vec!["wf_a_op1".into(), "wf_a_op2".into()],
             HashMap::new(),
+            HashMap::new(),
         );
-        handle.register("wf-b".into(), vec!["wf_b_op1".into()], HashMap::new());
+        handle.register(
+            "wf-b".into(),
+            vec!["wf_b_op1".into()],
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+        );
         tokio::task::yield_now().await;
 
         trace_tx
@@ -1093,6 +1134,7 @@ mod tests {
             "wf-1".into(),
             vec!["pickup".into(), "dropoff".into()],
             HashMap::new(),
+            HashMap::new(),
         );
         tokio::task::yield_now().await;
 
@@ -1132,6 +1174,7 @@ mod tests {
         handle.register(
             "wf-1".into(),
             vec!["pickup".into(), "dropoff".into()],
+            HashMap::new(),
             HashMap::new(),
         );
         tokio::task::yield_now().await;
@@ -1368,6 +1411,7 @@ mod tests {
             "wf-1".into(),
             vec!["sec_a".into(), "sec_b".into(), "sec_c".into()],
             HashMap::new(),
+            HashMap::new(),
         );
         tokio::task::yield_now().await;
 
@@ -1416,6 +1460,7 @@ mod tests {
             "wf-1".into(),
             vec!["sec_a".into(), "sec_b".into()],
             HashMap::new(),
+            HashMap::new(),
         );
         tokio::task::yield_now().await;
 
@@ -1451,6 +1496,7 @@ mod tests {
         handle.register(
             "wf-1".into(),
             vec!["sec_a".into(), "sec_b".into()],
+            HashMap::new(),
             HashMap::new(),
         );
         tokio::task::yield_now().await;
@@ -1504,6 +1550,7 @@ mod tests {
             [("parent_sec".into(), vec!["sub_a".into(), "sub_b".into()])]
                 .into_iter()
                 .collect(),
+            HashMap::new(),
         );
         tokio::task::yield_now().await;
 
