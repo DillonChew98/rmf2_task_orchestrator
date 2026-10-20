@@ -83,27 +83,74 @@ pub struct WorkflowEvent {
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct WorkflowSnapshot {
     pub workflow_id: WorkflowId,
-    pub sections: HashMap<SectionId, SectionSnapshot>,
+    pub sections: Vec<SectionSnapshot>,
 }
 
 #[derive(Debug, Clone, Serialize, Default, utoipa::ToSchema)]
 pub struct SubSectionSnapshot {
+    pub id: SectionId,
     pub status: SectionStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub op_sequence: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Default, utoipa::ToSchema)]
 pub struct SectionSnapshot {
+    pub id: SectionId,
     pub status: SectionStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sub_sections: Vec<SubSectionSnapshot>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SectionState {
+    pub status: SectionStatus,
+    pub display_name: Option<String>,
     pub op_sequence: Option<u32>,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub sub_sections: HashMap<SectionId, SubSectionSnapshot>,
+    pub sub_sections: HashMap<SectionId, SubSectionState>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SubSectionState {
+    pub status: SectionStatus,
+    pub display_name: Option<String>,
+    pub op_sequence: Option<u32>,
+}
+
+pub fn sections_to_sorted_vec(sections: &HashMap<SectionId, SectionState>) -> Vec<SectionSnapshot> {
+    let mut list: Vec<_> = sections
+        .iter()
+        .map(|(id, s)| {
+            let mut subs: Vec<_> = s
+                .sub_sections
+                .iter()
+                .map(|(sub_id, sub)| {
+                    (
+                        sub.op_sequence,
+                        SubSectionSnapshot {
+                            id: sub_id.clone(),
+                            status: sub.status.clone(),
+                            display_name: sub.display_name.clone(),
+                        },
+                    )
+                })
+                .collect();
+            subs.sort_by_key(|(seq, _)| seq.unwrap_or(u32::MAX));
+            (
+                s.op_sequence,
+                SectionSnapshot {
+                    id: id.clone(),
+                    status: s.status.clone(),
+                    display_name: s.display_name.clone(),
+                    sub_sections: subs.into_iter().map(|(_, snap)| snap).collect(),
+                },
+            )
+        })
+        .collect();
+    list.sort_by_key(|(seq, _)| seq.unwrap_or(u32::MAX));
+    list.into_iter().map(|(_, snap)| snap).collect()
 }
 
 pub struct WorkflowRegistration {

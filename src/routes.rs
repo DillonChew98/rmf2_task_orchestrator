@@ -11,12 +11,12 @@ use tokio_stream::wrappers::BroadcastStream;
 use utoipa::OpenApi;
 
 use crate::workflow_updates::{
-    SectionSnapshot, SectionStatus, SubSectionSnapshot, WorkflowId, WorkflowSnapshot,
-    WorkflowTrackerHandle,
+    SectionSnapshot, SectionState, SectionStatus, SubSectionSnapshot, WorkflowId, WorkflowSnapshot,
+    WorkflowTrackerHandle, sections_to_sorted_vec,
 };
 
-fn apply_event_to_snapshot(
-    state: &mut HashMap<WorkflowId, HashMap<String, SectionSnapshot>>,
+fn apply_event_to_state(
+    state: &mut HashMap<WorkflowId, HashMap<String, SectionState>>,
     event: &crate::workflow_updates::WorkflowEvent,
 ) {
     let workflow = state.entry(event.workflow_id.clone()).or_default();
@@ -69,16 +69,17 @@ async fn sse_workflow_events(
     State(handle): State<WorkflowTrackerHandle>,
 ) -> Sse<impl futures_lite::Stream<Item = Result<Event, Infallible>>> {
     let rx = handle.subscribe();
-    let mut snapshot_state: HashMap<WorkflowId, HashMap<String, SectionSnapshot>> = HashMap::new();
+    let mut internal_state: HashMap<WorkflowId, HashMap<String, SectionState>> = HashMap::new();
     let stream = BroadcastStream::new(rx).filter_map(move |result| match result {
         Ok(event) => {
-            apply_event_to_snapshot(&mut snapshot_state, &event);
+            apply_event_to_state(&mut internal_state, &event);
+            let sections = internal_state
+                .get(&event.workflow_id)
+                .map(|s| sections_to_sorted_vec(s))
+                .unwrap_or_default();
             let snapshot = WorkflowSnapshot {
                 workflow_id: event.workflow_id.clone(),
-                sections: snapshot_state
-                    .get(&event.workflow_id)
-                    .cloned()
-                    .unwrap_or_default(),
+                sections,
             };
             let data = serde_json::to_string(&snapshot).ok()?;
             Some(Ok(Event::default().event("workflow_status").data(data)))
@@ -133,7 +134,7 @@ async fn get_workflow_status(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let mut workflows: HashMap<String, HashMap<String, SectionSnapshot>> = HashMap::new();
+    let mut workflows: HashMap<String, HashMap<String, SectionState>> = HashMap::new();
     for (wf_id, sec_id, parent_id, status) in rows {
         let workflow = workflows.entry(wf_id).or_default();
         let parsed = SectionStatus::from_db(&status);
@@ -155,7 +156,7 @@ async fn get_workflow_status(
         .into_iter()
         .map(|(workflow_id, sections)| WorkflowSnapshot {
             workflow_id,
-            sections,
+            sections: sections_to_sorted_vec(&sections),
         })
         .collect();
 
