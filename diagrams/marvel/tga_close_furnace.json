@@ -1,8 +1,13 @@
 {
   "templates": {
     "tga_close_furnace": {
-      "inputs": ["start"],
-      "outputs": ["ok", "failed"],
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
       "ops": {
         "start": {
           "type": "scope",
@@ -20,20 +25,32 @@
                 "request": {
                   "Request": {
                     "Request": {
-                      "Version": { "value": 2 },
-                      "CorrelationId": { "value": "marvel-sdt-close-furnace" },
-                      "TimeoutSeconds": { "value": 0 },
-                      "Payload": { "value": "" }
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-sdt-close-furnace"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
                     }
                   }
                 }
               },
-              "stream_out": { "out": "check_outcome" },
+              "stream_out": {
+                "out": "check_outcome"
+              },
               "next": "if_call_ok"
             },
             "if_call_ok": {
               "type": "fork_result",
-              "ok": { "builtin": "dispose" },
+              "ok": {
+                "builtin": "dispose"
+              },
               "err": "report_start_failed"
             },
             "check_outcome": {
@@ -53,20 +70,32 @@
             "report_succeeded": {
               "type": "transform",
               "cel": "{'result': 'succeeded', 'reply': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_start_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'close_furnace', 'detail': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_outcome_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             }
           },
           "next": "is_success"
@@ -75,7 +104,9 @@
           "type": "node",
           "builder": "cel_condition",
           "display_text": "Did the box succeed? The command reported Succeeded",
-          "config": { "condition": "result == 'succeeded'" },
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
           "next": "if_success"
         },
         "if_success": {

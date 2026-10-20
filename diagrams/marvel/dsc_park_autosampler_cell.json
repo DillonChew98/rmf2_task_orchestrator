@@ -1,8 +1,13 @@
 {
   "templates": {
     "dsc_park_autosampler_cell": {
-      "inputs": ["start"],
-      "outputs": ["ok", "failed"],
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
       "ops": {
         "start": {
           "type": "scope",
@@ -20,22 +25,32 @@
                 "request": {
                   "Request": {
                     "Request": {
-                      "Version": { "value": 2 },
+                      "Version": {
+                        "value": 2
+                      },
                       "CorrelationId": {
                         "value": "marvel-dsc-park-autosampler-cell-call"
                       },
-                      "TimeoutSeconds": { "value": 0 },
-                      "Payload": { "value": "{\"Position\": \"CellSide\"}" }
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": "{\"Position\": \"CellSide\"}"
+                      }
                     }
                   }
                 }
               },
-              "stream_out": { "out": "take_uuid" },
+              "stream_out": {
+                "out": "take_uuid"
+              },
               "next": "if_requested"
             },
             "if_requested": {
               "type": "fork_result",
-              "ok": { "builtin": "dispose" },
+              "ok": {
+                "builtin": "dispose"
+              },
               "err": "report_start_failed"
             },
             "take_uuid": {
@@ -43,13 +58,20 @@
               "display_text": "Pull the command UUID out of the confirmation",
               "cel": "{'value': request.commandExecutionUUID.value}",
               "next": "fan_uuid",
-              "on_error": { "builtin": "dispose" }
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "fan_uuid": {
               "type": "fork_clone",
-              "next": ["saved_uuid", "watch_progress"]
+              "next": [
+                "saved_uuid",
+                "watch_progress"
+              ]
             },
-            "saved_uuid": { "type": "buffer" },
+            "saved_uuid": {
+              "type": "buffer"
+            },
             "watch_progress": {
               "type": "node",
               "builder": "grpc_request",
@@ -60,7 +82,11 @@
                 "uri": "${lab.dsc_host}",
                 "timeout": 60
               },
-              "stream_out": { "out": { "builtin": "dispose" } },
+              "stream_out": {
+                "out": {
+                  "builtin": "dispose"
+                }
+              },
               "next": "if_finished"
             },
             "if_finished": {
@@ -68,10 +94,15 @@
               "ok": "finished_tick",
               "err": "report_watch_failed"
             },
-            "finished_tick": { "type": "buffer" },
+            "finished_tick": {
+              "type": "buffer"
+            },
             "result_gate": {
               "type": "join",
-              "buffers": { "uuid": "saved_uuid", "tick": "finished_tick" },
+              "buffers": {
+                "uuid": "saved_uuid",
+                "tick": "finished_tick"
+              },
               "next": "build_result_request"
             },
             "build_result_request": {
@@ -79,7 +110,9 @@
               "display_text": "Rebuild the uuid request from the saved uuid",
               "cel": "{'value': request.uuid.value}",
               "next": "read_result",
-              "on_error": { "builtin": "dispose" }
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "read_result": {
               "type": "node",
@@ -91,12 +124,16 @@
                 "uri": "${lab.dsc_host}",
                 "timeout": 10
               },
-              "stream_out": { "out": "check_outcome" },
+              "stream_out": {
+                "out": "check_outcome"
+              },
               "next": "if_result_read"
             },
             "if_result_read": {
               "type": "fork_result",
-              "ok": { "builtin": "dispose" },
+              "ok": {
+                "builtin": "dispose"
+              },
               "err": "report_result_read_failed"
             },
             "check_outcome": {
@@ -116,32 +153,52 @@
             "report_succeeded": {
               "type": "transform",
               "cel": "{'result': 'succeeded', 'reply': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_start_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'park_autosampler', 'detail': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_watch_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'watch_progress', 'detail': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_result_read_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'read_result', 'detail': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_outcome_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             }
           },
           "next": "is_success"
@@ -150,7 +207,9 @@
           "type": "node",
           "builder": "cel_condition",
           "display_text": "Did the box succeed? The command reported Succeeded",
-          "config": { "condition": "result == 'succeeded'" },
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
           "next": "if_success"
         },
         "if_success": {

@@ -1,8 +1,13 @@
 {
   "templates": {
     "tga_health_check": {
-      "inputs": ["start"],
-      "outputs": ["ok", "failed"],
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
       "ops": {
         "start": {
           "type": "scope",
@@ -20,20 +25,32 @@
                 "request": {
                   "Request": {
                     "Request": {
-                      "Version": { "value": 2 },
-                      "CorrelationId": { "value": "marvel-tga-health-check" },
-                      "TimeoutSeconds": { "value": 0 },
-                      "Payload": { "value": "" }
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-tga-health-check"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
                     }
                   }
                 }
               },
-              "stream_out": { "out": "check_outcome" },
+              "stream_out": {
+                "out": "check_outcome"
+              },
               "next": "if_answered"
             },
             "if_answered": {
               "type": "fork_result",
-              "ok": { "builtin": "dispose" },
+              "ok": {
+                "builtin": "dispose"
+              },
               "err": "report_no_answer"
             },
             "check_outcome": {
@@ -53,20 +70,32 @@
             "report_healthy": {
               "type": "transform",
               "cel": "{'result': 'succeeded', 'reply': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_no_answer": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'ask_health', 'detail': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_unhealthy": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             }
           },
           "next": "is_success"
@@ -75,7 +104,9 @@
           "type": "node",
           "builder": "cel_condition",
           "display_text": "Is the SDT healthy?",
-          "config": { "condition": "result == 'succeeded'" },
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
           "next": "if_success"
         },
         "if_success": {

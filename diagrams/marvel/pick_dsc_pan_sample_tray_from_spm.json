@@ -1,9 +1,16 @@
 {
   "templates": {
     "pick_dsc_pan_sample_tray_from_spm": {
-      "inputs": { "start": "check_input" },
-      "outputs": ["precedence", "resource"],
-      "buffers": ["status_report"],
+      "inputs": {
+        "start": "check_input"
+      },
+      "outputs": [
+        "precedence",
+        "resource"
+      ],
+      "buffers": [
+        "status_report"
+      ],
       "ops": {
         "check_input": {
           "type": "node",
@@ -14,70 +21,112 @@
           },
           "next": "if_input_ok"
         },
-        "if_input_ok": { "type": "fork_result", "ok": { "health": "start" }, "err": "status_skipped" },
+        "if_input_ok": {
+          "type": "fork_result",
+          "ok": {
+            "health": "start"
+          },
+          "err": "status_skipped"
+        },
         "health": {
           "type": "section",
           "template": "dsc_health_check",
           "display_text": "Check X3 DSC is up",
-          "connect": { "ok": "set_waypoint", "failed": "status_failed" }
+          "connect": {
+            "ok": "set_waypoint",
+            "failed": "status_failed"
+          },
+          "op_sequence": 1
         },
         "set_waypoint": {
           "type": "transform",
           "cel": "{'waypoint': '${lab.spm_waypoint}'}",
-          "next": { "move": "start" },
-          "on_error": { "builtin": "dispose" }
+          "next": {
+            "move": "start"
+          },
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "move": {
           "type": "section",
           "template": "mir_move_to_waypoint",
-          "connect": { "ok": "set_task", "failed": "status_failed" }
+          "connect": {
+            "ok": "set_task",
+            "failed": "status_failed"
+          },
+          "op_sequence": 2
         },
         "set_task": {
           "type": "transform",
           "cel": "{'task': 'bench', 'action': 'pick', 'item': 'DSC'}",
-          "next": { "pick": "start" },
-          "on_error": { "builtin": "dispose" }
+          "next": {
+            "pick": "start"
+          },
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "pick": {
           "type": "section",
           "template": "ur_perform_task",
-          "connect": { "ok": "status_ok", "failed": "status_failed" }
+          "connect": {
+            "ok": "status_ok",
+            "failed": "status_failed"
+          },
+          "op_sequence": 3
         },
         "status_ok": {
           "type": "transform",
           "cel": "{'status': 'ok'}",
           "next": "copy_status",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "status_failed": {
           "type": "transform",
           "cel": "{'status': 'failed', 'detail': request}",
           "next": "copy_status",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "status_skipped": {
           "type": "transform",
           "cel": "{'status': 'skipped', 'because': request.error}",
           "next": "copy_status",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "copy_status": {
           "type": "fork_clone",
-          "next": ["to_precedence", "to_resource", "status_report"]
+          "next": [
+            "to_precedence",
+            "to_resource",
+            "status_report"
+          ]
         },
         "to_precedence": {
           "type": "transform",
           "cel": "request",
           "next": "precedence",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "to_resource": {
           "type": "transform",
           "cel": "{'status': 'ok'}",
           "next": "resource",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
-        "status_report": { "type": "buffer" }
+        "status_report": {
+          "type": "buffer"
+        }
       }
     }
   }

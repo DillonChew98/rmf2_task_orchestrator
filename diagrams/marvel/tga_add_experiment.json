@@ -1,8 +1,13 @@
 {
   "templates": {
     "tga_add_experiment": {
-      "inputs": ["start"],
-      "outputs": ["ok", "failed"],
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
       "ops": {
         "start": {
           "type": "scope",
@@ -20,9 +25,15 @@
                 "request": {
                   "Request": {
                     "Request": {
-                      "Version": { "value": 2 },
-                      "CorrelationId": { "value": "marvel-sdt-add-experiment" },
-                      "TimeoutSeconds": { "value": 0 },
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-sdt-add-experiment"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
                       "Payload": {
                         "value": "{\"QueueType\":\"running\",\"Body\":{\"newExperiments\":[{\"experimentKind\":\"dualSample\",\"name\":\"empty_combustion_air\",\"sampleInfo\":{\"sampleAName\":\"sampleA\",\"sampleAPan\":{\"trayPosition\":29,\"panType\":\"Aluminum\"},\"sampleBName\":\"sampleB\",\"sampleBPan\":{\"trayPosition\":30,\"panType\":\"Aluminum\"},\"operator\":\"robot\",\"project\":\"marvel\",\"notes\":\"robot testing only\"},\"filePaths\":{\"fileDirectory\":\"C:\\\\Users\\\\User\\\\Desktop\\\\experiment_output\",\"tokens\":\"TGA-<SAMPLENAME>\"},\"procedure\":{\"testType\":\"Custom\",\"procedureName\":\"demo_test\",\"segments\":[{\"type\":\"Ramp\",\"rampRateDegCPerMin\":10,\"finalTemperatureC\":500},{\"type\":\"Isothermal\",\"isothermTimeMin\":5}],\"advancedOptions\":{\"skipWeightStabilization\":true,\"airCoolEnable\":true,\"coolUntilTemperatureC\":25,\"endOfRunDelayMin\":0}}}]}}"
                       }
@@ -30,12 +41,16 @@
                   }
                 }
               },
-              "stream_out": { "out": "check_outcome" },
+              "stream_out": {
+                "out": "check_outcome"
+              },
               "next": "if_call_ok"
             },
             "if_call_ok": {
               "type": "fork_result",
-              "ok": { "builtin": "dispose" },
+              "ok": {
+                "builtin": "dispose"
+              },
               "err": "report_start_failed"
             },
             "check_outcome": {
@@ -55,20 +70,32 @@
             "report_succeeded": {
               "type": "transform",
               "cel": "{'result': 'succeeded', 'reply': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_start_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'add_experiment', 'detail': request}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             },
             "report_outcome_failed": {
               "type": "transform",
               "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
-              "next": { "builtin": "terminate" },
-              "on_error": { "builtin": "dispose" }
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
             }
           },
           "next": "is_success"
@@ -77,7 +104,9 @@
           "type": "node",
           "builder": "cel_condition",
           "display_text": "Did the box succeed? The command reported Succeeded",
-          "config": { "condition": "result == 'succeeded'" },
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
           "next": "if_success"
         },
         "if_success": {

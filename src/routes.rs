@@ -11,7 +11,8 @@ use tokio_stream::wrappers::BroadcastStream;
 use utoipa::OpenApi;
 
 use crate::workflow_updates::{
-    SectionSnapshot, SectionStatus, WorkflowId, WorkflowSnapshot, WorkflowTrackerHandle,
+    SectionSnapshot, SectionStatus, SubSectionSnapshot, WorkflowId, WorkflowSnapshot,
+    WorkflowTrackerHandle,
 };
 
 fn apply_event_to_snapshot(
@@ -22,13 +23,27 @@ fn apply_event_to_snapshot(
     match &event.parent_section_id {
         Some(parent) => {
             let section = workflow.entry(parent.clone()).or_default();
-            section
+            let sub = section
                 .sub_sections
-                .insert(event.section_id.clone(), event.status.clone());
+                .entry(event.section_id.clone())
+                .or_default();
+            sub.status = event.status.clone();
+            if event.display_name.is_some() {
+                sub.display_name = event.display_name.clone();
+            }
+            if event.op_sequence.is_some() {
+                sub.op_sequence = event.op_sequence;
+            }
         }
         None => {
             let section = workflow.entry(event.section_id.clone()).or_default();
             section.status = event.status.clone();
+            if event.display_name.is_some() {
+                section.display_name = event.display_name.clone();
+            }
+            if event.op_sequence.is_some() {
+                section.op_sequence = event.op_sequence;
+            }
         }
     }
 }
@@ -123,11 +138,16 @@ async fn get_workflow_status(
         let workflow = workflows.entry(wf_id).or_default();
         let parsed = SectionStatus::from_db(&status);
         if parent_id.is_empty() {
-            let section = workflow.entry(sec_id).or_default();
+            let section = workflow.entry(sec_id.clone()).or_default();
             section.status = parsed;
+            section.display_name = handle.display_name(&sec_id);
+            section.op_sequence = handle.op_sequence(&sec_id);
         } else {
             let section = workflow.entry(parent_id).or_default();
-            section.sub_sections.insert(sec_id, parsed);
+            let sub = section.sub_sections.entry(sec_id.clone()).or_default();
+            sub.status = parsed;
+            sub.display_name = handle.display_name(&sec_id);
+            sub.op_sequence = handle.op_sequence(&sec_id);
         }
     }
 
@@ -145,7 +165,7 @@ async fn get_workflow_status(
 #[derive(OpenApi)]
 #[openapi(
     paths(health_check, sse_workflow_events, get_workflow_status),
-    components(schemas(WorkflowSnapshot, SectionSnapshot, SectionStatus))
+    components(schemas(WorkflowSnapshot, SectionSnapshot, SubSectionSnapshot, SectionStatus))
 )]
 struct WorkflowApi;
 

@@ -2,6 +2,9 @@ services:
   task-orchestrator:
     build: .
     network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       - RMF2_TO__HTTP__HOST=0.0.0.0
       - RMF2_TO__AMQP__HOST=${AMQP_HOST:-127.0.0.1}

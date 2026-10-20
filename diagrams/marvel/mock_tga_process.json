@@ -1,9 +1,16 @@
 {
   "templates": {
     "mock_tga_process": {
-      "inputs": { "start": "check_input" },
-      "outputs": ["precedence", "resource"],
-      "buffers": ["status_report"],
+      "inputs": {
+        "start": "check_input"
+      },
+      "outputs": [
+        "precedence",
+        "resource"
+      ],
+      "buffers": [
+        "status_report"
+      ],
       "ops": {
         "check_input": {
           "type": "node",
@@ -14,49 +21,76 @@
           },
           "next": "if_input_ok"
         },
-        "if_input_ok": { "type": "fork_result", "ok": "wait", "err": "status_skipped" },
+        "if_input_ok": {
+          "type": "fork_result",
+          "ok": "wait",
+          "err": "status_skipped"
+        },
         "wait": {
           "type": "node",
           "builder": "timeout",
-          "config": { "interval_secs": 5, "timeout_secs": 300 },
+          "config": {
+            "interval_secs": 5,
+            "timeout_secs": 300
+          },
           "next": "wait_result"
         },
-        "wait_result": { "type": "fork_result", "ok": "status_ok", "err": "status_failed" },
+        "wait_result": {
+          "type": "fork_result",
+          "ok": "status_ok",
+          "err": "status_failed"
+        },
         "status_ok": {
           "type": "transform",
           "cel": "{'status': 'ok'}",
           "next": "copy_status",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "status_failed": {
           "type": "transform",
           "cel": "{'status': 'failed', 'detail': request}",
           "next": "copy_status",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "status_skipped": {
           "type": "transform",
           "cel": "{'status': 'skipped', 'because': request.error}",
           "next": "copy_status",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "copy_status": {
           "type": "fork_clone",
-          "next": ["to_precedence", "to_resource", "status_report"]
+          "next": [
+            "to_precedence",
+            "to_resource",
+            "status_report"
+          ]
         },
         "to_precedence": {
           "type": "transform",
           "cel": "request",
           "next": "precedence",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
         "to_resource": {
           "type": "transform",
           "cel": "{'status': 'ok'}",
           "next": "resource",
-          "on_error": { "builtin": "dispose" }
+          "on_error": {
+            "builtin": "dispose"
+          }
         },
-        "status_report": { "type": "buffer" }
+        "status_report": {
+          "type": "buffer"
+        }
       }
     }
   }

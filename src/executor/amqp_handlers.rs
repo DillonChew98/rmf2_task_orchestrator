@@ -28,7 +28,7 @@ use crate::client::amqp::AmqpError;
 use crate::config::{LabConfig, load_base_configuration};
 use crate::executor::ExecutorHandle;
 use crate::workflow_updates::{
-    extract_display_names, extract_section_workflows, extract_sub_sections,
+    extract_display_names, extract_op_sequences, extract_section_workflows, extract_sub_sections,
 };
 
 // AMQP message containing a workflow execution request.
@@ -71,6 +71,24 @@ pub async fn handle_workflow_execute(
         message.payload.clone()
     };
 
+    // Extract from the original JSON before crossflow parsing (custom fields
+    // like workflow_id and op_sequence are not preserved through round-trip)
+    let workflow_sections = extract_section_workflows(&diagram_json);
+    let display_names = extract_display_names(&diagram_json);
+    let mut op_sequences = extract_op_sequences(&diagram_json);
+
+    // Enrich with sub-section op_sequences from the raw template files
+    if let Some(ops) = diagram_json.get("ops").and_then(|v| v.as_object()) {
+        for op in ops.values() {
+            if op.get("type").and_then(|v| v.as_str()) != Some("section") {
+                continue;
+            }
+            if let Some(tmpl_name) = op.get("template").and_then(|v| v.as_str()) {
+                op_sequences.extend(registry.sub_section_op_sequences(tmpl_name));
+            }
+        }
+    }
+
     // Parse into Diagram, inject templates from registry, serialize back
     let mut diagram = crossflow::diagram::Diagram::from_json_str(
         &serde_json::to_string(&diagram_json)
@@ -82,9 +100,6 @@ pub async fn handle_workflow_execute(
         return Err(AmqpError::Workflow(e.to_string()));
     };
 
-    let workflow_sections = extract_section_workflows(&diagram_json);
-    let sub_sections = extract_sub_sections(&diagram_json);
-    let display_names = extract_display_names(&diagram_json);
     diagram.default_trace = TraceToggle::Messages;
 
     let mut diagram_json = serde_json::to_value(&diagram)
@@ -97,12 +112,21 @@ pub async fn handle_workflow_execute(
         return Err(AmqpError::Workflow(e));
     }
 
+    // Extract sub_sections after re-serialization so injected templates are visible
+    let sub_sections = extract_sub_sections(&diagram_json);
+
     for (workflow_id, sections) in workflow_sections {
         let relevant_subs: HashMap<String, Vec<String>> = sections
             .iter()
             .filter_map(|s| sub_sections.get(s).map(|v| (s.clone(), v.clone())))
             .collect();
-        tracker.register(workflow_id, sections, relevant_subs, display_names.clone());
+        tracker.register(
+            workflow_id,
+            sections,
+            relevant_subs,
+            display_names.clone(),
+            op_sequences.clone(),
+        );
     }
 
     // The request is the input value passed to the workflow's start node.
