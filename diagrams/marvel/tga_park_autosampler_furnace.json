@@ -54,7 +54,7 @@
               "display_text": "Follow progress",
               "config": {
                 "service": "sila2.org.tainstruments.sdt.autosamplercontrol.v2.AutosamplerControl",
-                "method": "ParkAutosampler_Intermediate",
+                "method": "ParkAutosampler_Info",
                 "uri": "${lab.tga_host}",
                 "timeout": 60
               },

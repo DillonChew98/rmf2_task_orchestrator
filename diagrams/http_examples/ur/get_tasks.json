@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Get the tasks, actions and items the UR task server accepts",
+  "start": "get_tasks",
+  "ops": {
+    "get_tasks": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /tasks",
+      "config": {
+        "method": "GET",
+        "uri": "${lab.ur_host}/tasks",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "retry": {}
+      },
+      "next": "tasks_result"
+    },
+    "tasks_result": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "terminate"
+      },
+      "err": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

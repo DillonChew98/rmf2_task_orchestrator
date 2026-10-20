@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Check MiR health: the API answers and the robot reports no errors",
+  "start": "ask_status",
+  "ops": {
+    "ask_status": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /status",
+      "config": {
+        "method": "GET",
+        "uri": "${lab.mir_host}/api/v2.0.0/status",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "${MIR_AUTH}",
+          "Accept-Language": "en_US"
+        }
+      },
+      "next": "if_answered"
+    },
+    "if_answered": {
+      "type": "fork_result",
+      "ok": "check_errors",
+      "err": "report_no_answer"
+    },
+    "check_errors": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "No errors reported?",
+      "config": {
+        "condition": "size(errors) == 0"
+      },
+      "next": "if_healthy"
+    },
+    "if_healthy": {
+      "type": "fork_result",
+      "ok": "report_healthy",
+      "err": "report_unhealthy"
+    },
+    "report_healthy": {
+      "type": "transform",
+      "cel": "{'result': 'succeeded', 'state_text': request.state_text}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_no_answer": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'ask_status', 'detail': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_unhealthy": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'check_errors', 'detail': request.error, 'errors': request.message.errors}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  }
+}

@@ -15,8 +15,9 @@
           "Accept": "application/json"
         },
         "body": {
-          "task": "grabgpc",
-          "action": "place"
+          "task": "<task>",
+          "action": "place",
+          "item": "ALL"
         }
       },
       "next": "start_result"

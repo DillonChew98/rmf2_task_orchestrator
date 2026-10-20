@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
+  "version": "0.1.0",
+  "description": "Check UR task server health",
+  "start": "ask_health",
+  "ops": {
+    "ask_health": {
+      "type": "node",
+      "builder": "http_request",
+      "display_text": "GET /health",
+      "config": {
+        "method": "GET",
+        "uri": "${lab.ur_host}/health",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "next": "if_answered"
+    },
+    "if_answered": {
+      "type": "fork_result",
+      "ok": "check_outcome",
+      "err": "report_no_answer"
+    },
+    "check_outcome": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "Did it say ok?",
+      "config": {
+        "condition": "status == 'ok'"
+      },
+      "next": "if_healthy"
+    },
+    "if_healthy": {
+      "type": "fork_result",
+      "ok": "report_healthy",
+      "err": "report_unhealthy"
+    },
+    "report_healthy": {
+      "type": "transform",
+      "cel": "{'result': 'succeeded', 'reply': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_no_answer": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'ask_health', 'detail': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_unhealthy": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  }
+}

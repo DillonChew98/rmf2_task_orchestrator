@@ -1,9 +1,17 @@
 {
   "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
   "version": "0.1.0",
-  "description": "Move MiR to waypoint",
-  "start": "fork_target_and_status",
+  "description": "Move the MiR to one waypoint, with prechecks and recovery. ",
+  "start": "set_waypoint",
   "ops": {
+    "set_waypoint": {
+      "type": "transform",
+      "cel": "{'waypoint': '${lab.gpc_waypoint}'}",
+      "next": "fork_target_and_status",
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
     "fork_target_and_status": {
       "type": "fork_clone",
       "next": [

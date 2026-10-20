@@ -2,8 +2,16 @@
   "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
   "version": "0.1.0",
   "description": "Perform UR task",
-  "start": "fork_params_and_start",
+  "start": "set_task",
   "ops": {
+    "set_task": {
+      "type": "transform",
+      "cel": "{'task': '<task>', 'action': 'place', 'item': 'ALL'}",
+      "next": "fork_params_and_start",
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
     "fork_params_and_start": {
       "type": "fork_clone",
       "next": [
