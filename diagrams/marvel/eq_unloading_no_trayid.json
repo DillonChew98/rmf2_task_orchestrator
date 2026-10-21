@@ -1,0 +1,322 @@
+{
+  "version": "0.1.0",
+  "start": "run_started",
+  "ops": {
+    "run_started": {
+      "type": "transform",
+      "cel": "{'status': 'ok'}",
+      "next": {
+        "wo_eq_unload_op1": "start"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "wo_eq_unload_op1": {
+      "type": "section",
+      "template": "eq_unloading_send_request_no_trayid",
+      "workflow_id": "eq_unload",
+      "op_sequence": 1,
+      "display_text": "Send unload request to EQ",
+      "connect": {
+        "precedence": {
+          "wo_eq_unload_op2": "start"
+        }
+      }
+    },
+    "wo_eq_unload_op2": {
+      "type": "section",
+      "template": "eq_unloading_wait_ready",
+      "workflow_id": "eq_unload",
+      "op_sequence": 2,
+      "display_text": "Wait for EQ ready to unload",
+      "connect": {
+        "precedence": {
+          "wo_eq_unload_op3": "start"
+        }
+      }
+    },
+    "wo_eq_unload_op3": {
+      "type": "section",
+      "template": "eq_unloading_transfer",
+      "workflow_id": "eq_unload",
+      "op_sequence": 3,
+      "display_text": "Transfer tray from EQ",
+      "connect": {
+        "precedence": {
+          "wo_eq_unload_op4": "start"
+        }
+      }
+    },
+    "wo_eq_unload_op4": {
+      "type": "section",
+      "template": "eq_unloading_complete_and_clear_no_trayid",
+      "workflow_id": "eq_unload",
+      "op_sequence": 4,
+      "display_text": "Complete unloading and clear signals",
+      "connect": {
+        "precedence": {
+          "builtin": "terminate"
+        }
+      }
+    }
+  },
+  "templates": {
+    "eq_unloading_send_request_no_trayid": {
+      "inputs": {
+        "start": "build_payload"
+      },
+      "outputs": [
+        "precedence",
+        "resource"
+      ],
+      "buffers": [
+        "status_report"
+      ],
+      "ops": {
+        "build_payload": {
+          "type": "transform",
+          "display_text": "Build unload request payload",
+          "cel": "{'OPC_AMR_Unload_Request': true}",
+          "next": "write_request",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "write_request": {
+          "type": "node",
+          "builder": "opcua_write",
+          "display_text": "Write Unload Request to PLC",
+          "config": {
+            "uri": "opc.tcp://192.168.50.105:4840",
+            "namespace": 4
+          },
+          "next": "if_written"
+        },
+        "if_written": {
+          "type": "fork_result",
+          "ok": "read_ack",
+          "err": "status_failed"
+        },
+        "read_ack": {
+          "type": "node",
+          "builder": "opcua_read",
+          "display_text": "Read Unload Request Ack",
+          "config": {
+            "uri": "opc.tcp://192.168.50.105:4840",
+            "namespace": 4,
+            "node_ids": [
+              "OPC_PLC_Unload_Request_Ack"
+            ]
+          },
+          "next": "if_ack_read"
+        },
+        "if_ack_read": {
+          "type": "fork_result",
+          "ok": "check_ack",
+          "err": "status_failed"
+        },
+        "check_ack": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did EQ acknowledge unload request?",
+          "config": {
+            "condition": "OPC_PLC_Unload_Request_Ack == true"
+          },
+          "next": "if_ack"
+        },
+        "if_ack": {
+          "type": "fork_result",
+          "ok": "status_ok",
+          "err": "wait_retry"
+        },
+        "wait_retry": {
+          "type": "node",
+          "builder": "timeout",
+          "display_text": "No ack yet. Wait 2s, give up after 30s",
+          "config": {
+            "interval_secs": 2,
+            "timeout_secs": 30
+          },
+          "next": "if_retries_left"
+        },
+        "if_retries_left": {
+          "type": "fork_result",
+          "ok": "read_ack",
+          "err": "status_failed"
+        },
+        "status_ok": {
+          "type": "transform",
+          "cel": "{'status': 'ok'}",
+          "next": "copy_status",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "status_failed": {
+          "type": "transform",
+          "cel": "{'status': 'failed', 'detail': request}",
+          "next": "copy_status",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "copy_status": {
+          "type": "fork_clone",
+          "next": [
+            "to_precedence",
+            "to_resource",
+            "status_report"
+          ]
+        },
+        "to_precedence": {
+          "type": "transform",
+          "cel": "request",
+          "next": "precedence",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "to_resource": {
+          "type": "transform",
+          "cel": "{'status': 'ok'}",
+          "next": "resource",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "status_report": {
+          "type": "buffer"
+        }
+      }
+    },
+    "eq_unloading_complete_and_clear_no_trayid": {
+      "inputs": {
+        "start": "read_ack"
+      },
+      "outputs": [
+        "precedence",
+        "resource"
+      ],
+      "buffers": [
+        "status_report"
+      ],
+      "ops": {
+        "read_ack": {
+          "type": "node",
+          "builder": "opcua_read",
+          "display_text": "Read Unload Complete Ack",
+          "config": {
+            "uri": "opc.tcp://192.168.50.105:4840",
+            "namespace": 4,
+            "node_ids": [
+              "OPC_PLC_Unload_Complete_Ack"
+            ]
+          },
+          "next": "if_ack_read"
+        },
+        "if_ack_read": {
+          "type": "fork_result",
+          "ok": "check_ack",
+          "err": "status_failed"
+        },
+        "check_ack": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did EQ acknowledge completion?",
+          "config": {
+            "condition": "OPC_PLC_Unload_Complete_Ack == true"
+          },
+          "next": "if_ack"
+        },
+        "if_ack": {
+          "type": "fork_result",
+          "ok": "build_clear",
+          "err": "wait_retry"
+        },
+        "wait_retry": {
+          "type": "node",
+          "builder": "timeout",
+          "display_text": "No ack yet. Wait 2s, give up after 30s",
+          "config": {
+            "interval_secs": 2,
+            "timeout_secs": 30
+          },
+          "next": "if_retries_left"
+        },
+        "if_retries_left": {
+          "type": "fork_result",
+          "ok": "read_ack",
+          "err": "status_failed"
+        },
+        "build_clear": {
+          "type": "transform",
+          "display_text": "Clear all AMR unload signals",
+          "cel": "{'OPC_AMR_Unload_Request': false, 'OPC_AMR_Unload_Busy': false, 'OPC_AMR_Unload_Complete': false}",
+          "next": "write_clear",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "write_clear": {
+          "type": "node",
+          "builder": "opcua_write",
+          "display_text": "Clear all AMR unload signals",
+          "config": {
+            "uri": "opc.tcp://192.168.50.105:4840",
+            "namespace": 4
+          },
+          "next": "if_cleared"
+        },
+        "if_cleared": {
+          "type": "fork_result",
+          "ok": "status_ok",
+          "err": "status_failed"
+        },
+        "status_ok": {
+          "type": "transform",
+          "cel": "{'status': 'ok'}",
+          "next": "copy_status",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "status_failed": {
+          "type": "transform",
+          "cel": "{'status': 'failed', 'detail': request}",
+          "next": "copy_status",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "copy_status": {
+          "type": "fork_clone",
+          "next": [
+            "to_precedence",
+            "to_resource",
+            "status_report"
+          ]
+        },
+        "to_precedence": {
+          "type": "transform",
+          "cel": "request",
+          "next": "precedence",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "to_resource": {
+          "type": "transform",
+          "cel": "{'status': 'ok'}",
+          "next": "resource",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "status_report": {
+          "type": "buffer"
+        }
+      }
+    }
+  }
+}
