@@ -137,7 +137,12 @@ pub fn sections_to_sorted_vec(sections: &HashMap<SectionId, SectionState>) -> Ve
                     )
                 })
                 .collect();
-            subs.sort_by_key(|(seq, _)| seq.unwrap_or(u32::MAX));
+            subs.sort_by(|(seq_a, a), (seq_b, b)| {
+                seq_a
+                    .unwrap_or(u32::MAX)
+                    .cmp(&seq_b.unwrap_or(u32::MAX))
+                    .then_with(|| a.id.cmp(&b.id))
+            });
             (
                 s.op_sequence,
                 SectionSnapshot {
@@ -149,7 +154,12 @@ pub fn sections_to_sorted_vec(sections: &HashMap<SectionId, SectionState>) -> Ve
             )
         })
         .collect();
-    list.sort_by_key(|(seq, _)| seq.unwrap_or(u32::MAX));
+    list.sort_by(|(seq_a, a), (seq_b, b)| {
+        seq_a
+            .unwrap_or(u32::MAX)
+            .cmp(&seq_b.unwrap_or(u32::MAX))
+            .then_with(|| a.id.cmp(&b.id))
+    });
     list.into_iter().map(|(_, snap)| snap).collect()
 }
 
@@ -249,7 +259,7 @@ pub fn extract_op_sequences(diagram_json: &serde_json::Value) -> HashMap<Section
                 continue;
             }
             if let Some(seq) = sub_op.get("op_sequence").and_then(|v| v.as_u64()) {
-                seqs.insert(sub_name.clone(), seq as u32);
+                seqs.insert(format!("{op_id}:{sub_name}"), seq as u32);
             }
         }
     }
@@ -300,6 +310,7 @@ enum DbCommand {
         section_id: String,
         parent_section_id: String,
         status: String,
+        op_sequence: Option<u32>,
     },
 }
 
@@ -425,18 +436,21 @@ impl WorkflowTracker {
                     section_id,
                     parent_section_id,
                     status,
+                    op_sequence,
                 } => {
+                    let op_seq_i32 = op_sequence.map(|v| v as i32);
                     if let Err(e) = sqlx::query(
                         "INSERT INTO workflow_sections \
-                             (workflow_id, section_id, parent_section_id, status, updated_at) \
-                         VALUES ($1, $2, $3, $4, NOW()) \
+                             (workflow_id, section_id, parent_section_id, status, op_sequence, updated_at) \
+                         VALUES ($1, $2, $3, $4, $5, NOW()) \
                          ON CONFLICT (workflow_id, parent_section_id, section_id) \
-                         DO UPDATE SET status = $4, updated_at = NOW()",
+                         DO UPDATE SET status = $4, op_sequence = COALESCE($5, workflow_sections.op_sequence), updated_at = NOW()",
                     )
                     .bind(&workflow_id)
                     .bind(&section_id)
                     .bind(&parent_section_id)
                     .bind(&status)
+                    .bind(op_seq_i32)
                     .execute(&pool)
                     .await
                     {
@@ -853,7 +867,13 @@ impl WorkflowTracker {
         );
 
         let display_name = self.display_names.get(&section_id).cloned();
-        let op_sequence = self.op_sequences.get(&section_id).copied();
+        let op_sequence = match &parent_section_id {
+            Some(parent) => {
+                let scoped = format!("{parent}:{section_id}");
+                self.op_sequences.get(&scoped).copied()
+            }
+            None => self.op_sequences.get(&section_id).copied(),
+        };
         let event = WorkflowEvent {
             workflow_id,
             section_id,
@@ -880,11 +900,18 @@ impl WorkflowTracker {
         status: &SectionStatus,
     ) {
         if let Some(ref tx) = self.db_cmd_tx {
+            let op_sequence = if parent_section_id.is_empty() {
+                self.op_sequences.get(section_id).copied()
+            } else {
+                let scoped = format!("{parent_section_id}:{section_id}");
+                self.op_sequences.get(&scoped).copied()
+            };
             let _ = tx.send(DbCommand::Upsert {
                 workflow_id: workflow_id.to_string(),
                 section_id: section_id.to_string(),
                 parent_section_id: parent_section_id.to_string(),
                 status: status.as_str().to_string(),
+                op_sequence,
             });
         }
     }

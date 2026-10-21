@@ -1,66 +1,6 @@
 {
+  "$schema": "https://raw.githubusercontent.com/open-rmf/crossflow/refs/heads/main/diagram.schema.json",
   "version": "0.1.0",
-  "start": "run_started",
-  "ops": {
-    "run_started": {
-      "type": "transform",
-      "cel": "{'status': 'ok'}",
-      "next": {
-        "wo_eq_load_op1": "start"
-      },
-      "on_error": {
-        "builtin": "dispose"
-      }
-    },
-    "wo_eq_load_op1": {
-      "type": "section",
-      "template": "eq_loading_send_request",
-      "workflow_id": "eq_load",
-      "op_sequence": 1,
-      "display_text": "Send load request to EQ",
-      "connect": {
-        "precedence": {
-          "wo_eq_load_op2": "start"
-        }
-      }
-    },
-    "wo_eq_load_op2": {
-      "type": "section",
-      "template": "eq_loading_wait_ready",
-      "workflow_id": "eq_load",
-      "op_sequence": 2,
-      "display_text": "Wait for EQ ready to receive",
-      "connect": {
-        "precedence": {
-          "wo_eq_load_op3": "start"
-        }
-      }
-    },
-    "wo_eq_load_op3": {
-      "type": "section",
-      "template": "eq_loading_transfer",
-      "workflow_id": "eq_load",
-      "op_sequence": 3,
-      "display_text": "Transfer tray to EQ",
-      "connect": {
-        "precedence": {
-          "wo_eq_load_op4": "start"
-        }
-      }
-    },
-    "wo_eq_load_op4": {
-      "type": "section",
-      "template": "eq_loading_complete_and_clear",
-      "workflow_id": "eq_load",
-      "op_sequence": 4,
-      "display_text": "Complete loading and clear signals",
-      "connect": {
-        "precedence": {
-          "builtin": "terminate"
-        }
-      }
-    }
-  },
   "templates": {
     "eq_loading_send_request": {
       "inputs": {
@@ -493,6 +433,382 @@
         "status_report": {
           "type": "buffer"
         }
+      }
+    }
+  },
+  "start": "run_started",
+  "ops": {
+    "wo_eq_load_op4": {
+      "type": "section",
+      "template": "eq_loading_complete_and_clear",
+      "workflow_id": "eq_load",
+      "op_sequence": 4,
+      "display_text": "Complete loading and clear signals",
+      "connect": {
+        "precedence": {
+          "builtin": "terminate"
+        }
+      }
+    },
+    "wo_eq_load_op3": {
+      "type": "section",
+      "template": "eq_loading_transfer",
+      "workflow_id": "eq_load",
+      "op_sequence": 3,
+      "display_text": "Transfer tray to EQ",
+      "connect": {
+        "precedence": {
+          "wo_eq_load_op4": "start"
+        }
+      }
+    },
+    "wo_eq_load_op2": {
+      "type": "section",
+      "template": "eq_loading_wait_ready",
+      "workflow_id": "eq_load",
+      "op_sequence": 2,
+      "display_text": "Wait for EQ ready to receive",
+      "connect": {
+        "precedence": {
+          "wo_eq_load_op3": "start"
+        }
+      }
+    },
+    "wo_eq_load_op1": {
+      "type": "section",
+      "template": "eq_loading_send_request",
+      "workflow_id": "eq_load",
+      "op_sequence": 1,
+      "display_text": "Send load request to EQ",
+      "connect": {
+        "precedence": {
+          "wo_eq_load_op2": "start"
+        }
+      }
+    },
+    "run_started": {
+      "type": "transform",
+      "cel": "{'status': 'ok'}",
+      "next": {
+        "wo_eq_load_op1": "start"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  },
+  "description": "",
+  "input_examples": [],
+  "script_environments": {},
+  "extensions": {
+    "crossflow-diagram-editor-v1": {
+      "hash": "9cbf7e057750a3f4d9668d7fe72437c8fe175c63",
+      "state": {
+        "nodes": [
+          {
+            "id": ":__builtin_start__",
+            "type": "start",
+            "position": {
+              "x": 100,
+              "y": 25
+            },
+            "selectable": false,
+            "data": {
+              "namespace": ""
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          },
+          {
+            "id": ":__builtin_terminate__",
+            "type": "terminate",
+            "position": {
+              "x": 100,
+              "y": 625
+            },
+            "selectable": false,
+            "data": {
+              "namespace": ""
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          },
+          {
+            "id": "5eee7a22-1929-489d-a77b-9e02195c1528",
+            "type": "section",
+            "position": {
+              "x": 100,
+              "y": 525
+            },
+            "data": {
+              "namespace": "",
+              "opId": "wo_eq_load_op4",
+              "op": {
+                "type": "section",
+                "template": "eq_loading_complete_and_clear",
+                "workflow_id": "eq_load",
+                "op_sequence": 4,
+                "display_text": "Complete loading and clear signals",
+                "connect": {
+                  "precedence": {
+                    "builtin": "terminate"
+                  }
+                }
+              }
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          },
+          {
+            "id": "f0b8e87e-5591-43ce-b7a8-230b616f5469",
+            "type": "section",
+            "position": {
+              "x": 100,
+              "y": 425
+            },
+            "data": {
+              "namespace": "",
+              "opId": "wo_eq_load_op3",
+              "op": {
+                "type": "section",
+                "template": "eq_loading_transfer",
+                "workflow_id": "eq_load",
+                "op_sequence": 3,
+                "display_text": "Transfer tray to EQ",
+                "connect": {
+                  "precedence": {
+                    "wo_eq_load_op4": "start"
+                  }
+                }
+              }
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          },
+          {
+            "id": "32cb0b0c-cfd3-40df-968f-ba1dfd56949a",
+            "type": "section",
+            "position": {
+              "x": 100,
+              "y": 325
+            },
+            "data": {
+              "namespace": "",
+              "opId": "wo_eq_load_op2",
+              "op": {
+                "type": "section",
+                "template": "eq_loading_wait_ready",
+                "workflow_id": "eq_load",
+                "op_sequence": 2,
+                "display_text": "Wait for EQ ready to receive",
+                "connect": {
+                  "precedence": {
+                    "wo_eq_load_op3": "start"
+                  }
+                }
+              }
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          },
+          {
+            "id": "02f5299b-ba6c-4fc4-8a2d-3614f0909e06",
+            "type": "section",
+            "position": {
+              "x": 100,
+              "y": 225
+            },
+            "data": {
+              "namespace": "",
+              "opId": "wo_eq_load_op1",
+              "op": {
+                "type": "section",
+                "template": "eq_loading_send_request",
+                "workflow_id": "eq_load",
+                "op_sequence": 1,
+                "display_text": "Send load request to EQ",
+                "connect": {
+                  "precedence": {
+                    "wo_eq_load_op2": "start"
+                  }
+                }
+              }
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          },
+          {
+            "id": "9436bc17-62a0-4963-84fc-27f2da07008a",
+            "type": "transform",
+            "position": {
+              "x": 100,
+              "y": 125
+            },
+            "data": {
+              "namespace": "",
+              "opId": "run_started",
+              "op": {
+                "type": "transform",
+                "cel": "{'status': 'ok'}",
+                "next": {
+                  "wo_eq_load_op1": "start"
+                },
+                "on_error": {
+                  "builtin": "dispose"
+                }
+              }
+            },
+            "measured": {
+              "width": 200,
+              "height": 50
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "a2726da9-8d9b-4fbe-8ffa-5c76bacddc05",
+            "source": ":__builtin_start__",
+            "sourceHandle": null,
+            "target": "9436bc17-62a0-4963-84fc-27f2da07008a",
+            "targetHandle": null,
+            "markerEnd": {
+              "type": "arrowclosed",
+              "width": 20,
+              "height": 20
+            },
+            "type": "default",
+            "data": {
+              "output": {},
+              "input": {
+                "type": "default"
+              }
+            }
+          },
+          {
+            "id": "4ab2fb19-54f4-43bb-9cd0-9c533889f6a5",
+            "source": "5eee7a22-1929-489d-a77b-9e02195c1528",
+            "sourceHandle": null,
+            "target": ":__builtin_terminate__",
+            "targetHandle": null,
+            "markerEnd": {
+              "type": "arrowclosed",
+              "width": 20,
+              "height": 20
+            },
+            "type": "section",
+            "data": {
+              "output": {
+                "output": "precedence"
+              },
+              "input": {
+                "type": "default"
+              }
+            },
+            "selected": false
+          },
+          {
+            "id": "80a27748-9802-4013-a941-4391ab04a2ce",
+            "source": "f0b8e87e-5591-43ce-b7a8-230b616f5469",
+            "sourceHandle": null,
+            "target": "5eee7a22-1929-489d-a77b-9e02195c1528",
+            "targetHandle": null,
+            "markerEnd": {
+              "type": "arrowclosed",
+              "width": 20,
+              "height": 20
+            },
+            "type": "section",
+            "data": {
+              "output": {
+                "output": "precedence"
+              },
+              "input": {
+                "type": "sectionInput",
+                "inputId": "start"
+              }
+            },
+            "selected": false
+          },
+          {
+            "id": "268ca734-9955-4d37-811f-f55ca8289c8c",
+            "source": "32cb0b0c-cfd3-40df-968f-ba1dfd56949a",
+            "sourceHandle": null,
+            "target": "f0b8e87e-5591-43ce-b7a8-230b616f5469",
+            "targetHandle": null,
+            "markerEnd": {
+              "type": "arrowclosed",
+              "width": 20,
+              "height": 20
+            },
+            "type": "section",
+            "data": {
+              "output": {
+                "output": "precedence"
+              },
+              "input": {
+                "type": "sectionInput",
+                "inputId": "start"
+              }
+            },
+            "selected": false
+          },
+          {
+            "id": "31616ba0-307a-4367-9244-56b4ae4e05fd",
+            "source": "02f5299b-ba6c-4fc4-8a2d-3614f0909e06",
+            "sourceHandle": null,
+            "target": "32cb0b0c-cfd3-40df-968f-ba1dfd56949a",
+            "targetHandle": null,
+            "markerEnd": {
+              "type": "arrowclosed",
+              "width": 20,
+              "height": 20
+            },
+            "type": "section",
+            "data": {
+              "output": {
+                "output": "precedence"
+              },
+              "input": {
+                "type": "sectionInput",
+                "inputId": "start"
+              }
+            },
+            "selected": false
+          },
+          {
+            "id": "088532ea-6b21-454c-a163-297562f44057",
+            "source": "9436bc17-62a0-4963-84fc-27f2da07008a",
+            "sourceHandle": null,
+            "target": "02f5299b-ba6c-4fc4-8a2d-3614f0909e06",
+            "targetHandle": null,
+            "markerEnd": {
+              "type": "arrowclosed",
+              "width": 20,
+              "height": 20
+            },
+            "type": "default",
+            "data": {
+              "output": {},
+              "input": {
+                "type": "sectionInput",
+                "inputId": "start"
+              }
+            },
+            "selected": false
+          }
+        ]
       }
     }
   }

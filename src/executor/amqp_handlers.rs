@@ -77,14 +77,17 @@ pub async fn handle_workflow_execute(
     let display_names = extract_display_names(&diagram_json);
     let mut op_sequences = extract_op_sequences(&diagram_json);
 
-    // Enrich with sub-section op_sequences from the raw template files
+    // Enrich with sub-section op_sequences from the raw template files,
+    // scoped as "parent_section:sub_section" to avoid collisions.
     if let Some(ops) = diagram_json.get("ops").and_then(|v| v.as_object()) {
-        for op in ops.values() {
+        for (op_name, op) in ops {
             if op.get("type").and_then(|v| v.as_str()) != Some("section") {
                 continue;
             }
             if let Some(tmpl_name) = op.get("template").and_then(|v| v.as_str()) {
-                op_sequences.extend(registry.sub_section_op_sequences(tmpl_name));
+                for (sub_name, seq) in registry.sub_section_op_sequences(tmpl_name) {
+                    op_sequences.insert(format!("{op_name}:{sub_name}"), seq);
+                }
             }
         }
     }

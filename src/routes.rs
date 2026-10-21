@@ -111,44 +111,46 @@ async fn get_workflow_status(
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
 
-    let rows: Vec<(String, String, String, String)> = if let Some(ref wf_id) = params.workflow_id {
-        sqlx::query_as(
-            "SELECT workflow_id, section_id, parent_section_id, status \
-             FROM workflow_sections WHERE workflow_id = $1 \
-             ORDER BY workflow_id, parent_section_id, section_id",
-        )
-        .bind(wf_id)
-        .fetch_all(db)
-        .await
-    } else {
-        sqlx::query_as(
-            "SELECT workflow_id, section_id, parent_section_id, status \
-             FROM workflow_sections \
-             ORDER BY workflow_id, parent_section_id, section_id",
-        )
-        .fetch_all(db)
-        .await
-    }
-    .map_err(|e| {
-        tracing::error!("Failed to query workflow status: {e}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let rows: Vec<(String, String, String, String, Option<i32>)> =
+        if let Some(ref wf_id) = params.workflow_id {
+            sqlx::query_as(
+                "SELECT workflow_id, section_id, parent_section_id, status, op_sequence \
+                 FROM workflow_sections WHERE workflow_id = $1 \
+                 ORDER BY workflow_id, parent_section_id, op_sequence, section_id",
+            )
+            .bind(wf_id)
+            .fetch_all(db)
+            .await
+        } else {
+            sqlx::query_as(
+                "SELECT workflow_id, section_id, parent_section_id, status, op_sequence \
+                 FROM workflow_sections \
+                 ORDER BY workflow_id, parent_section_id, op_sequence, section_id",
+            )
+            .fetch_all(db)
+            .await
+        }
+        .map_err(|e| {
+            tracing::error!("Failed to query workflow status: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     let mut workflows: HashMap<String, HashMap<String, SectionState>> = HashMap::new();
-    for (wf_id, sec_id, parent_id, status) in rows {
+    for (wf_id, sec_id, parent_id, status, op_seq) in rows {
         let workflow = workflows.entry(wf_id).or_default();
         let parsed = SectionStatus::from_db(&status);
+        let op_sequence = op_seq.map(|v| v as u32);
         if parent_id.is_empty() {
             let section = workflow.entry(sec_id.clone()).or_default();
             section.status = parsed;
             section.display_name = handle.display_name(&sec_id);
-            section.op_sequence = handle.op_sequence(&sec_id);
+            section.op_sequence = op_sequence;
         } else {
             let section = workflow.entry(parent_id).or_default();
             let sub = section.sub_sections.entry(sec_id.clone()).or_default();
             sub.status = parsed;
             sub.display_name = handle.display_name(&sec_id);
-            sub.op_sequence = handle.op_sequence(&sec_id);
+            sub.op_sequence = op_sequence;
         }
     }
 
