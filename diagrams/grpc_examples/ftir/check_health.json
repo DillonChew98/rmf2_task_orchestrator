@@ -1,0 +1,74 @@
+{
+  "version": "0.1.0",
+  "description": "Check FTIR is idle",
+  "start": "ask_status",
+  "ops": {
+    "ask_status": {
+      "type": "node",
+      "builder": "grpc_request",
+      "display_text": "Read FTIR status",
+      "config": {
+        "service": "sila2.com.bruker.ftir.instrumentstatus.v2.InstrumentStatus",
+        "method": "Subscribe_CurrentInstrumentStatus",
+        "uri": "${lab.ftir_host}",
+        "timeout": 20,
+        "request": {}
+      },
+      "stream_out": {
+        "out": "check_status"
+      },
+      "next": "if_answered"
+    },
+    "if_answered": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "dispose"
+      },
+      "err": "report_no_answer"
+    },
+    "check_status": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "Is OPUS reachable?",
+      "config": {
+        "condition": "CurrentInstrumentStatus.value != 'Unreachable'"
+      },
+      "next": "if_reachable"
+    },
+    "if_reachable": {
+      "type": "fork_result",
+      "ok": "report_healthy",
+      "err": "report_unhealthy"
+    },
+    "report_healthy": {
+      "type": "transform",
+      "cel": "{'result': 'succeeded', 'reply': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_no_answer": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'ask_status', 'detail': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_unhealthy": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'check_status', 'detail': request.error, 'last_reply': request.message}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  }
+}

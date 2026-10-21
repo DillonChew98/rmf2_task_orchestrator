@@ -1,0 +1,91 @@
+{
+  "version": "0.1.0",
+  "description": "Close SDT furnace",
+  "start": "close_furnace",
+  "ops": {
+    "close_furnace": {
+      "type": "node",
+      "builder": "grpc_request",
+      "display_text": "Close furnace",
+      "config": {
+        "service": "sila2.org.tainstruments.sdt.furnacecontrol.v2.FurnaceControl",
+        "method": "CloseFurnace",
+        "uri": "${lab.tga_host}",
+        "timeout": 90,
+        "request": {
+          "Request": {
+            "Request": {
+              "Version": {
+                "value": 2
+              },
+              "CorrelationId": {
+                "value": "marvel-sdt-close-furnace"
+              },
+              "TimeoutSeconds": {
+                "value": 0
+              },
+              "Payload": {
+                "value": ""
+              }
+            }
+          }
+        }
+      },
+      "stream_out": {
+        "out": "check_outcome"
+      },
+      "next": "if_call_ok"
+    },
+    "if_call_ok": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "dispose"
+      },
+      "err": "report_start_failed"
+    },
+    "check_outcome": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "Did the server say Succeeded?",
+      "config": {
+        "condition": "Result.Envelope.Outcome.value == 'Succeeded'"
+      },
+      "next": "if_succeeded"
+    },
+    "if_succeeded": {
+      "type": "fork_result",
+      "ok": "report_succeeded",
+      "err": "report_outcome_failed"
+    },
+    "report_succeeded": {
+      "type": "transform",
+      "cel": "{'result': 'succeeded', 'reply': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_start_failed": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'close_furnace', 'detail': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_outcome_failed": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  }
+}

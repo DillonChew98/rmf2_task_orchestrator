@@ -1,0 +1,73 @@
+{
+  "version": "0.1.0",
+  "description": "Check SDT is idle",
+  "start": "get_instrument_status",
+  "ops": {
+    "get_instrument_status": {
+      "type": "node",
+      "builder": "grpc_request",
+      "display_text": "Subscribe to instrument status",
+      "config": {
+        "service": "sila2.org.tainstruments.sdt.instrumentstatus.v2.InstrumentStatus",
+        "method": "Subscribe_CurrentInstrumentStatus",
+        "uri": "${lab.tga_host}",
+        "request": {}
+      },
+      "stream_out": {
+        "out": "check_idle"
+      },
+      "next": "if_answered"
+    },
+    "if_answered": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "dispose"
+      },
+      "err": "report_no_answer"
+    },
+    "check_idle": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "Is instrument idle?",
+      "config": {
+        "condition": "CurrentInstrumentStatus.value.contains('\"instrumentIsBusy\":false')"
+      },
+      "next": "if_idle"
+    },
+    "if_idle": {
+      "type": "fork_result",
+      "ok": "report_idle",
+      "err": "report_busy"
+    },
+    "report_idle": {
+      "type": "transform",
+      "cel": "{'result': 'succeeded', 'reply': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_no_answer": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'get_instrument_status', 'detail': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_busy": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'check_idle', 'detail': request.error, 'last_reply': request.message}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "version": "0.1.0",
+  "description": "Check SDT health",
+  "start": "ask_health",
+  "ops": {
+    "ask_health": {
+      "type": "node",
+      "builder": "grpc_request",
+      "display_text": "Ask SDT health",
+      "config": {
+        "service": "sila2.org.tainstruments.sdt.discovery.v2.Discovery",
+        "method": "GetHealthJson",
+        "uri": "${lab.tga_host}",
+        "timeout": 20,
+        "request": {
+          "Request": {
+            "Request": {
+              "Version": {
+                "value": 2
+              },
+              "CorrelationId": {
+                "value": "marvel-tga-health-check"
+              },
+              "TimeoutSeconds": {
+                "value": 0
+              },
+              "Payload": {
+                "value": ""
+              }
+            }
+          }
+        }
+      },
+      "stream_out": {
+        "out": "check_outcome"
+      },
+      "next": "if_answered"
+    },
+    "if_answered": {
+      "type": "fork_result",
+      "ok": {
+        "builtin": "dispose"
+      },
+      "err": "report_no_answer"
+    },
+    "check_outcome": {
+      "type": "node",
+      "builder": "cel_condition",
+      "display_text": "Did the server say Succeeded?",
+      "config": {
+        "condition": "Result.Envelope.Outcome.value == 'Succeeded'"
+      },
+      "next": "if_healthy"
+    },
+    "if_healthy": {
+      "type": "fork_result",
+      "ok": "report_healthy",
+      "err": "report_unhealthy"
+    },
+    "report_healthy": {
+      "type": "transform",
+      "cel": "{'result': 'succeeded', 'reply': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_no_answer": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'ask_health', 'detail': request}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "report_unhealthy": {
+      "type": "transform",
+      "cel": "{'result': 'failed', 'step': 'check_outcome', 'detail': request.error, 'last_reply': request.message}",
+      "next": {
+        "builtin": "terminate"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    }
+  }
+}
