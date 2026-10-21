@@ -1,0 +1,68 @@
+{
+  "templates": {
+    "pause_until_resume": {
+      "inputs": {
+        "start": "begin"
+      },
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "begin": {
+          "type": "fork_clone",
+          "next": [
+            "announce",
+            "wait_for_resume"
+          ]
+        },
+        "announce": {
+          "type": "node",
+          "builder": "mqtt_publish",
+          "display_text": "Announce waiting",
+          "config": {
+            "topic": "workflow/status",
+            "payload": {
+              "state": "waiting_for_resume"
+            }
+          },
+          "next": {
+            "builtin": "dispose"
+          }
+        },
+        "wait_for_resume": {
+          "type": "node",
+          "builder": "mqtt_subscribe_and_wait",
+          "display_text": "Wait for resume",
+          "config": {
+            "topic": "workflow/resume",
+            "condition": "message.state == 'resume'",
+            "timeout_secs": 3600
+          },
+          "next": "if_resumed"
+        },
+        "if_resumed": {
+          "type": "fork_result",
+          "ok": "report_succeeded",
+          "err": "report_failed"
+        },
+        "report_succeeded": {
+          "type": "transform",
+          "cel": "{'result': 'succeeded', 'reply': request}",
+          "next": "ok",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        },
+        "report_failed": {
+          "type": "transform",
+          "cel": "{'result': 'failed', 'step': 'wait_for_resume', 'detail': request}",
+          "next": "failed",
+          "on_error": {
+            "builtin": "dispose"
+          }
+        }
+      }
+    }
+  }
+}

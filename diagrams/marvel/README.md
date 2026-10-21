@@ -37,6 +37,10 @@ DSC workflow:
 - `pick_dsc_pan_sample_tray_from_dsc.json`
 - `place_dsc_pan_sample_tray_on_workbench.json`
 
+DSC steps with a pause before the UR arm moves. To use one, point the adapter's registry at it:
+- `pick_dsc_pan_sample_tray_from_spm_with_pause.json`
+- `place_dsc_pan_sample_tray_on_dsc_with_pause.json`
+
 GPC workflow. The lab has no GPC instrument box, so this folder has `mock_gpc_process` and no
 `gpc_process`:
 - `pick_gpc_vials_from_spm.json`
@@ -54,6 +58,7 @@ Mocks (`mock_<x>_process.json`) wait 5 s, then report ok. Point the adapter's re
 | `mir_move_to_waypoint` | MiR: checks the arm is in safe position, drives to a waypoint and waits for arrival. On failure, clears the mission queue and drives to the charger. |
 | `ur_perform_task` | UR arm: runs one task and waits for it to end. |
 | `ftir_open_drawer` | FTIR: opens the sample drawer. |
+| `ftir_measure_background` | FTIR: measures the background, with mocked parameters. |
 | `ftir_measure_sample` | FTIR: measures the sample, with mocked parameters. |
 | `ftir_close_drawer` | FTIR: closes the sample drawer. |
 | `dsc_park_autosampler_cell` | X3 DSC: parks the autosampler. |
@@ -64,3 +69,22 @@ Mocks (`mock_<x>_process.json`) wait 5 s, then report ok. Point the adapter's re
 | `tga_close_furnace` | SDT (TGA): sends the close-furnace command and does not wait for it. |
 | `tga_add_experiment` | SDT (TGA): queues an experiment, with mocked parameters. |
 | `tga_execute_experiment` | SDT (TGA): starts the run and waits for it to end. |
+| `pause_until_resume` | Sends `{"state": "waiting_for_resume"}` on MQTT topic `workflow/status`, then pauses the workflow until `{"state": "resume"}` arrives on `workflow/resume`. Fails after 1 hour. |
+
+## DSC pause 
+
+Two DSC diagrams has a pause. 
+
+1. Watch the workflow topics:
+
+   ```bash
+   docker compose exec mosquitto mosquitto_sub -t 'workflow/#' -v
+   ```
+
+2. When `workflow/status {"state":"waiting_for_resume"}` shows, resume with:
+
+   ```bash
+   docker compose exec mosquitto mosquitto_pub -t workflow/resume -m '{"state":"resume"}'
+   ```
+
+
