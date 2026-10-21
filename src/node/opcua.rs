@@ -183,15 +183,28 @@ fn opcua_write_node(
                                 node_id,
                                 attribute_id: 13, // Value attribute
                                 index_range: Default::default(),
-                                value: DataValue::new_now(variant),
+                                value: DataValue::from(variant),
                             }
                         })
                         .collect();
+
+                    tracing::info!(
+                        "opcua_write: writing {} nodes to {}",
+                        nodes_to_write.len(),
+                        config.uri
+                    );
+                    for wv in &nodes_to_write {
+                        tracing::info!("  -> node={}, value={:?}", wv.node_id, wv.value);
+                    }
 
                     let results = session
                         .write(&nodes_to_write)
                         .await
                         .map_err(|e| format!("opcua_write: {e}"))?;
+
+                    for (i, status) in results.iter().enumerate() {
+                        tracing::info!("  <- node {i}: {status}");
+                    }
 
                     let any_bad = results.iter().any(|s| !s.is_good());
                     if any_bad {
