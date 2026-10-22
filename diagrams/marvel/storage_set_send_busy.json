@@ -1,0 +1,80 @@
+{
+  "templates": {
+    "storage_set_send_busy": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "build_busy",
+          "ops": {
+            "build_busy": {
+              "type": "transform",
+              "display_text": "Build busy signal",
+              "cel": "{'OPC_AMR_Send_Busy': true}",
+              "next": "write_busy",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "write_busy": {
+              "type": "node",
+              "builder": "opcua_write",
+              "display_text": "Write send busy",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4
+              },
+              "next": "if_busy_written"
+            },
+            "if_busy_written": {
+              "type": "fork_result",
+              "ok": "report_succeeded",
+              "err": "report_failed"
+            },
+            "report_succeeded": {
+              "type": "transform",
+              "cel": "{'result': 'succeeded'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did it succeed?",
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}

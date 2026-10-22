@@ -1,0 +1,103 @@
+{
+  "templates": {
+    "storage_wait_ready_to_receive": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "read_signal",
+          "ops": {
+            "read_signal": {
+              "type": "node",
+              "builder": "opcua_read",
+              "display_text": "Read ready to receive",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4,
+                "node_ids": [
+                  "OPC_PLC_Ready_To_Receive"
+                ]
+              },
+              "next": "if_read"
+            },
+            "if_read": {
+              "type": "fork_result",
+              "ok": "check_ready",
+              "err": "report_failed"
+            },
+            "check_ready": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is storage ready?",
+              "config": {
+                "condition": "OPC_PLC_Ready_To_Receive == true"
+              },
+              "next": "if_ready"
+            },
+            "if_ready": {
+              "type": "fork_result",
+              "ok": "report_succeeded",
+              "err": "wait_retry"
+            },
+            "wait_retry": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Wait, then retry",
+              "config": {
+                "interval_secs": 2,
+                "timeout_secs": 120
+              },
+              "next": "if_retries_left"
+            },
+            "if_retries_left": {
+              "type": "fork_result",
+              "ok": "read_signal",
+              "err": "report_failed"
+            },
+            "report_succeeded": {
+              "type": "transform",
+              "cel": "{'result': 'succeeded'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did it succeed?",
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}

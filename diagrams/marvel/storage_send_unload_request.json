@@ -1,0 +1,198 @@
+{
+  "templates": {
+    "storage_send_unload_request": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "build_payload",
+          "ops": {
+            "build_payload": {
+              "type": "transform",
+              "display_text": "Build unload request",
+              "cel": "{'OPC_AMR_Unload_TrayID_Request': 'TRAY_001', 'OPC_AMR_Unload_Request': true}",
+              "next": "write_request",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "write_request": {
+              "type": "node",
+              "builder": "opcua_write",
+              "display_text": "Write unload request",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4
+              },
+              "next": "if_written"
+            },
+            "if_written": {
+              "type": "fork_result",
+              "ok": "read_ack_signals",
+              "err": "report_failed"
+            },
+            "read_ack_signals": {
+              "type": "node",
+              "builder": "opcua_read",
+              "display_text": "Read storage reply",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4,
+                "node_ids": [
+                  "OPC_PLC_Unload_Request_Ack",
+                  "OPC_PLC_TrayID_Not_Found"
+                ]
+              },
+              "next": "if_ack_read"
+            },
+            "if_ack_read": {
+              "type": "fork_result",
+              "ok": "check_any_ack",
+              "err": "report_failed"
+            },
+            "check_any_ack": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Did storage reply?",
+              "config": {
+                "condition": "OPC_PLC_Unload_Request_Ack == true || OPC_PLC_TrayID_Not_Found == true"
+              },
+              "next": "if_any_ack"
+            },
+            "if_any_ack": {
+              "type": "fork_result",
+              "ok": "check_tray_found",
+              "err": "wait_for_ack"
+            },
+            "wait_for_ack": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Wait, then retry",
+              "config": {
+                "interval_secs": 2,
+                "timeout_secs": 30
+              },
+              "next": "if_retries_left"
+            },
+            "if_retries_left": {
+              "type": "fork_result",
+              "ok": "read_ack_signals",
+              "err": "report_failed"
+            },
+            "check_tray_found": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is tray found?",
+              "config": {
+                "condition": "OPC_PLC_TrayID_Not_Found != true"
+              },
+              "next": "if_tray_found"
+            },
+            "if_tray_found": {
+              "type": "fork_result",
+              "ok": "report_succeeded",
+              "err": "build_reject_ack"
+            },
+            "build_reject_ack": {
+              "type": "transform",
+              "display_text": "Build reject ack",
+              "cel": "{'OPC_AMR_Unload_Request_Reject_Ack': true}",
+              "next": "write_reject_ack",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "write_reject_ack": {
+              "type": "node",
+              "builder": "opcua_write",
+              "display_text": "Write reject ack",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4
+              },
+              "next": "if_reject_written"
+            },
+            "if_reject_written": {
+              "type": "fork_result",
+              "ok": "build_clear_after_reject",
+              "err": "report_failed"
+            },
+            "build_clear_after_reject": {
+              "type": "transform",
+              "display_text": "Build clear signals",
+              "cel": "{'OPC_AMR_Unload_TrayID_Request': '', 'OPC_AMR_Unload_Request': false, 'OPC_AMR_Unload_Request_Reject_Ack': false}",
+              "next": "write_clear_after_reject",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "write_clear_after_reject": {
+              "type": "node",
+              "builder": "opcua_write",
+              "display_text": "Clear AMR signals",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4
+              },
+              "next": "if_cleared"
+            },
+            "if_cleared": {
+              "type": "fork_result",
+              "ok": "tray_not_found_detail",
+              "err": "report_failed"
+            },
+            "tray_not_found_detail": {
+              "type": "transform",
+              "cel": "{'reason': 'tray_id_not_found'}",
+              "next": "report_failed",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_succeeded": {
+              "type": "transform",
+              "cel": "{'result': 'succeeded'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did it succeed?",
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}

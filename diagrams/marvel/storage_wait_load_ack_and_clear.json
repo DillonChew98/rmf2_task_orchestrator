@@ -1,0 +1,127 @@
+{
+  "templates": {
+    "storage_wait_load_ack_and_clear": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "read_ack",
+          "ops": {
+            "read_ack": {
+              "type": "node",
+              "builder": "opcua_read",
+              "display_text": "Read complete ack",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4,
+                "node_ids": [
+                  "OPC_PLC_Send_Complete_Ack"
+                ]
+              },
+              "next": "if_ack_read"
+            },
+            "if_ack_read": {
+              "type": "fork_result",
+              "ok": "check_ack",
+              "err": "report_failed"
+            },
+            "check_ack": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Did storage acknowledge?",
+              "config": {
+                "condition": "OPC_PLC_Send_Complete_Ack == true"
+              },
+              "next": "if_ack"
+            },
+            "if_ack": {
+              "type": "fork_result",
+              "ok": "build_clear",
+              "err": "wait_retry"
+            },
+            "wait_retry": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Wait, then retry",
+              "config": {
+                "interval_secs": 2,
+                "timeout_secs": 30
+              },
+              "next": "if_retries_left"
+            },
+            "if_retries_left": {
+              "type": "fork_result",
+              "ok": "read_ack",
+              "err": "report_failed"
+            },
+            "build_clear": {
+              "type": "transform",
+              "display_text": "Build clear signals",
+              "cel": "{'OPC_AMR_Send_Request': false, 'OPC_AMR_Send_Busy': false, 'OPC_AMR_Send_Complete': false}",
+              "next": "write_clear",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "write_clear": {
+              "type": "node",
+              "builder": "opcua_write",
+              "display_text": "Clear AMR signals",
+              "config": {
+                "uri": "${lab.eq_opcua_host}",
+                "namespace": 4
+              },
+              "next": "if_cleared"
+            },
+            "if_cleared": {
+              "type": "fork_result",
+              "ok": "report_succeeded",
+              "err": "report_failed"
+            },
+            "report_succeeded": {
+              "type": "transform",
+              "cel": "{'result': 'succeeded'}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did it succeed?",
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}
