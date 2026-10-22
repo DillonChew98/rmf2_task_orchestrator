@@ -125,7 +125,7 @@ pub async fn run_consumer(
             .queue_declare(
                 queue_name,
                 QueueDeclareOptions {
-                    durable: true,
+                    auto_delete: true,
                     ..Default::default()
                 },
                 FieldTable::default(),
@@ -181,7 +181,12 @@ async fn consumer_loop(mut consumer: Consumer, handler: HandlerFn, routing_key: 
                         }
                         Err(e) => {
                             tracing::error!("[{}] Handler error: {}", routing_key, e);
-                            let _ = delivery.nack(BasicNackOptions::default()).await;
+                            let _ = delivery
+                                .nack(BasicNackOptions {
+                                    requeue: false,
+                                    ..Default::default()
+                                })
+                                .await;
                         }
                     }
                 });
@@ -257,7 +262,7 @@ impl AmqpClient {
             .queue_declare(
                 response_queue,
                 QueueDeclareOptions {
-                    durable: true,
+                    auto_delete: true,
                     ..Default::default()
                 },
                 FieldTable::default(),
