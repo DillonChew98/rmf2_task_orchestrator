@@ -1,0 +1,96 @@
+{
+  "version": "0.1.0",
+  "description": "FTIR workflow from the storage buffer and back, with 5s mock process.",
+  "start": "run_started",
+  "ops": {
+    "wo2026100002_r1838_op1": {
+      "type": "section",
+      "template": "pick_ftir_pan_sample_tray_from_storage",
+      "workflow_id": "2026100002",
+      "op_sequence": 1,
+      "display_text": "Pick FTIR pan sample tray from Storage",
+      "connect": {
+        "precedence": {
+          "wo2026100002_r1838_op2": "start"
+        }
+      }
+    },
+    "wo2026100002_r1838_op2": {
+      "type": "section",
+      "template": "place_ftir_pan_sample_tray_on_ftir",
+      "workflow_id": "2026100002",
+      "op_sequence": 2,
+      "display_text": "Place FTIR pan sample tray on FTIR",
+      "connect": {
+        "precedence": {
+          "wo2026100002_r1838_op3": "start"
+        }
+      }
+    },
+    "wo2026100002_r1838_op3": {
+      "type": "section",
+      "template": "mock_ftir_process",
+      "workflow_id": "2026100002",
+      "op_sequence": 3,
+      "display_text": "FTIR Process",
+      "connect": {
+        "precedence": {
+          "wo2026100002_r1838_op4": "start"
+        }
+      }
+    },
+    "wo2026100002_r1838_op4": {
+      "type": "section",
+      "template": "pick_ftir_pan_sample_tray_from_ftir",
+      "workflow_id": "2026100002",
+      "op_sequence": 4,
+      "display_text": "Pick FTIR pan sample tray from FTIR",
+      "connect": {
+        "precedence": {
+          "wo2026100002_r1838_op5": "start"
+        }
+      }
+    },
+    "wo2026100002_r1838_op5": {
+      "type": "section",
+      "template": "place_ftir_pan_sample_tray_in_storage",
+      "workflow_id": "2026100002",
+      "op_sequence": 5,
+      "display_text": "Place FTIR pan sample tray in Storage",
+      "connect": {}
+    },
+    "run_started": {
+      "type": "transform",
+      "cel": "{'status': 'ok'}",
+      "next": {
+        "wo2026100002_r1838_op1": "start"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "join__end": {
+      "type": "join",
+      "buffers": {
+        "wo2026100002_r1838_op1": {
+          "wo2026100002_r1838_op1": "status_report"
+        },
+        "wo2026100002_r1838_op2": {
+          "wo2026100002_r1838_op2": "status_report"
+        },
+        "wo2026100002_r1838_op3": {
+          "wo2026100002_r1838_op3": "status_report"
+        },
+        "wo2026100002_r1838_op4": {
+          "wo2026100002_r1838_op4": "status_report"
+        },
+        "wo2026100002_r1838_op5": {
+          "wo2026100002_r1838_op5": "status_report"
+        }
+      },
+      "next": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}

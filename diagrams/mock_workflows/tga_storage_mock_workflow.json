@@ -1,0 +1,96 @@
+{
+  "version": "0.1.0",
+  "description": "TGA workflow from the storage buffer and back, with 5s mock process.",
+  "start": "run_started",
+  "ops": {
+    "wo2026100003_r1839_op1": {
+      "type": "section",
+      "template": "pick_tga_pan_sample_tray_from_storage",
+      "workflow_id": "2026100003",
+      "op_sequence": 1,
+      "display_text": "Pick TGA pan sample tray from Storage",
+      "connect": {
+        "precedence": {
+          "wo2026100003_r1839_op2": "start"
+        }
+      }
+    },
+    "wo2026100003_r1839_op2": {
+      "type": "section",
+      "template": "place_tga_pan_sample_tray_on_tga",
+      "workflow_id": "2026100003",
+      "op_sequence": 2,
+      "display_text": "Place TGA pan sample tray on TGA",
+      "connect": {
+        "precedence": {
+          "wo2026100003_r1839_op3": "start"
+        }
+      }
+    },
+    "wo2026100003_r1839_op3": {
+      "type": "section",
+      "template": "mock_tga_process",
+      "workflow_id": "2026100003",
+      "op_sequence": 3,
+      "display_text": "TGA Process",
+      "connect": {
+        "precedence": {
+          "wo2026100003_r1839_op4": "start"
+        }
+      }
+    },
+    "wo2026100003_r1839_op4": {
+      "type": "section",
+      "template": "pick_tga_pan_sample_tray_from_tga",
+      "workflow_id": "2026100003",
+      "op_sequence": 4,
+      "display_text": "Pick TGA pan sample tray from TGA",
+      "connect": {
+        "precedence": {
+          "wo2026100003_r1839_op5": "start"
+        }
+      }
+    },
+    "wo2026100003_r1839_op5": {
+      "type": "section",
+      "template": "place_tga_pan_sample_tray_in_storage",
+      "workflow_id": "2026100003",
+      "op_sequence": 5,
+      "display_text": "Place TGA pan sample tray in Storage",
+      "connect": {}
+    },
+    "run_started": {
+      "type": "transform",
+      "cel": "{'status': 'ok'}",
+      "next": {
+        "wo2026100003_r1839_op1": "start"
+      },
+      "on_error": {
+        "builtin": "dispose"
+      }
+    },
+    "join__end": {
+      "type": "join",
+      "buffers": {
+        "wo2026100003_r1839_op1": {
+          "wo2026100003_r1839_op1": "status_report"
+        },
+        "wo2026100003_r1839_op2": {
+          "wo2026100003_r1839_op2": "status_report"
+        },
+        "wo2026100003_r1839_op3": {
+          "wo2026100003_r1839_op3": "status_report"
+        },
+        "wo2026100003_r1839_op4": {
+          "wo2026100003_r1839_op4": "status_report"
+        },
+        "wo2026100003_r1839_op5": {
+          "wo2026100003_r1839_op5": "status_report"
+        }
+      },
+      "next": {
+        "builtin": "terminate"
+      }
+    }
+  }
+}
