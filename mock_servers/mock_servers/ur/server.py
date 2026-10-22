@@ -17,6 +17,8 @@ from .arm import (
     ACTIONS,
     ALL_ITEMS,
     BUSY_STATES,
+    ITEMS_PER_RUN,
+    TASK_DIRECTIONS,
     TASK_ITEMS,
     TASKS,
     Arm,
@@ -70,9 +72,10 @@ class UrApp:
                     "actions": list(ACTIONS),
                     "default_action": {task: default_action_for(task) for task in TASKS},
                     "implemented_actions": list(ACTIONS),
-                    "directions": {task: list(ACTIONS) for task in TASKS},
+                    "directions": {task: list(TASK_DIRECTIONS[task]) for task in TASKS},
                     "items": dict(TASK_ITEMS),
                     "all_items_keyword": ALL_ITEMS,
+                    "items_per_run": dict(ITEMS_PER_RUN),
                     "mir_arrival_check": self.interlock.info(),
                 }
             case "GET", "/health":
@@ -115,6 +118,20 @@ class UrApp:
                 400,
                 f"'{name}' has no item {', '.join(unknown)}. "
                 f"Have: {', '.join(TASK_ITEMS[name])}, or '{ALL_ITEMS}'",
+            )
+        if action not in TASK_DIRECTIONS[name]:
+            return answer(
+                501,
+                f"'{name}' has no '{action}' direction taught. "
+                f"It can do: {', '.join(TASK_DIRECTIONS[name])}",
+            )
+        limit = ITEMS_PER_RUN.get(name)
+        if limit and (not items or ALL_ITEMS in items or len(items) > limit):
+            return answer(
+                400,
+                f"machine '{name}' moves at most {limit} item(s) per run. "
+                f"Name them, from: {', '.join(TASK_ITEMS[name])}. "
+                f"'{ALL_ITEMS}' or no item is not accepted here",
             )
         arrived, code, why, mir = self.interlock.check(name)
         if not arrived:

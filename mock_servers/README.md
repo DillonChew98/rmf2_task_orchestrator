@@ -120,7 +120,7 @@ curl -s -X POST localhost:50066/mock/fail-next   # next UR task ends ERROR
 
 The MiR starts parked at CHARGER. Positions: `mock-position-charger`,
 `mock-position-bench`, `mock-position-dsc`, `mock-position-tga`,
-`mock-position-ftir`, `mock-position-gpc`. The UR refuses a task with 412 unless
+`mock-position-ftir`, `mock-position-gpc`, `mock-position-storage`. The UR refuses a task with 412 unless
 the MiR is parked within 0.35 m of that task's position, or `--no-interlock`
 is set.
 

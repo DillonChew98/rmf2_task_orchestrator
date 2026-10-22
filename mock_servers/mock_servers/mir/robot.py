@@ -23,6 +23,7 @@ POSITIONS = {
     "TGA": (8.0, 5.0),
     "FTIR": (5.0, 5.0),
     "GPC": (2.0, 5.0),
+    "STORAGE": (5.0, 8.0),
 }
 MAP_ID = "mock-map"
 

@@ -109,6 +109,10 @@ def test_with_the_interlock_off_a_task_starts_anywhere(lone_ur):
         ({"task": "nmr"}, 404, "unknown task 'nmr'"),
         ({"task": "dsc", "action": "shake"}, 400, "unknown action 'shake'"),
         ({"task": "bench", "item": "NMR"}, 400, "'bench' has no item NMR"),
+        ({"task": "storage_in", "action": "pick", "item": "FTIR"}, 501, "no 'pick' direction"),
+        ({"task": "storage_out"}, 400, "at most 1 item(s) per run"),
+        ({"task": "storage_out", "item": "ALL"}, 400, "at most 1 item(s) per run"),
+        ({"task": "storage_out", "item": "TGA,FTIR"}, 400, "at most 1 item(s) per run"),
     ],
 )
 def test_bad_arguments_are_refused_before_the_mir_is_asked(lone_ur, body, code, words):
@@ -132,6 +136,11 @@ def test_no_body_and_no_query_still_answers_in_shape(lone_ur):
 
 def test_the_bench_defaults_to_pick(lone_ur):
     assert start(lone_ur, {"task": "bench"})[1]["ros_task"] == "pick_task"
+
+
+def test_a_storage_port_runs_one_named_tray(lone_ur):
+    status, started = start(lone_ur, {"task": "storage_out", "item": "FTIR"})
+    assert (status, started["ros_task"], started["item"]) == (200, "pick_task", ["FTIR"])
 
 
 def test_a_body_that_is_not_an_object_is_a_422(lone_ur):

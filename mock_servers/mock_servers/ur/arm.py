@@ -12,23 +12,37 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
-TASKS = ("bench", "tga", "gpc", "dsc", "ftir")
+TASKS = ("bench", "tga", "gpc", "dsc", "ftir", "storage_in", "storage_out")
 TASK_ITEMS = {
     "bench": ["TGA", "DSC", "GPC", "FTIR"],
     "tga": ["TGA"],
     "gpc": ["GPC"],
     "dsc": ["DSC"],
     "ftir": ["FTIR"],
+    "storage_in": ["TGA", "DSC", "FTIR"],
+    "storage_out": ["TGA", "DSC", "FTIR"],
 }
 # The MiR position each task works from, by name, as the arrival interlock looks it up.
-TASK_WAYPOINTS = {"bench": "BENCH", "tga": "TGA", "gpc": "GPC", "dsc": "DSC", "ftir": "FTIR"}
+TASK_WAYPOINTS = {
+    "bench": "BENCH",
+    "tga": "TGA",
+    "gpc": "GPC",
+    "dsc": "DSC",
+    "ftir": "FTIR",
+    "storage_in": "STORAGE",
+    "storage_out": "STORAGE",
+}
 ACTIONS = ("place", "pick")
+# The storage buffer's loading port only places and its unloading port only picks.
+TASK_DIRECTIONS = {task: ACTIONS for task in TASKS} | {"storage_in": ("place",), "storage_out": ("pick",)}
+# A port holds one tray, so a run there must name exactly one. ALL or no item is refused.
+ITEMS_PER_RUN = {"storage_in": 1, "storage_out": 1}
 ALL_ITEMS = "ALL"
 BUSY_STATES = ("EXECUTING", "PAUSED", "WAITING_FOR_CONTROLLER")
 
 
 def default_action_for(task: str | None) -> str:
-    return "pick" if task == "bench" else "place"
+    return "pick" if task in ("bench", "storage_out") else "place"
 
 
 def parse_items(raw) -> list[str] | None:

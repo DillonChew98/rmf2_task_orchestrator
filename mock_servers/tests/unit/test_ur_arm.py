@@ -98,9 +98,10 @@ def test_items_parse_as_the_real_server_parses_them(raw, items):
     assert parse_items(raw) == items
 
 
-def test_the_bench_picks_by_default_and_every_machine_places():
-    assert default_action_for("bench") == "pick"
-    assert {default_action_for(task) for task in TASKS if task != "bench"} == {"place"}
+def test_the_bench_and_the_unloading_port_pick_by_default_and_the_rest_place():
+    pickers = {"bench", "storage_out"}
+    assert {default_action_for(task) for task in pickers} == {"pick"}
+    assert {default_action_for(task) for task in TASKS if task not in pickers} == {"place"}
     assert default_action_for(None) == "place"
 
 
