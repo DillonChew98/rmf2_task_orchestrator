@@ -56,8 +56,12 @@ for robot in mir ur; do
     echo "  ${robot}  pid $!  -> $LOG_DIR/${robot}.log"
 done
 
+"$PYTHON" -u -m mock_servers.opcua.server > "$LOG_DIR/opcua.log" 2>&1 &
+pids+=("$!")
+echo "  opcua  pid $!  -> $LOG_DIR/opcua.log"
+
 echo
-echo "Six mocks starting. SiLA on 50061-50064, MiR on 50065, UR on 50066. Ctrl-C to stop."
+echo "Seven mocks starting. SiLA on 50061-50064, MiR on 50065, UR on 50066, OPC UA on 4840. Ctrl-C to stop."
 echo "Watch them with:  tail -f $LOG_DIR/*.log"
 echo
 

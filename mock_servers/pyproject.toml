@@ -19,6 +19,8 @@ dependencies = [
     # asm.py, core.py, models/instrument.py). Without it the ftir mock cannot
     # import the real package at all.
     "numpy>=1.24",
+    # OPC UA mock buffer storage PLC.
+    "asyncua>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +33,7 @@ mock-gpc = "mock_servers.gpc.server:main"
 mock-ftir = "mock_servers.ftir.server:main"
 mock-mir = "mock_servers.mir.server:main"
 mock-ur = "mock_servers.ur.server:main"
+mock-opcua = "mock_servers.opcua.server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
