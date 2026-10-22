@@ -75,7 +75,7 @@
           "builder": "opcua_write",
           "display_text": "Clear AMR signals after reject",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4
           },
           "next": "if_cleared"
@@ -99,7 +99,7 @@
           "builder": "opcua_write",
           "display_text": "Write TrayID_Not_Found_Ack",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4
           },
           "next": "if_reject_written"
@@ -166,7 +166,7 @@
           "builder": "opcua_read",
           "display_text": "Read Request_Ack and TrayID_Not_Found",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4,
             "node_ids": [
               "OPC_PLC_Unload_Request_Ack",
@@ -185,7 +185,7 @@
           "builder": "opcua_write",
           "display_text": "Write TrayID + Unload Request",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4
           },
           "next": "if_written"
@@ -218,7 +218,7 @@
           "builder": "opcua_read",
           "display_text": "Read Ready_To_Unload",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4,
             "node_ids": [
               "OPC_PLC_Ready_To_Unload"
@@ -331,7 +331,7 @@
           "builder": "opcua_write",
           "display_text": "Write Unload Busy",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4
           },
           "next": "if_busy_written"
@@ -370,7 +370,7 @@
           "builder": "opcua_write",
           "display_text": "Write Unload Complete",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4
           },
           "next": "if_complete_written"
@@ -490,7 +490,7 @@
           "builder": "opcua_write",
           "display_text": "Clear all AMR unload signals",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4
           },
           "next": "if_cleared"
@@ -543,7 +543,7 @@
           "builder": "opcua_read",
           "display_text": "Read Unload Complete Ack",
           "config": {
-            "uri": "opc.tcp://192.168.50.105:4840",
+            "uri": "opc.tcp://127.0.0.1:4840",
             "namespace": 4,
             "node_ids": [
               "OPC_PLC_Unload_Complete_Ack"
