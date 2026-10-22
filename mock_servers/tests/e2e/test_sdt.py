@@ -137,13 +137,12 @@ def test_opening_the_furnace_takes_time(sdt):
     assert settled["position"] == "Open"
 
 
-def test_opening_an_open_furnace_is_rejected(sdt):
-    ask(sdt.client.FurnaceControl.OpenFurnace)
-    time.sleep(FURNACE_MOTION_S + 0.3)
+def test_closing_a_closed_furnace_succeeds(sdt):
+    assert ask(sdt.client.FurnaceControl.CloseFurnace).outcome == "Succeeded"
 
-    again = ask(sdt.client.FurnaceControl.OpenFurnace)
-    assert again.outcome == "Rejected"
-    assert again.code.startswith("trios.http.4")
+    settled = furnace(sdt.client)
+    assert settled["isMoving"] is False
+    assert settled["position"] == "Closed"
 
 
 def test_a_run_will_not_start_with_the_furnace_open(sdt):

@@ -92,7 +92,7 @@ class SdtInstrument(TriosInstrument):
         if self.furnace_motion.is_running():
             raise ApiError(409, "the furnace is already moving")
         if self.furnace_open == opening:
-            raise ApiError(409, f"the furnace is already {'open' if opening else 'closed'}")
+            return
         self.furnace_motion.start(force=True)
         self.furnace_open = opening
 
