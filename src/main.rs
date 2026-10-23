@@ -22,6 +22,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use rmf2_task_orchestrator::client;
 use rmf2_task_orchestrator::config::{Settings, load_base_configuration};
 use rmf2_task_orchestrator::db::init_db;
+use rmf2_task_orchestrator::device_registry;
+use rmf2_task_orchestrator::device_routes::{DeviceApiState, device_router};
 use rmf2_task_orchestrator::{TemplateFolderSource, TemplateRegistry};
 use rmf2_task_orchestrator::{WorkflowTracker, create_amqp_router, spawn, workflow_events_router};
 
@@ -50,8 +52,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         registry.add_source(&source)
     }
     let registry = Arc::new(registry);
-    let (executor_handle, editor_router, trace_rx) =
-        spawn(amqp_config, mqtt_config, http_config, grpc_config).await?;
 
     let db_pool = match config.database {
         Some(ref db_config) => match sqlx::PgPool::connect(&db_config.url).await {
@@ -75,7 +75,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let (tracker, tracker_handle) = WorkflowTracker::new(64, db_pool);
+    let devices = if let Some(ref pool) = db_pool {
+        device_registry::load_devices(pool)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to load devices from DB: {e}");
+                Vec::new()
+            })
+    } else {
+        Vec::new()
+    };
+
+    let (executor_handle, editor_router, trace_rx, device_cmd_tx) =
+        spawn(amqp_config, mqtt_config, http_config, grpc_config, devices).await?;
+
+    let (tracker, tracker_handle) = WorkflowTracker::new(64, db_pool.clone());
     tokio::spawn(tracker.run(trace_rx));
 
     let amqp_connection = client::AmqpConnection::new(amqp_config)
@@ -86,6 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         executor_handle,
         Arc::clone(&registry),
         tracker_handle.clone(),
+        device_cmd_tx.clone(),
     );
     tokio::spawn(client::run_consumer(
         amqp_connection,
@@ -93,7 +108,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         amqp_router,
     ));
 
-    let app = editor_router.merge(workflow_events_router(tracker_handle));
+    let mut app = editor_router.merge(workflow_events_router(tracker_handle));
+
+    if let Some(pool) = db_pool {
+        app = app.merge(device_router(DeviceApiState {
+            db: pool,
+            device_cmd_tx,
+        }));
+        tracing::info!("Device management API enabled");
+    }
 
     let listener = tokio::net::TcpListener::bind(http_config.addr())
         .await
@@ -104,6 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Diagram editor: http://{}/", local_addr);
     tracing::info!("Executor API: POST http://{}/api/executor/run", local_addr);
     tracing::info!("Workflow SSE: http://{}/api/workflows/events", local_addr);
+    tracing::info!("Device API: http://{}/api/devices", local_addr);
     axum::serve(listener, app).await?;
 
     Ok(())

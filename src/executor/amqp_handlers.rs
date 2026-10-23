@@ -26,6 +26,7 @@ use crate::TemplateRegistry;
 use crate::WorkflowTrackerHandle;
 use crate::client::amqp::AmqpError;
 use crate::config::{LabConfig, load_base_configuration};
+use crate::device_registry::{self, DeviceCommand, DeviceRoles};
 use crate::executor::ExecutorHandle;
 use crate::workflow_updates::{
     extract_display_names, extract_op_sequences, extract_section_workflows, extract_sub_sections,
@@ -47,6 +48,7 @@ pub async fn handle_workflow_execute(
     handle: ExecutorHandle,
     registry: Arc<TemplateRegistry>,
     tracker: WorkflowTrackerHandle,
+    device_cmd_tx: std::sync::mpsc::Sender<DeviceCommand>,
     data: Vec<u8>,
 ) -> Result<(), AmqpError> {
     let message: WorkflowExecuteMessage =
@@ -76,6 +78,7 @@ pub async fn handle_workflow_execute(
     let workflow_sections = extract_section_workflows(&diagram_json);
     let display_names = extract_display_names(&diagram_json);
     let mut op_sequences = extract_op_sequences(&diagram_json);
+    let device_roles = collect_device_roles(&diagram_json, &registry);
 
     // Enrich with sub-section op_sequences from the raw template files,
     // scoped as "parent_section:sub_section" to avoid collisions.
@@ -113,6 +116,33 @@ pub async fn handle_workflow_execute(
     if let Err(e) = fill_lab_placeholders(&mut diagram_json, &lab) {
         tracing::warn!("Skipping workflow {}: {e}", message.task_id);
         return Err(AmqpError::Workflow(e));
+    }
+
+    // Allocate devices for this workflow (released after completion)
+    let allocation_id = message.task_id.clone();
+    let has_allocation = !device_roles.is_empty();
+    if has_allocation {
+        let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
+        device_cmd_tx
+            .send(DeviceCommand::Allocate {
+                section_id: allocation_id.clone(),
+                device_roles,
+                response: resp_tx,
+            })
+            .map_err(|e| AmqpError::Workflow(format!("Device allocation send: {e}")))?;
+
+        let allocation = resp_rx
+            .await
+            .map_err(|_| AmqpError::Workflow("Device allocation channel dropped".into()))?
+            .ok_or_else(|| AmqpError::Workflow("No devices available for required roles".into()))?;
+
+        let (alloc_result, protocols) = allocation;
+        tracing::info!(
+            "Workflow {} device allocation: {:?}",
+            message.task_id,
+            alloc_result
+        );
+        device_registry::resolve_device_placeholders(&mut diagram_json, &alloc_result, &protocols);
     }
 
     // Extract sub_sections after re-serialization so injected templates are visible
@@ -155,7 +185,7 @@ pub async fn handle_workflow_execute(
         .await
         .map_err(|e| AmqpError::Workflow(format!("Failed to forward to executor: {e}")))?;
 
-    if response.status().is_success() {
+    let result = if response.status().is_success() {
         let result = response.json::<serde_json::Value>().await.ok();
         tracing::info!(
             "Workflow {} completed: {}",
@@ -176,7 +206,15 @@ pub async fn handle_workflow_execute(
             .and_then(|v| serde_json::to_string_pretty(&v))
             .unwrap_or(body);
         Err(AmqpError::Workflow(format!("{status}: {pretty}")))
+    };
+
+    if has_allocation {
+        let _ = device_cmd_tx.send(DeviceCommand::Release {
+            section_id: allocation_id,
+        });
     }
+
+    result
 }
 
 // Swaps each `${lab.NAME}` in the diagram's strings for NAME from lab.toml.
@@ -209,6 +247,28 @@ fn fill_lab_placeholders(
         _ => {}
     }
     Ok(())
+}
+
+/// Collect device_roles from all section templates in the diagram.
+fn collect_device_roles(
+    diagram_json: &serde_json::Value,
+    registry: &TemplateRegistry,
+) -> DeviceRoles {
+    let mut roles = DeviceRoles::new();
+    let Some(ops) = diagram_json.get("ops").and_then(|v| v.as_object()) else {
+        return roles;
+    };
+    for op in ops.values() {
+        if op.get("type").and_then(|v| v.as_str()) != Some("section") {
+            continue;
+        }
+        if let Some(tmpl_name) = op.get("template").and_then(|v| v.as_str()) {
+            if let Some(tmpl_roles) = registry.device_roles(tmpl_name) {
+                roles.extend(tmpl_roles);
+            }
+        }
+    }
+    roles
 }
 
 #[cfg(test)]

@@ -17,10 +17,15 @@
  */
 
 use crate::config::{AmqpSettings, ConsumerSettings};
+use crossflow::bevy_ecs;
 use futures_lite::StreamExt;
 use lapin::{Channel, Connection, ConnectionProperties, Consumer, options::*, types::FieldTable};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tokio::sync::{Mutex as TokioMutex, oneshot};
+
+/// Bevy Resource wrapper so the device service can access AmqpClient via system params
+#[derive(Clone, bevy_ecs::resource::Resource)]
+pub struct AmqpClientResource(pub Arc<AmqpClient>);
 
 #[derive(Debug, thiserror::Error)]
 pub enum AmqpError {
@@ -125,6 +130,7 @@ pub async fn run_consumer(
             .queue_declare(
                 queue_name,
                 QueueDeclareOptions {
+                    durable: true,
                     auto_delete: true,
                     ..Default::default()
                 },
@@ -262,6 +268,7 @@ impl AmqpClient {
             .queue_declare(
                 response_queue,
                 QueueDeclareOptions {
+                    durable: true,
                     auto_delete: true,
                     ..Default::default()
                 },

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-use crate::client::mqtt::{EnsureMqtt, MqttHandle, MqttSettings};
+use crate::client::mqtt::{EnsureMqtt, MqttHandle};
 use crate::node::utils::{
     CelConditionEvalConfig, ConsumeMessageKey, MessageStream, consume_message, eval_condition_node,
 };
@@ -58,9 +58,8 @@ struct MqttPublishConfig {
 pub(crate) fn register(
     app: &mut bevy_app::App,
     registry: &mut DiagramElementRegistry,
-    mqtt_config: Option<MqttSettings>,
+    ensure_mqtt: EnsureMqtt,
 ) {
-    let ensure_mqtt = EnsureMqtt::new(mqtt_config);
     let timer_service =
         app.spawn_continuous_service(bevy_app::Update, crate::node::utils::timer_countdown);
 
@@ -507,7 +506,8 @@ mod tests {
             ..Default::default()
         });
         // .expect("Mosquitto must be running for MQTT setup");
-        crate::node::mqtt::register(app, registry, mqtt_config);
+        let ensure_mqtt = crate::client::mqtt::EnsureMqtt::new(mqtt_config);
+        crate::node::mqtt::register(app, registry, ensure_mqtt);
         crate::node::utils::register(registry);
     }
 

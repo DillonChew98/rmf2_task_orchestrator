@@ -20,9 +20,13 @@ mod amqp_handlers;
 
 use crate::TemplateRegistry;
 use crate::WorkflowTrackerHandle;
-use crate::client::mqtt::MqttSettings;
+use crate::client::amqp::AmqpClientResource;
+use crate::client::http::EnsureHttp;
+use crate::client::mqtt::{EnsureMqtt, MqttSettings};
+use crate::client::opcua::EnsureOpcua;
 use crate::client::{AmqpClient, AmqpRouter};
 use crate::config::{AmqpSettings, GrpcSettings, HttpSettings};
+use crate::device_registry::{self, DeviceCommand, DeviceRow};
 use crate::node;
 use crate::workflow_updates::setup_trace_forwarding;
 use amqp_handlers::handle_workflow_execute;
@@ -51,22 +55,49 @@ pub async fn spawn(
     mqtt_config: Option<MqttSettings>,
     http_config: &HttpSettings,
     grpc_config: &GrpcSettings,
-) -> Result<(ExecutorHandle, Router, mpsc::UnboundedReceiver<TracedEvent>), String> {
+    devices: Vec<DeviceRow>,
+) -> Result<
+    (
+        ExecutorHandle,
+        Router,
+        mpsc::UnboundedReceiver<TracedEvent>,
+        std::sync::mpsc::Sender<DeviceCommand>,
+    ),
+    String,
+> {
     let amqp_client = create_amqp_client(amqp_config).await?;
     let (router_tx, router_rx) = oneshot::channel();
     let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
     let tokio_handle = TokioHandle(tokio::runtime::Handle::current());
     let grpc_config = grpc_config.clone();
+    let executor_url = String::from(http_config);
 
     thread::spawn(move || {
         let mut app = bevy_app::App::new();
         app.add_plugins((CrossflowExecutorApp::default(), TimePlugin));
         app.insert_resource(tokio_handle);
+        app.insert_resource(AmqpClientResource(amqp_client.clone()));
+        device_registry::hydrate_devices(&mut app, devices);
         setup_trace_forwarding(&mut app, trace_tx);
+
+        let ensure_mqtt = EnsureMqtt::new(mqtt_config);
+        let ensure_opcua = EnsureOpcua::new();
+        let ensure_http = EnsureHttp::new(None);
 
         let mut registry = DiagramElementRegistry::new();
         node::amqp::register(&mut registry, amqp_client);
-        node::mqtt::register(&mut app, &mut registry, mqtt_config);
+        node::mqtt::register(&mut app, &mut registry, ensure_mqtt.clone());
+        node::http::register(&mut app, &mut registry, ensure_http.clone());
+        node::opcua::register(&mut app, &mut registry, ensure_opcua.clone());
+        node::device::register(
+            &mut app,
+            &mut registry,
+            ensure_mqtt,
+            ensure_opcua,
+            ensure_http,
+            &grpc_config,
+        );
         node::utils::register(&mut registry);
         {
             let grpc_runtime = std::sync::Arc::new(
@@ -76,16 +107,19 @@ pub async fn spawn(
                     .build()
                     .expect("failed to create gRPC tokio runtime"),
             );
+            // Leak one Arc ref so the runtime is never dropped in tokio's async
+            // context (the router carries a clone back to the #[tokio::main] thread;
+            // dropping a Runtime there panics). Safe: the TO runs for the process lifetime.
+            std::mem::forget(grpc_runtime.clone());
             node::grpc::register(&mut registry, grpc_runtime, &grpc_config);
         }
-        node::http::register(&mut app, &mut registry, None);
-        node::opcua::register(&mut app, &mut registry);
 
         let diagram_editor_router = new_router(&mut app, registry, ServerOptions::default());
         let _ = router_tx.send(diagram_editor_router);
 
         loop {
             app.update();
+            device_registry::process_device_commands(&mut app, &device_cmd_rx);
             thread::sleep(Duration::from_millis(1));
         }
     });
@@ -94,16 +128,16 @@ pub async fn spawn(
         .await
         .map_err(|_| "Failed to spawn executor, channel closed".to_string())?;
 
-    let executor_url = String::from(http_config);
     let handle = ExecutorHandle { executor_url };
 
-    Ok((handle, diagram_editor_router, trace_rx))
+    Ok((handle, diagram_editor_router, trace_rx, device_cmd_tx))
 }
 
 pub fn create_amqp_router(
     handle: ExecutorHandle,
     registry: Arc<TemplateRegistry>,
     tracker: WorkflowTrackerHandle,
+    device_cmd_tx: std::sync::mpsc::Sender<DeviceCommand>,
 ) -> AmqpRouter {
     AmqpRouter::default().route("", {
         let handle = handle.clone();
@@ -113,7 +147,8 @@ pub fn create_amqp_router(
             let handle = handle.clone();
             let registry = Arc::clone(&registry);
             let tracker = tracker.clone();
-            handle_workflow_execute(handle, registry, tracker, data)
+            let device_cmd_tx = device_cmd_tx.clone();
+            handle_workflow_execute(handle, registry, tracker, device_cmd_tx, data)
         }
     })
 }

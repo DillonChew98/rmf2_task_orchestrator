@@ -13,8 +13,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-pub(crate) fn register(_app: &mut crossflow::bevy_app::App, registry: &mut DiagramElementRegistry) {
-    let ensure = EnsureOpcua::new();
+pub(crate) fn register(
+    _app: &mut crossflow::bevy_app::App,
+    registry: &mut DiagramElementRegistry,
+    ensure: EnsureOpcua,
+) {
     register_opcua_read(registry, ensure.clone());
     register_opcua_write(registry, ensure.clone());
     register_opcua_subscribe(registry, ensure);

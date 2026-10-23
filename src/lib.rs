@@ -19,6 +19,8 @@
 pub mod client;
 pub mod config;
 pub mod db;
+pub mod device_registry;
+pub mod device_routes;
 pub mod executor;
 mod node;
 pub mod template_registry;

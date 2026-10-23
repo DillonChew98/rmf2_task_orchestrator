@@ -173,6 +173,18 @@ impl TemplateRegistry {
         seqs
     }
 
+    /// Extract `device_roles` from a template's raw JSON (if declared).
+    pub fn device_roles(&self, template_name: &str) -> Option<HashMap<String, String>> {
+        let raw = self.raw_json.get(template_name)?;
+        let roles = raw.get("device_roles")?.as_object()?;
+        Some(
+            roles
+                .iter()
+                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("$any").to_string()))
+                .collect(),
+        )
+    }
+
     pub fn inject(&self, diagram: &mut Diagram) -> Result<(), TemplateError> {
         let mut temp: Vec<String> = Vec::new();
 

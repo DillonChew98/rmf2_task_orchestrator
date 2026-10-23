@@ -1,4 +1,4 @@
-use crate::client::http::{EnsureHttp, HttpError, HttpHandle, HttpSettings};
+use crate::client::http::{EnsureHttp, HttpError, HttpHandle};
 
 use crossflow::bevy_ecs;
 use crossflow::diagram::grpc::AbortOnDropExt;
@@ -12,9 +12,8 @@ use std::time::Duration;
 pub(crate) fn register(
     _app: &mut bevy_app::App,
     registry: &mut DiagramElementRegistry,
-    http_config: Option<HttpSettings>,
+    ensure_http: EnsureHttp,
 ) {
-    let ensure_http = EnsureHttp::new(http_config);
     register_http_request_node(registry, ensure_http);
 }
 
@@ -245,6 +244,7 @@ async fn request_with_retry(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::http::HttpSettings;
     use crate::executor::TokioHandle;
     use crossflow::{Diagram, testing::*};
     use reqwest::StatusCode;
@@ -365,7 +365,8 @@ mod tests {
             request_timeout_secs: REQUEST_TIMEOUT_SECS,
             ..Default::default()
         };
-        register(&mut ctx.app, &mut registry, Some(settings));
+        let ensure_http = EnsureHttp::new(Some(settings));
+        register(&mut ctx.app, &mut registry, ensure_http);
 
         let workflow = ctx
             .command(|cmds| {
