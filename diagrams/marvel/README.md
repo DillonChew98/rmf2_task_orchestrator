@@ -136,3 +136,17 @@ The two `_with_pause` DSC templates stop before the UR arm moves.
    ```bash
    docker compose exec mosquitto mosquitto_pub -t workflow/resume -m '{"state":"resume"}'
    ```
+
+## Test one template
+
+`scripts/send_template.py` sends one template to the orchestrator over AMQP. Run the script
+from the repo root.
+
+```bash
+python3 scripts/send_template.py --list
+python3 scripts/send_template.py tga_close_furnace
+python3 scripts/send_template.py dsc_process --experiment-id <id>
+```
+
+- Configure `lab.toml` to test real instruments or mock instruments.
+- `<x>_process` needs `--experiment-id`.
