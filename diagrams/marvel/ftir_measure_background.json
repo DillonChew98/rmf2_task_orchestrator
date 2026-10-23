@@ -36,7 +36,7 @@
                         "value": 0
                       },
                       "Payload": {
-                        "value": "{\"Resolution\": 0, \"BackgroundScans\": 1, \"OpticalVelocity\": 0, \"Aperture\": \"6 mm\", \"DetectorGain\": 0, \"ExperimentFile\": \"C:\\\\Users\\\\User\\\\Desktop\\\\HTS-trans.XPM\", \"Well\": \"\", \"ExtraParameters\": {}}"
+                        "value": "{\"Resolution\": 0, \"BackgroundScans\": 1, \"OpticalVelocity\": 0, \"Aperture\": \"6 mm\", \"DetectorGain\": 0, \"ExperimentFile\": \"C:\\\\Users\\\\User\\\\Desktop\\\\HTS-trans.XPM\", \"Well\": \"A1\", \"ExtraParameters\": {}}"
                       }
                     }
                   }

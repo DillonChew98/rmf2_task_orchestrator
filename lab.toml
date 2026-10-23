@@ -13,3 +13,5 @@ ftir_waypoint = "mock-position-ftir"
 gpc_waypoint = "mock-position-gpc"
 storage_waypoint = "mock-position-storage"
 charger_waypoint = "mock-position-charger"
+
+experiment_server_host = "http://localhost:8000"

@@ -30,6 +30,10 @@ Each workflow runs five steps in order. Here `<x>` is `ftir`, `tga` or `dsc`.
 | 4 | `pick_<x>_pan_sample_tray_from_<x>` | `pick_<x>_pan_sample_tray_from_<x>` |
 | 5 | `place_<x>_pan_sample_tray_on_workbench` | `place_<x>_pan_sample_tray_in_storage` |
 
+`<x>_process` gets its experiment from `experiment_server_host` in `lab.toml`, by the section's
+`experiment_id`. The orchestrator refuses the schedule if an experiment is missing or not
+`ready`.
+
 The two storage steps are in [Storage buffer](#storage-buffer).
 
 ### GPC
@@ -49,6 +53,8 @@ To use one of these versions, put the template name in the adapter's registry.
 
 - **Mock process.** `mock_<x>_process` waits 5 s, then reports ok. Use `mock_<x>_process` in
   place of `<x>_process` to skip the real run.
+- **Fixed payload.** `<x>_process_with_fixed_payload` runs a fixed experiment and gets nothing
+  from the experiment server. It needs no `experiment_id`.
 - **DSC with a pause.** `pick_dsc_pan_sample_tray_from_spm_with_pause` and
   `place_dsc_pan_sample_tray_on_dsc_with_pause` pause before the UR arm moves. See
   [DSC pause](#dsc-pause).
@@ -134,7 +140,8 @@ are in [Storage buffer](#storage-buffer).
 |---|---|
 | `ftir_open_drawer` | Opens the sample drawer. |
 | `ftir_measure_background` | Measures the background, with mocked parameters. |
-| `ftir_measure_sample` | Measures the sample, with mocked parameters. |
+| `ftir_measure_sample` | Measures the sample with the experiment that `ftir_process` got. |
+| `ftir_measure_sample_with_fixed_payload` | Measures the sample, with mocked parameters. |
 | `ftir_close_drawer` | Closes the sample drawer. |
 
 ### X3 DSC
@@ -143,7 +150,8 @@ are in [Storage buffer](#storage-buffer).
 |---|---|
 | `dsc_park_autosampler_cell` | Parks the autosampler. |
 | `dsc_close_lid` | Closes the autosampler lid. |
-| `dsc_add_experiment` | Queues an experiment, with mocked parameters. |
+| `dsc_add_experiment` | Queues the experiment that `dsc_process` got. |
+| `dsc_add_experiment_with_fixed_payload` | Queues an experiment, with mocked parameters. |
 | `dsc_execute_experiment` | Starts the run and waits for the run to end. |
 
 ### SDT (TGA)
@@ -152,7 +160,8 @@ are in [Storage buffer](#storage-buffer).
 |---|---|
 | `tga_park_autosampler_furnace` | Parks the autosampler. |
 | `tga_close_furnace` | Sends the close-furnace command and does not wait for the furnace to close. |
-| `tga_add_experiment` | Queues an experiment, with mocked parameters. |
+| `tga_add_experiment` | Queues the experiment that `tga_process` got. |
+| `tga_add_experiment_with_fixed_payload` | Queues an experiment, with mocked parameters. |
 | `tga_execute_experiment` | Starts the run and waits for the run to end. |
 
 ### Workflow control

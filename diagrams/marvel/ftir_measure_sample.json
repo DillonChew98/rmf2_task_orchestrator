@@ -11,9 +11,18 @@
       "ops": {
         "start": {
           "type": "scope",
-          "start": "measure_sample",
+          "start": "build_request",
           "next": "is_success",
           "ops": {
+            "build_request": {
+              "type": "transform",
+              "display_text": "Build request from experiment",
+              "cel": "{'Request': {'Request': {'Version': {'value': 2}, 'CorrelationId': {'value': 'marvel-ftir-measure-sample'}, 'TimeoutSeconds': {'value': 0}, 'Payload': {'value': request.runs[0].run_method_str}}}}",
+              "next": "measure_sample",
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
             "measure_sample": {
               "type": "node",
               "builder": "grpc_request",
@@ -22,25 +31,7 @@
                 "service": "sila2.com.bruker.ftir.measurementservice.v3.MeasurementService",
                 "method": "MeasureSample",
                 "uri": "${lab.ftir_host}",
-                "timeout": 10,
-                "request": {
-                  "Request": {
-                    "Request": {
-                      "Version": {
-                        "value": 2
-                      },
-                      "CorrelationId": {
-                        "value": "marvel-ftir-measure-sample"
-                      },
-                      "TimeoutSeconds": {
-                        "value": 0
-                      },
-                      "Payload": {
-                        "value": "{\"Resolution\": 0, \"SampleScans\": 0, \"BackgroundScans\": 1, \"OpticalVelocity\": 0, \"Aperture\": \"6 mm\", \"DetectorGain\": 0, \"OutputPath\": \"\", \"ExperimentFile\": \"C:\\\\Users\\\\User\\\\Desktop\\\\HTS-trans.XPM\", \"ExtraParametersJson\": \"\", \"IncludeData\": false, \"ExportAsm\": false, \"AsmOutputPath\": \"\", \"SampleName\": \"prototype_sample\", \"AsmMetadataJson\": \"\"}"
-                      }
-                    }
-                  }
-                }
+                "timeout": 10
               },
               "stream_out": {
                 "out": "take_uuid"

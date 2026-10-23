@@ -23,10 +23,25 @@
         },
         "if_input_ok": {
           "type": "fork_result",
+          "ok": "fetch_experiment",
+          "err": "status_skipped"
+        },
+        "fetch_experiment": {
+          "type": "node",
+          "builder": "http_request",
+          "display_text": "Get experiment",
+          "config": {
+            "method": "GET",
+            "uri": "${lab.experiment_server_host}/api/experiments/${section.experiment_id}"
+          },
+          "next": "if_fetched"
+        },
+        "if_fetched": {
+          "type": "fork_result",
           "ok": {
             "add": "start"
           },
-          "err": "status_skipped"
+          "err": "status_failed"
         },
         "add": {
           "type": "section",

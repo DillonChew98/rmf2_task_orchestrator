@@ -24,9 +24,35 @@
         "if_input_ok": {
           "type": "fork_result",
           "ok": {
-            "measure": "start"
+            "background": "start"
           },
           "err": "status_skipped"
+        },
+        "background": {
+          "type": "section",
+          "template": "ftir_measure_background",
+          "connect": {
+            "ok": "fetch_experiment",
+            "failed": "status_failed"
+          },
+          "op_sequence": 1
+        },
+        "fetch_experiment": {
+          "type": "node",
+          "builder": "http_request",
+          "display_text": "Get experiment",
+          "config": {
+            "method": "GET",
+            "uri": "${lab.experiment_server_host}/api/experiments/${section.experiment_id}"
+          },
+          "next": "if_fetched"
+        },
+        "if_fetched": {
+          "type": "fork_result",
+          "ok": {
+            "measure": "start"
+          },
+          "err": "status_failed"
         },
         "measure": {
           "type": "section",
@@ -35,7 +61,7 @@
             "ok": "status_ok",
             "failed": "status_failed"
           },
-          "op_sequence": 1
+          "op_sequence": 2
         },
         "status_ok": {
           "type": "transform",

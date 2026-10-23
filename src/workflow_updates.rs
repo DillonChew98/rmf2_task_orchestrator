@@ -266,6 +266,22 @@ pub fn extract_op_sequences(diagram_json: &serde_json::Value) -> HashMap<Section
     seqs
 }
 
+pub fn extract_experiment_ids(diagram_json: &serde_json::Value) -> HashMap<SectionId, String> {
+    let mut ids = HashMap::new();
+    let Some(ops) = diagram_json.get("ops").and_then(|v| v.as_object()) else {
+        return ids;
+    };
+    for (op_id, op) in ops {
+        if op.get("type").and_then(|v| v.as_str()) != Some("section") {
+            continue;
+        }
+        if let Some(id) = op.get("experiment_id").and_then(|v| v.as_str()) {
+            ids.insert(op_id.clone(), id.to_string());
+        }
+    }
+    ids
+}
+
 pub fn extract_sub_sections(
     diagram_json: &serde_json::Value,
 ) -> HashMap<SectionId, Vec<SectionId>> {
