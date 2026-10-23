@@ -1,0 +1,405 @@
+{
+  "templates": {
+    "gpc_run_sequence": {
+      "inputs": [
+        "start"
+      ],
+      "outputs": [
+        "ok",
+        "failed"
+      ],
+      "ops": {
+        "start": {
+          "type": "scope",
+          "start": "connect",
+          "ops": {
+            "connect": {
+              "type": "node",
+              "builder": "grpc_request",
+              "display_text": "Connect to WinGPC",
+              "config": {
+                "service": "sila2.org.tainstruments.gpc.instrumentlifecycle.v2.InstrumentLifecycle",
+                "method": "Connect",
+                "uri": "${lab.gpc_host}",
+                "timeout": 60,
+                "request": {
+                  "Request": {
+                    "Request": {
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-gpc-run"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
+                    }
+                  }
+                }
+              },
+              "stream_out": {
+                "out": "check_connected"
+              },
+              "next": "if_connect_answered"
+            },
+            "if_connect_answered": {
+              "type": "fork_result",
+              "ok": {
+                "builtin": "dispose"
+              },
+              "err": "report_connect_failed"
+            },
+            "check_connected": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is GPC connected?",
+              "config": {
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded' || Result.Envelope.Code.value == 'gpc.state.invalid'"
+              },
+              "next": "if_connected"
+            },
+            "if_connected": {
+              "type": "fork_result",
+              "ok": "ask_button",
+              "err": "report_connect_failed"
+            },
+            "ask_button": {
+              "type": "node",
+              "builder": "grpc_request",
+              "display_text": "Read Start button",
+              "config": {
+                "service": "sila2.org.tainstruments.gpc.instrumentstatus.v2.InstrumentStatus",
+                "method": "GetStartButtonState",
+                "uri": "${lab.gpc_host}",
+                "timeout": 60,
+                "request": {
+                  "Request": {
+                    "Request": {
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-gpc-run"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
+                    }
+                  }
+                }
+              },
+              "stream_out": {
+                "out": "check_button_off"
+              },
+              "next": "if_button_answered"
+            },
+            "if_button_answered": {
+              "type": "fork_result",
+              "ok": {
+                "builtin": "dispose"
+              },
+              "err": "report_button_on"
+            },
+            "check_button_off": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is Start off?",
+              "config": {
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded' && Result.Envelope.Payload.value.contains('\"IsOn\":false')"
+              },
+              "next": "if_button_off"
+            },
+            "if_button_off": {
+              "type": "fork_result",
+              "ok": "click_start",
+              "err": "report_button_on"
+            },
+            "click_start": {
+              "type": "node",
+              "builder": "grpc_request",
+              "display_text": "Click Start",
+              "config": {
+                "service": "sila2.org.tainstruments.gpc.sequencecontrol.v2.SequenceControl",
+                "method": "ClickStart",
+                "uri": "${lab.gpc_host}",
+                "timeout": 60,
+                "request": {
+                  "Request": {
+                    "Request": {
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-gpc-run"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
+                    }
+                  }
+                }
+              },
+              "stream_out": {
+                "out": "check_started"
+              },
+              "next": "if_start_answered"
+            },
+            "if_start_answered": {
+              "type": "fork_result",
+              "ok": {
+                "builtin": "dispose"
+              },
+              "err": "report_start_failed"
+            },
+            "check_started": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Did the run start?",
+              "config": {
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded' && Result.Envelope.Payload.value.contains('\"is_on\":true')"
+              },
+              "next": "if_started"
+            },
+            "if_started": {
+              "type": "fork_result",
+              "ok": "wait_for_run",
+              "err": "report_start_failed"
+            },
+            "wait_for_run": {
+              "type": "node",
+              "builder": "timeout",
+              "display_text": "Wait for run",
+              "config": {
+                "interval_secs": 30,
+                "timeout_secs": 28800
+              },
+              "next": "if_in_time"
+            },
+            "if_in_time": {
+              "type": "fork_result",
+              "ok": "poll_button",
+              "err": "report_timed_out"
+            },
+            "poll_button": {
+              "type": "node",
+              "builder": "grpc_request",
+              "display_text": "Read Start button",
+              "config": {
+                "service": "sila2.org.tainstruments.gpc.instrumentstatus.v2.InstrumentStatus",
+                "method": "GetStartButtonState",
+                "uri": "${lab.gpc_host}",
+                "timeout": 60,
+                "request": {
+                  "Request": {
+                    "Request": {
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-gpc-run"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
+                    }
+                  }
+                }
+              },
+              "stream_out": {
+                "out": "check_poll_ok"
+              },
+              "next": "if_poll_answered"
+            },
+            "if_poll_answered": {
+              "type": "fork_result",
+              "ok": {
+                "builtin": "dispose"
+              },
+              "err": "report_poll_failed"
+            },
+            "check_poll_ok": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Did the read work?",
+              "config": {
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded'"
+              },
+              "next": "if_poll_ok"
+            },
+            "if_poll_ok": {
+              "type": "fork_result",
+              "ok": "check_run_done",
+              "err": "report_poll_failed"
+            },
+            "check_run_done": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is the run done?",
+              "config": {
+                "condition": "Result.Envelope.Payload.value.contains('\"IsOn\":false')"
+              },
+              "next": "if_run_done"
+            },
+            "if_run_done": {
+              "type": "fork_result",
+              "ok": "stop",
+              "err": "wait_for_run"
+            },
+            "stop": {
+              "type": "node",
+              "builder": "grpc_request",
+              "display_text": "Stop",
+              "config": {
+                "service": "sila2.org.tainstruments.gpc.instrumentlifecycle.v2.InstrumentLifecycle",
+                "method": "Stop",
+                "uri": "${lab.gpc_host}",
+                "timeout": 60,
+                "request": {
+                  "Request": {
+                    "Request": {
+                      "Version": {
+                        "value": 2
+                      },
+                      "CorrelationId": {
+                        "value": "marvel-gpc-run"
+                      },
+                      "TimeoutSeconds": {
+                        "value": 0
+                      },
+                      "Payload": {
+                        "value": ""
+                      }
+                    }
+                  }
+                }
+              },
+              "stream_out": {
+                "out": "check_stopped"
+              },
+              "next": "if_stop_answered"
+            },
+            "if_stop_answered": {
+              "type": "fork_result",
+              "ok": {
+                "builtin": "dispose"
+              },
+              "err": "report_stop_failed"
+            },
+            "check_stopped": {
+              "type": "node",
+              "builder": "cel_condition",
+              "display_text": "Is GPC back to Connect?",
+              "config": {
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded' || Result.Envelope.Code.value == 'gpc.state.invalid'"
+              },
+              "next": "if_stopped"
+            },
+            "if_stopped": {
+              "type": "fork_result",
+              "ok": "report_succeeded",
+              "err": "report_stop_failed"
+            },
+            "report_succeeded": {
+              "type": "transform",
+              "cel": "{'result': 'succeeded', 'reply': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_connect_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'connect', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_button_on": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'check_button_off', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_start_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'click_start', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_timed_out": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'wait_for_run', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_poll_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'poll_button', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            },
+            "report_stop_failed": {
+              "type": "transform",
+              "cel": "{'result': 'failed', 'step': 'stop', 'detail': request}",
+              "next": {
+                "builtin": "terminate"
+              },
+              "on_error": {
+                "builtin": "dispose"
+              }
+            }
+          },
+          "next": "is_success"
+        },
+        "is_success": {
+          "type": "node",
+          "builder": "cel_condition",
+          "display_text": "Did the run succeed?",
+          "config": {
+            "condition": "result == 'succeeded'"
+          },
+          "next": "if_success"
+        },
+        "if_success": {
+          "type": "fork_result",
+          "ok": "ok",
+          "err": "failed"
+        }
+      }
+    }
+  }
+}
