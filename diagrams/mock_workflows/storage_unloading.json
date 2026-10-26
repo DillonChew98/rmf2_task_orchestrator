@@ -14,7 +14,7 @@
     },
     "wo_eq_unload_op1": {
       "type": "section",
-      "template": "eq_unloading_send_request",
+      "template": "storage_unloading_send_request",
       "workflow_id": "eq_unload",
       "op_sequence": 1,
       "display_text": "Send unload request and verify tray",
@@ -26,7 +26,7 @@
     },
     "wo_eq_unload_op2": {
       "type": "section",
-      "template": "eq_unloading_wait_ready",
+      "template": "storage_unloading_wait_ready",
       "workflow_id": "eq_unload",
       "op_sequence": 2,
       "display_text": "Wait for EQ ready to unload",
@@ -38,7 +38,7 @@
     },
     "wo_eq_unload_op3": {
       "type": "section",
-      "template": "eq_unloading_transfer",
+      "template": "storage_unloading_transfer",
       "workflow_id": "eq_unload",
       "op_sequence": 3,
       "display_text": "Transfer tray from EQ",
@@ -50,7 +50,7 @@
     },
     "wo_eq_unload_op4": {
       "type": "section",
-      "template": "eq_unloading_complete_and_clear",
+      "template": "storage_unloading_complete_and_clear",
       "workflow_id": "eq_unload",
       "op_sequence": 4,
       "display_text": "Complete unloading and clear signals",
@@ -62,7 +62,7 @@
     }
   },
   "templates": {
-    "eq_unloading_send_request": {
+    "storage_unloading_send_request": {
       "inputs": {
         "start": "build_payload"
       },
@@ -261,7 +261,7 @@
         }
       }
     },
-    "eq_unloading_wait_ready": {
+    "storage_unloading_wait_ready": {
       "inputs": {
         "start": "read_signal"
       },
@@ -365,7 +365,7 @@
         }
       }
     },
-    "eq_unloading_transfer": {
+    "storage_unloading_transfer": {
       "inputs": {
         "start": "build_busy"
       },
@@ -485,7 +485,7 @@
         }
       }
     },
-    "eq_unloading_complete_and_clear": {
+    "storage_unloading_complete_and_clear": {
       "inputs": {
         "start": "read_ack"
       },

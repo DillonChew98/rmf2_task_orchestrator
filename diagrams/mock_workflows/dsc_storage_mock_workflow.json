@@ -29,7 +29,7 @@
     },
     "wo2026100001_r1837_op3": {
       "type": "section",
-      "template": "mock_dsc_process",
+      "template": "dsc_mock_process",
       "workflow_id": "2026100001",
       "op_sequence": 3,
       "display_text": "DSC Process",

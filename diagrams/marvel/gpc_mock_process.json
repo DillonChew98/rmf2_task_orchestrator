@@ -1,6 +1,6 @@
 {
   "templates": {
-    "mock_dsc_process": {
+    "gpc_mock_process": {
       "inputs": {
         "start": "check_input"
       },

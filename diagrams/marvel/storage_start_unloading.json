@@ -1,6 +1,6 @@
 {
   "templates": {
-    "start_storage_unloading": {
+    "storage_start_unloading": {
       "inputs": {
         "start": "check_input"
       },

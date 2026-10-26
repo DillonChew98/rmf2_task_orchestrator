@@ -40,7 +40,7 @@ Each workflow runs five steps in order. Here `<x>` is `ftir`, `tga` or `dsc`.
 To use one of these versions, put the template name in the adapter's registry in
 `schedule_adapter/services/dag_converter/registry.json`.
 
-- **Mock process.** `mock_<x>_process` waits 5 s, then reports ok. Use `mock_<x>_process` in
+- **Mock process.** `<x>_mock_process` waits 5 s, then reports ok. Use `<x>_mock_process` in
   place of `<x>_process` to skip the instrument run.
 - **Fixed payload.** `<x>_process_with_fixed_payload` runs a fixed experiment and gets nothing
   from the experiment server. It needs no `experiment_id`.
@@ -56,8 +56,8 @@ Loading puts a tray into the storage buffer. Unloading takes a tray out of the s
 |---|---|
 | `place_<x>_pan_sample_tray_in_storage` | Drives the MiR to the storage buffer. The UR arm places the tray in it. |
 | `pick_<x>_pan_sample_tray_from_storage` | Drives the MiR to the storage buffer. The UR arm takes the tray out. |
-| `start_storage_loading`, `finish_storage_loading` | The PLC steps before and after a separate UR place step. |
-| `start_storage_unloading`, `finish_storage_unloading` | The PLC steps before and after a separate UR pick step. |
+| `storage_start_loading`, `storage_finish_loading` | The PLC steps before and after a separate UR place step. |
+| `storage_start_unloading`, `storage_finish_unloading` | The PLC steps before and after a separate UR pick step. |
 
 Each `storage_*` template does one PLC step. Only the templates above use them.
 

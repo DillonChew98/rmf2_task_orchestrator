@@ -8,10 +8,10 @@ Usage:
     python scripts/send_diagram.py --list
 
 Examples:
-    python scripts/send_diagram.py eq_loading
+    python scripts/send_diagram.py storage_loading
     python scripts/send_diagram.py tga_mock_workflow
-    python scripts/send_diagram.py eq_unloading_no_trayid
-    python scripts/send_diagram.py eq_loading --task-id my-custom-id
+    python scripts/send_diagram.py storage_unloading_no_trayid
+    python scripts/send_diagram.py storage_loading --task-id my-custom-id
 
 Environment:
     AMQP_HOST  (default: localhost)

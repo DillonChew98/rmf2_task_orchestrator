@@ -1,6 +1,6 @@
 {
   "templates": {
-    "mock_gpc_process": {
+    "storage_start_loading": {
       "inputs": {
         "start": "check_input"
       },
@@ -23,22 +23,41 @@
         },
         "if_input_ok": {
           "type": "fork_result",
-          "ok": "wait",
+          "ok": {
+            "request": "start"
+          },
           "err": "status_skipped"
         },
-        "wait": {
-          "type": "node",
-          "builder": "timeout",
-          "config": {
-            "interval_secs": 5,
-            "timeout_secs": 300
+        "request": {
+          "type": "section",
+          "template": "storage_send_load_request",
+          "connect": {
+            "ok": {
+              "wait_ready": "start"
+            },
+            "failed": "status_failed"
           },
-          "next": "wait_result"
+          "op_sequence": 1
         },
-        "wait_result": {
-          "type": "fork_result",
-          "ok": "status_ok",
-          "err": "status_failed"
+        "wait_ready": {
+          "type": "section",
+          "template": "storage_wait_ready_to_receive",
+          "connect": {
+            "ok": {
+              "set_busy": "start"
+            },
+            "failed": "status_failed"
+          },
+          "op_sequence": 2
+        },
+        "set_busy": {
+          "type": "section",
+          "template": "storage_set_send_busy",
+          "connect": {
+            "ok": "status_ok",
+            "failed": "status_failed"
+          },
+          "op_sequence": 3
         },
         "status_ok": {
           "type": "transform",

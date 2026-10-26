@@ -29,7 +29,7 @@
     },
     "wo2026100002_r1838_op3": {
       "type": "section",
-      "template": "mock_ftir_process",
+      "template": "ftir_mock_process",
       "workflow_id": "2026100002",
       "op_sequence": 3,
       "display_text": "FTIR Process",

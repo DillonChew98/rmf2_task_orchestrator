@@ -1,6 +1,6 @@
 {
   "templates": {
-    "start_storage_loading": {
+    "ftir_mock_process": {
       "inputs": {
         "start": "check_input"
       },
@@ -23,41 +23,22 @@
         },
         "if_input_ok": {
           "type": "fork_result",
-          "ok": {
-            "request": "start"
-          },
+          "ok": "wait",
           "err": "status_skipped"
         },
-        "request": {
-          "type": "section",
-          "template": "storage_send_load_request",
-          "connect": {
-            "ok": {
-              "wait_ready": "start"
-            },
-            "failed": "status_failed"
+        "wait": {
+          "type": "node",
+          "builder": "timeout",
+          "config": {
+            "interval_secs": 5,
+            "timeout_secs": 300
           },
-          "op_sequence": 1
+          "next": "wait_result"
         },
-        "wait_ready": {
-          "type": "section",
-          "template": "storage_wait_ready_to_receive",
-          "connect": {
-            "ok": {
-              "set_busy": "start"
-            },
-            "failed": "status_failed"
-          },
-          "op_sequence": 2
-        },
-        "set_busy": {
-          "type": "section",
-          "template": "storage_set_send_busy",
-          "connect": {
-            "ok": "status_ok",
-            "failed": "status_failed"
-          },
-          "op_sequence": 3
+        "wait_result": {
+          "type": "fork_result",
+          "ok": "status_ok",
+          "err": "status_failed"
         },
         "status_ok": {
           "type": "transform",

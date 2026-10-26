@@ -1,6 +1,6 @@
 {
   "templates": {
-    "finish_storage_unloading": {
+    "tga_mock_process": {
       "inputs": {
         "start": "check_input"
       },
@@ -23,30 +23,22 @@
         },
         "if_input_ok": {
           "type": "fork_result",
-          "ok": {
-            "set_complete": "start"
-          },
+          "ok": "wait",
           "err": "status_skipped"
         },
-        "set_complete": {
-          "type": "section",
-          "template": "storage_set_unload_complete",
-          "connect": {
-            "ok": {
-              "ack_and_clear": "start"
-            },
-            "failed": "status_failed"
+        "wait": {
+          "type": "node",
+          "builder": "timeout",
+          "config": {
+            "interval_secs": 5,
+            "timeout_secs": 300
           },
-          "op_sequence": 1
+          "next": "wait_result"
         },
-        "ack_and_clear": {
-          "type": "section",
-          "template": "storage_wait_unload_ack_and_clear",
-          "connect": {
-            "ok": "status_ok",
-            "failed": "status_failed"
-          },
-          "op_sequence": 2
+        "wait_result": {
+          "type": "fork_result",
+          "ok": "status_ok",
+          "err": "status_failed"
         },
         "status_ok": {
           "type": "transform",

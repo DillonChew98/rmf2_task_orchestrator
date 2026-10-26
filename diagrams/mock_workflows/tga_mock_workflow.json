@@ -29,7 +29,7 @@
     },
     "wo2026100003_r1839_op3": {
       "type": "section",
-      "template": "mock_tga_process",
+      "template": "tga_mock_process",
       "workflow_id": "2026100003",
       "op_sequence": 3,
       "display_text": "TGA Process",

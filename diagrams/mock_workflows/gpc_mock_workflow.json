@@ -29,7 +29,7 @@
     },
     "wo2026100004_r1840_op3": {
       "type": "section",
-      "template": "mock_gpc_process",
+      "template": "gpc_mock_process",
       "workflow_id": "2026100004",
       "op_sequence": 3,
       "display_text": "GPC Process",

@@ -189,7 +189,7 @@
     },
     "wo2026100004_r1840_op3": {
       "type": "section",
-      "template": "mock_gpc_process",
+      "template": "gpc_mock_process",
       "workflow_id": "2026100004",
       "op_sequence": 3,
       "display_text": "GPC Process",
@@ -199,7 +199,7 @@
     },
     "wo2026100001_r1837_op3": {
       "type": "section",
-      "template": "mock_dsc_process",
+      "template": "dsc_mock_process",
       "workflow_id": "2026100001",
       "op_sequence": 3,
       "display_text": "DSC Process",
@@ -209,7 +209,7 @@
     },
     "wo2026100003_r1839_op3": {
       "type": "section",
-      "template": "mock_tga_process",
+      "template": "tga_mock_process",
       "workflow_id": "2026100003",
       "op_sequence": 3,
       "display_text": "TGA Process",
@@ -219,7 +219,7 @@
     },
     "wo2026100002_r1838_op3": {
       "type": "section",
-      "template": "mock_ftir_process",
+      "template": "ftir_mock_process",
       "workflow_id": "2026100002",
       "op_sequence": 3,
       "display_text": "FTIR Process",
