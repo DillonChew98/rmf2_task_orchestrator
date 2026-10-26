@@ -47,14 +47,22 @@ impl SectionStatus {
     }
 
     fn from_message(message: &crossflow::trace::TracedMessage) -> Self {
-        match message {
+        let status = match message {
             Some(Ok(value)) => match value.get("status").and_then(|v| v.as_str()) {
                 Some("failed") => Self::Failed,
                 Some("skipped") => Self::Skipped,
                 _ => Self::Completed,
             },
-            _ => Self::Completed,
-        }
+            Some(Err(e)) => {
+                tracing::debug!("Trace message error: {e:?} → Failed");
+                Self::Failed
+            }
+            None => {
+                tracing::debug!("Trace message absent (None) → defaulting to Completed");
+                Self::Completed
+            }
+        };
+        status
     }
 }
 
@@ -570,6 +578,50 @@ impl WorkflowTracker {
         self.extract_section_from_ref(op_ref).map(|s| s.to_string())
     }
 
+    // Derive a section's terminal status from its sub-section outcomes.
+    // Returns None when the section has no sub-sections or none have run yet.
+    fn status_from_sub_sections(&self, section: &str, workflow_id: &str) -> Option<SectionStatus> {
+        let subs: Vec<_> = self
+            .sub_section_registry
+            .iter()
+            .filter(|(p, _)| p == section)
+            .cloned()
+            .collect();
+        if subs.is_empty() {
+            return None;
+        }
+        let state = self.workflows.get(workflow_id)?;
+        let mut any_ran = false;
+        let mut any_failed = false;
+        let mut any_skipped = false;
+        for key in &subs {
+            match state.sub_sections.get(key) {
+                Some(SectionStatus::Failed) => {
+                    any_ran = true;
+                    any_failed = true;
+                }
+                Some(SectionStatus::Skipped) => {
+                    any_ran = true;
+                    any_skipped = true;
+                }
+                Some(SectionStatus::Running) | Some(SectionStatus::Completed) => {
+                    any_ran = true;
+                }
+                _ => {}
+            }
+        }
+        if !any_ran {
+            return None;
+        }
+        if any_failed {
+            Some(SectionStatus::Failed)
+        } else if any_skipped {
+            Some(SectionStatus::Skipped)
+        } else {
+            None
+        }
+    }
+
     fn classify_target(
         &self,
         info: &Option<std::sync::Arc<crossflow::trace::OperationInfo>>,
@@ -637,7 +689,7 @@ impl WorkflowTracker {
                     .get(section_name.as_str())
                     .cloned()
                 {
-                    let terminal = SectionStatus::from_message(&msg.message);
+                    let msg_terminal = SectionStatus::from_message(&msg.message);
                     let predecessors: Vec<String> = self
                         .sections_running
                         .iter()
@@ -646,22 +698,61 @@ impl WorkflowTracker {
                         })
                         .cloned()
                         .collect();
+                    let mut worst_predecessor = msg_terminal.clone();
                     for prev in &predecessors {
+                        // When trace data is absent (from_message defaults to
+                        // Completed), derive the real status from:
+                        // 1. Sub-section outcomes (a failed sub-section → parent failed)
+                        // 2. The section's terminal_hint (set when it started, from
+                        //    its own incoming message — captures the cascade)
+                        let prev_terminal = if msg_terminal == SectionStatus::Completed {
+                            self.status_from_sub_sections(prev, &workflow_id)
+                                .or_else(|| {
+                                    self.section_terminal_hints.get(prev).and_then(
+                                        |hint| match hint {
+                                            SectionStatus::Failed | SectionStatus::Skipped => {
+                                                Some(hint.clone())
+                                            }
+                                            _ => None,
+                                        },
+                                    )
+                                })
+                                .unwrap_or_else(|| msg_terminal.clone())
+                        } else {
+                            msg_terminal.clone()
+                        };
+                        if matches!(
+                            prev_terminal,
+                            SectionStatus::Failed | SectionStatus::Skipped
+                        ) {
+                            worst_predecessor = prev_terminal.clone();
+                        }
                         self.sections_running.remove(prev);
                         if let Some(state) = self.workflows.get_mut(&workflow_id) {
-                            state.sections.insert(prev.clone(), terminal.clone());
+                            state.sections.insert(prev.clone(), prev_terminal.clone());
                         }
                         self.broadcast_event(
                             workflow_id.clone(),
                             prev.clone(),
                             None,
-                            terminal.clone(),
+                            prev_terminal,
                         );
                     }
 
+                    // If a predecessor failed/skipped and the trace message
+                    // was absent, the successor was skipped (not completed).
+                    let hint = match worst_predecessor {
+                        SectionStatus::Failed | SectionStatus::Skipped
+                            if msg_terminal == SectionStatus::Completed =>
+                        {
+                            SectionStatus::Skipped
+                        }
+                        _ => msg_terminal,
+                    };
+
                     self.sections_running.insert(section_name.clone());
                     self.section_terminal_hints
-                        .insert(section_name.clone(), terminal);
+                        .insert(section_name.clone(), hint);
                     if let Some(state) = self.workflows.get_mut(&workflow_id) {
                         state
                             .sections
@@ -701,7 +792,13 @@ impl WorkflowTracker {
             else {
                 continue;
             };
-            let terminal = SectionStatus::from_message(&msg.message);
+            let msg_terminal = SectionStatus::from_message(&msg.message);
+            let terminal = if msg_terminal == SectionStatus::Completed {
+                self.status_from_sub_sections(&source_section, &workflow_id)
+                    .unwrap_or(msg_terminal)
+            } else {
+                msg_terminal
+            };
             self.sections_running.remove(source_section.as_str());
             if let Some(state) = self.workflows.get_mut(&workflow_id) {
                 state
@@ -1724,6 +1821,144 @@ mod tests {
         assert_eq!(sec_b[0].status, SectionStatus::Pending);
         assert_eq!(sec_b[1].status, SectionStatus::Running);
         assert_eq!(sec_b[2].status, SectionStatus::Skipped);
+    }
+
+    fn message_leaving_sub_section_with(
+        from_parent: &str,
+        from_child: &str,
+        from_op: &str,
+        to_parent: &str,
+        to_op: &str,
+        message: TracedMessage,
+    ) -> TracedEvent {
+        let source = TraceSource {
+            session_stack: smallvec![make_entity(1)],
+            source: make_entity(98),
+            seq: 0,
+            port: smallvec![],
+            labels: None,
+            operation_type: "test".into(),
+            info: sub_namespaced_op_info(from_parent, from_child, from_op),
+        };
+        let input = TraceTarget {
+            session_stack: smallvec![make_entity(1)],
+            target: make_entity(99),
+            seq: 0,
+            labels: None,
+            operation_type: "test".into(),
+            info: namespaced_op_info(to_parent, to_op),
+        };
+        TracedEvent::now(TracedEventKind::MessageSent(MessageSent {
+            output: smallvec![source],
+            input,
+            message,
+        }))
+    }
+
+    // Reproduces the DSC bug: first sub-section (health) fails, remaining
+    // sub-sections never run, and the predecessor completion path has no
+    // trace message data. Without the fix, op1-op5 all show as Completed.
+    #[tokio::test]
+    async fn sub_section_failure_cascades_to_successor_sections() {
+        let (tracker, handle) = WorkflowTracker::new(64, None);
+        let (trace_tx, trace_rx) = mpsc::unbounded_channel();
+        let mut sub = handle.subscribe();
+
+        tokio::spawn(tracker.run(trace_rx));
+
+        let sub_sections: HashMap<String, Vec<String>> = [
+            (
+                "op1".into(),
+                vec!["health".into(), "move".into(), "pick".into()],
+            ),
+            (
+                "op2".into(),
+                vec!["health".into(), "move".into(), "pick".into()],
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        handle.register(
+            "wf-1".into(),
+            vec!["op1".into(), "op2".into(), "op3".into()],
+            sub_sections,
+            HashMap::new(),
+            HashMap::new(),
+        );
+        tokio::task::yield_now().await;
+
+        // op1 starts: health sub-section enters
+        trace_tx
+            .send(message_entering_sub_section("op1", "health", "start"))
+            .unwrap();
+        // health fails → exits to parent's internal node (not to move/pick)
+        trace_tx
+            .send(message_leaving_sub_section_with(
+                "op1",
+                "health",
+                "done",
+                "op1",
+                "status_failed",
+                Some(Ok(serde_json::json!({"status": "failed"}))),
+            ))
+            .unwrap();
+        // op2 starts (data from op1→op2 via precedence) with NO trace message
+        // (simulates missing value serialization at section boundary)
+        trace_tx
+            .send(message_no_source_info_entering_section("op2", "start"))
+            .unwrap();
+        // op3 starts (data from op2→op3) with NO trace message
+        trace_tx
+            .send(message_no_source_info_entering_section("op3", "start"))
+            .unwrap();
+        // Terminate
+        trace_tx
+            .send(message_to_terminate_no_source_info())
+            .unwrap();
+
+        drop(trace_tx);
+
+        let events = collect_events(&mut sub, 30).await;
+
+        // op1 should be Failed (derived from health sub-section failure)
+        let op1: Vec<_> = events
+            .iter()
+            .filter(|e| e.section_id == "op1" && e.parent_section_id.is_none())
+            .collect();
+        let op1_terminal = op1.last().expect("op1 should have events");
+        assert_eq!(
+            op1_terminal.status,
+            SectionStatus::Failed,
+            "op1 should be Failed (health sub-section failed), got: {:?}",
+            op1_terminal.status
+        );
+
+        // op2 should be Skipped (predecessor failed, no trace data)
+        let op2: Vec<_> = events
+            .iter()
+            .filter(|e| e.section_id == "op2" && e.parent_section_id.is_none())
+            .collect();
+        let op2_terminal = op2.last().expect("op2 should have events");
+        assert_eq!(
+            op2_terminal.status,
+            SectionStatus::Skipped,
+            "op2 should be Skipped (predecessor failed), got: {:?}",
+            op2_terminal.status
+        );
+
+        // op3 should be Skipped (via terminal_hint cascade)
+        let op3: Vec<_> = events
+            .iter()
+            .filter(|e| e.section_id == "op3" && e.parent_section_id.is_none())
+            .collect();
+        let op3_terminal = op3.last().expect("op3 should have events");
+        assert_eq!(
+            op3_terminal.status,
+            SectionStatus::Skipped,
+            "op3 should be Skipped (cascade from op1 failure), got: {:?}",
+            op3_terminal.status
+        );
     }
 
     #[tokio::test]
