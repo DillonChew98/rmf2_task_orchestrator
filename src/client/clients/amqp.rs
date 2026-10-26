@@ -173,21 +173,14 @@ async fn consumer_loop(mut consumer: Consumer, handler: HandlerFn, routing_key: 
                 let handler = handler.clone();
                 tracing::debug!("[{}] Received {} bytes", routing_key, delivery.data.len());
 
+                // Ack immediately — workflows can run longer than RabbitMQ's
+                // consumer_timeout (default 30min), and a redelivery would
+                // just duplicate the execution.
+                let _ = delivery.ack(BasicAckOptions::default()).await;
+
                 tokio::spawn(async move {
-                    match handler(delivery.data.clone()).await {
-                        Ok(()) => {
-                            tracing::debug!("[{}] Handler success", routing_key);
-                            let _ = delivery.ack(BasicAckOptions::default()).await;
-                        }
-                        Err(e) => {
-                            tracing::error!("[{}] Handler error: {}", routing_key, e);
-                            let _ = delivery
-                                .nack(BasicNackOptions {
-                                    requeue: false,
-                                    ..Default::default()
-                                })
-                                .await;
-                        }
+                    if let Err(e) = handler(delivery.data.clone()).await {
+                        tracing::error!("[{}] Handler error: {}", routing_key, e);
                     }
                 });
             }
