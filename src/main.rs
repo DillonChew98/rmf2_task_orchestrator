@@ -27,12 +27,27 @@ use rmf2_task_orchestrator::{WorkflowTracker, create_amqp_router, spawn, workflo
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let log_dir = std::env::var("LOG_DIR").unwrap_or_else(|_| "logs".into());
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "to.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| format!("{}=info", env!("CARGO_CRATE_NAME")).into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                format!(
+                    "{}=info,{}::workflow_updates=debug",
+                    env!("CARGO_CRATE_NAME"),
+                    env!("CARGO_CRATE_NAME"),
+                )
+                .into()
+            }),
         )
         .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(non_blocking),
+        )
         .init();
 
     let config: Settings =

@@ -13,7 +13,7 @@ services:
       - RMF2_TO__AMQP__PASSWORD=${AMQP_PASSWORD:-guest}
       - RMF2_TO__MQTT__HOST=${MQTT_HOST:-127.0.0.1}
       - RMF2_TO__MQTT__PORT=${MQTT_PORT:-1883}
-      - RUST_LOG=${RUST_LOG:-debug}
+      - RUST_LOG=${RUST_LOG:-rmf2_task_orchestrator=info,rmf2_task_orchestrator::workflow_updates=debug}
       - RMF2_TO__GRPC__CA_CERT
       - RMF2_TO__DATABASE__URL=postgres://rmf2:rmf2@127.0.0.1:5432/rmf2_task_orchestrator
     env_file:
@@ -21,6 +21,7 @@ services:
     volumes:
       - ./assets/certs:/app/assets/certs:ro
       - ./lab.toml:/app/lab.toml:ro
+      - ./logs:/app/logs
     restart: unless-stopped
 
   rabbitmq:

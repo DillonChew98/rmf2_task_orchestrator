@@ -26,6 +26,7 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 async-opcua = { version = "0.19", default-features = false, features = ["client"] }
 prost-reflect = { version = "0.16" }
 tracing = "0.1.43"
+tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 utoipa = { version = "6", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "10", features = ["axum"] }
