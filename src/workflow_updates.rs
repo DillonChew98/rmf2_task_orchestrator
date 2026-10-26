@@ -578,8 +578,40 @@ impl WorkflowTracker {
         self.extract_section_from_ref(op_ref).map(|s| s.to_string())
     }
 
-    // Derive a section's terminal status from its sub-section outcomes.
-    // Returns None when the section has no sub-sections or none have run yet.
+    // Resolve a section's terminal status from the trace message, falling
+    // back to sub-section outcomes then the section's terminal_hint when
+    // the trace data is absent.
+    fn resolve_terminal(
+        &self,
+        section: &str,
+        workflow_id: &str,
+        msg: &crossflow::trace::TracedMessage,
+    ) -> SectionStatus {
+        let from_msg = SectionStatus::from_message(msg);
+        if from_msg != SectionStatus::Completed {
+            tracing::debug!("resolve '{}': msg={:?}", section, from_msg);
+            return from_msg;
+        }
+        let from_subs = self.status_from_sub_sections(section, workflow_id);
+        let from_hint = self
+            .section_terminal_hints
+            .get(section)
+            .filter(|h| matches!(h, SectionStatus::Failed | SectionStatus::Skipped))
+            .cloned();
+        let resolved = from_subs
+            .clone()
+            .or(from_hint.clone())
+            .unwrap_or(SectionStatus::Completed);
+        tracing::debug!(
+            "resolve '{}': msg=Completed, subs={:?}, hint={:?} → {:?}",
+            section,
+            from_subs,
+            from_hint,
+            resolved,
+        );
+        resolved
+    }
+
     fn status_from_sub_sections(&self, section: &str, workflow_id: &str) -> Option<SectionStatus> {
         let subs: Vec<_> = self
             .sub_section_registry
@@ -689,12 +721,6 @@ impl WorkflowTracker {
                     .get(section_name.as_str())
                     .cloned()
                 {
-                    let msg_terminal = SectionStatus::from_message(&msg.message);
-                    tracing::debug!(
-                        "Section '{}' starting → from_message={:?}",
-                        section_name,
-                        msg_terminal,
-                    );
                     let predecessors: Vec<String> = self
                         .sections_running
                         .iter()
@@ -703,43 +729,9 @@ impl WorkflowTracker {
                         })
                         .cloned()
                         .collect();
-                    let mut worst_predecessor = msg_terminal.clone();
+                    let mut worst_predecessor = SectionStatus::Completed;
                     for prev in &predecessors {
-                        // When trace data is absent (from_message defaults to
-                        // Completed), derive the real status from:
-                        // 1. Sub-section outcomes (a failed sub-section → parent failed)
-                        // 2. The section's terminal_hint (set when it started, from
-                        //    its own incoming message — captures the cascade)
-                        let prev_terminal = if msg_terminal == SectionStatus::Completed {
-                            let from_subs = self.status_from_sub_sections(prev, &workflow_id);
-                            let from_hint = self.section_terminal_hints.get(prev).cloned();
-                            let resolved = from_subs
-                                .clone()
-                                .or_else(|| {
-                                    from_hint.clone().and_then(|hint| match hint {
-                                        SectionStatus::Failed | SectionStatus::Skipped => {
-                                            Some(hint)
-                                        }
-                                        _ => None,
-                                    })
-                                })
-                                .unwrap_or_else(|| msg_terminal.clone());
-                            tracing::debug!(
-                                "Predecessor '{}': msg=Completed, subs={:?}, hint={:?} → {:?}",
-                                prev,
-                                from_subs,
-                                from_hint,
-                                resolved,
-                            );
-                            resolved
-                        } else {
-                            tracing::debug!(
-                                "Predecessor '{}': msg={:?} (used directly)",
-                                prev,
-                                msg_terminal,
-                            );
-                            msg_terminal.clone()
-                        };
+                        let prev_terminal = self.resolve_terminal(prev, &workflow_id, &msg.message);
                         if matches!(
                             prev_terminal,
                             SectionStatus::Failed | SectionStatus::Skipped
@@ -760,6 +752,7 @@ impl WorkflowTracker {
 
                     // If a predecessor failed/skipped and the trace message
                     // was absent, the successor was skipped (not completed).
+                    let msg_terminal = SectionStatus::from_message(&msg.message);
                     let hint = match worst_predecessor {
                         SectionStatus::Failed | SectionStatus::Skipped
                             if msg_terminal == SectionStatus::Completed =>
@@ -768,7 +761,7 @@ impl WorkflowTracker {
                         }
                         _ => msg_terminal,
                     };
-                    tracing::debug!("Section '{}' terminal_hint={:?}", section_name, hint,);
+                    tracing::debug!("Section '{}' terminal_hint={:?}", section_name, hint);
 
                     self.sections_running.insert(section_name.clone());
                     self.section_terminal_hints
@@ -812,25 +805,7 @@ impl WorkflowTracker {
             else {
                 continue;
             };
-            let msg_terminal = SectionStatus::from_message(&msg.message);
-            let terminal = if msg_terminal == SectionStatus::Completed {
-                let from_subs = self.status_from_sub_sections(&source_section, &workflow_id);
-                let resolved = from_subs.clone().unwrap_or(msg_terminal);
-                tracing::debug!(
-                    "Source-based completion '{}': msg=Completed, subs={:?} → {:?}",
-                    source_section,
-                    from_subs,
-                    resolved,
-                );
-                resolved
-            } else {
-                tracing::debug!(
-                    "Source-based completion '{}': msg={:?} (used directly)",
-                    source_section,
-                    msg_terminal,
-                );
-                msg_terminal
-            };
+            let terminal = self.resolve_terminal(&source_section, &workflow_id, &msg.message);
             self.sections_running.remove(source_section.as_str());
             if let Some(state) = self.workflows.get_mut(&workflow_id) {
                 state
@@ -851,20 +826,9 @@ impl WorkflowTracker {
                     Some((s.clone(), wf))
                 })
                 .collect();
-            let fallback = SectionStatus::from_message(&msg.message);
-            tracing::debug!(
-                "Terminate fallback={:?}, remaining={:?}",
-                fallback,
-                remaining
-                    .iter()
-                    .map(|(s, _)| s.as_str())
-                    .collect::<Vec<_>>(),
-            );
             for (section, workflow_id) in remaining {
                 self.sections_running.remove(&section);
-                let hint = self.section_terminal_hints.remove(&section);
-                let terminal = hint.clone().unwrap_or_else(|| fallback.clone());
-                tracing::debug!("Terminate '{}': hint={:?} → {:?}", section, hint, terminal,);
+                let terminal = self.resolve_terminal(&section, &workflow_id, &msg.message);
                 if let Some(state) = self.workflows.get_mut(&workflow_id) {
                     state.sections.insert(section.clone(), terminal.clone());
                 }
