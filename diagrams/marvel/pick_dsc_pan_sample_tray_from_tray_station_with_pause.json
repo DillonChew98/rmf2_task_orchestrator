@@ -1,6 +1,6 @@
 {
   "templates": {
-    "place_dsc_pan_sample_tray_on_workbench": {
+    "pick_dsc_pan_sample_tray_from_tray_station_with_pause": {
       "inputs": {
         "start": "check_input"
       },
@@ -23,12 +23,24 @@
         },
         "if_input_ok": {
           "type": "fork_result",
-          "ok": "set_waypoint",
+          "ok": {
+            "health": "start"
+          },
           "err": "status_skipped"
+        },
+        "health": {
+          "type": "section",
+          "template": "dsc_health_check",
+          "display_text": "Check X3 DSC is up",
+          "connect": {
+            "ok": "set_waypoint",
+            "failed": "status_failed"
+          },
+          "op_sequence": 1
         },
         "set_waypoint": {
           "type": "transform",
-          "cel": "{'waypoint': '${lab.spm_waypoint}'}",
+          "cel": "{'waypoint': '${lab.tray_station_waypoint}'}",
           "next": {
             "move": "start"
           },
@@ -40,29 +52,39 @@
           "type": "section",
           "template": "mir_move_to_waypoint",
           "connect": {
-            "ok": "set_task",
+            "ok": {
+              "pause": "start"
+            },
             "failed": "status_failed"
           },
-          "op_sequence": 1
+          "op_sequence": 2
+        },
+        "pause": {
+          "type": "section",
+          "template": "pause_until_resume",
+          "connect": {
+            "ok": "set_task",
+            "failed": "status_failed"
+          }
         },
         "set_task": {
           "type": "transform",
-          "cel": "{'task': 'bench', 'action': 'place', 'item': 'DSC'}",
+          "cel": "{'task': 'bench', 'action': 'pick', 'item': 'DSC'}",
           "next": {
-            "place": "start"
+            "pick": "start"
           },
           "on_error": {
             "builtin": "dispose"
           }
         },
-        "place": {
+        "pick": {
           "type": "section",
           "template": "ur_perform_task",
           "connect": {
             "ok": "status_ok",
             "failed": "status_failed"
           },
-          "op_sequence": 2
+          "op_sequence": 3
         },
         "status_ok": {
           "type": "transform",

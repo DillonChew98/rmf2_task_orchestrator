@@ -1,17 +1,42 @@
 [lab]
-mir_host = "http://127.0.0.1:50065"
-ur_host = "http://127.0.0.1:50066"
-dsc_host = "http://127.0.0.1:50061"
-tga_host = "http://127.0.0.1:50062"
-ftir_host = "http://127.0.0.1:50064"
-eq_opcua_host = "opc.tcp://127.0.0.1:4840"
+# # Mock servers
+# mir_host = "http://127.0.0.1:50065"
+# ur_host = "http://127.0.0.1:50066"
+# dsc_host = "http://127.0.0.1:50061"
+# tga_host = "http://127.0.0.1:50062"
+# ftir_host = "http://127.0.0.1:50064"
+# gpc_host = "http://127.0.0.1:50063"
+# eq_opcua_host = "opc.tcp://127.0.0.1:4840"
 
-spm_waypoint = "mock-position-bench"
-dsc_waypoint = "mock-position-dsc"
-tga_waypoint = "mock-position-tga"
-ftir_waypoint = "mock-position-ftir"
-gpc_waypoint = "mock-position-gpc"
-storage_waypoint = "mock-position-storage"
-charger_waypoint = "mock-position-charger"
+# tray_station_waypoint = "mock-position-bench"
+# dsc_waypoint = "mock-position-dsc"
+# tga_waypoint = "mock-position-tga"
+# ftir_waypoint = "mock-position-ftir"
+# gpc_waypoint = "mock-position-gpc"
+# storage_waypoint = "mock-position-storage"
+# charger_waypoint = "mock-position-charger"
+
+# Real lab
+mir_host = "http://192.168.50.50"
+ur_host = "http://192.168.50.25:8080"
+dsc_host = "https://192.168.50.101:50053"
+tga_host = "https://192.168.50.102:50053"
+ftir_host = "https://192.168.50.104:50053"
+gpc_host = "https://192.168.50.103:50053"
+eq_opcua_host = "opc.tcp://192.168.50.105:4840"
+
+tray_station_waypoint = "b04b2c25-c5f1-11f1-abf0-000e8eaca9f1"
+storage_waypoint = "5bcbfe54-c875-11f1-abd5-000e8eaca9f1"
+dsc_waypoint = "907dcdfd-c610-11f1-abf0-000e8eaca9f1"
+tga_waypoint = "c459cb45-c879-11f1-abd5-000e8eaca9f1"
+ftir_waypoint = "e94dea94-c850-11f1-abd5-000e8eaca9f1"
+gpc_waypoint = "2d624c18-c851-11f1-abd5-000e8eaca9f1"
+charger_waypoint = "a295c878-c39b-11f1-bf09-000e8eaca9f1"
+
+# Where the pick and place templates back the MiR off to when it is not parked
+tray_station_backoff_waypoint = "7914b702-c5f1-11f1-abf0-000e8eaca9f1"  # Robot position (2)
+storage_backoff_waypoint = "4f10717d-c39c-11f1-bf09-000e8eaca9f1"  # RETURN
+dsc_backoff_waypoint = "5bcbfe54-c875-11f1-abd5-000e8eaca9f1"      # STORAGE
+ftir_backoff_waypoint = "2d624c18-c851-11f1-abd5-000e8eaca9f1"     # GPC
 
 experiment_server_host = "http://localhost:8000"

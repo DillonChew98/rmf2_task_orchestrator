@@ -75,12 +75,15 @@ ur_host = "http://127.0.0.1:50066"
 dsc_host = "http://127.0.0.1:50061"
 tga_host = "http://127.0.0.1:50062"
 ftir_host = "http://127.0.0.1:50064"
+gpc_host = "http://127.0.0.1:50063"
+eq_opcua_host = "opc.tcp://127.0.0.1:4840"
 
-spm_waypoint = "mock-position-bench"
+tray_station_waypoint = "mock-position-bench"
 dsc_waypoint = "mock-position-dsc"
 tga_waypoint = "mock-position-tga"
 ftir_waypoint = "mock-position-ftir"
 gpc_waypoint = "mock-position-gpc"
+storage_waypoint = "mock-position-storage"
 charger_waypoint = "mock-position-charger"
 ```
 

@@ -40,7 +40,7 @@
         },
         "set_waypoint": {
           "type": "transform",
-          "cel": "{'waypoint': '${lab.spm_waypoint}'}",
+          "cel": "{'waypoint': '${lab.tray_station_waypoint}'}",
           "next": {
             "move": "start"
           },

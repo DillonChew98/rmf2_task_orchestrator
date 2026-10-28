@@ -1,6 +1,6 @@
 {
   "templates": {
-    "pick_dsc_pan_sample_tray_from_spm_with_pause": {
+    "pick_ftir_pan_sample_tray_from_storage_with_pause": {
       "inputs": {
         "start": "check_input"
       },
@@ -30,8 +30,8 @@
         },
         "health": {
           "type": "section",
-          "template": "dsc_health_check",
-          "display_text": "Check X3 DSC is up",
+          "template": "ftir_health_check",
+          "display_text": "Check FTIR is up",
           "connect": {
             "ok": "set_waypoint",
             "failed": "status_failed"
@@ -40,7 +40,7 @@
         },
         "set_waypoint": {
           "type": "transform",
-          "cel": "{'waypoint': '${lab.spm_waypoint}'}",
+          "cel": "{'waypoint': '${lab.storage_waypoint}'}",
           "next": {
             "move": "start"
           },
@@ -53,23 +53,46 @@
           "template": "mir_move_to_waypoint",
           "connect": {
             "ok": {
-              "pause": "start"
+              "request": "start"
             },
             "failed": "status_failed"
           },
           "op_sequence": 2
         },
-        "pause": {
+        "request": {
           "type": "section",
-          "template": "pause_until_resume",
+          "template": "storage_send_unload_request_no_trayid",
+          "connect": {
+            "ok": {
+              "wait_ready": "start"
+            },
+            "failed": "status_failed"
+          },
+          "op_sequence": 3
+        },
+        "wait_ready": {
+          "type": "section",
+          "template": "storage_wait_ready_to_unload",
+          "connect": {
+            "ok": {
+              "set_busy": "start"
+            },
+            "failed": "status_failed"
+          },
+          "op_sequence": 4
+        },
+        "set_busy": {
+          "type": "section",
+          "template": "storage_set_unload_busy",
           "connect": {
             "ok": "set_task",
             "failed": "status_failed"
-          }
+          },
+          "op_sequence": 5
         },
         "set_task": {
           "type": "transform",
-          "cel": "{'task': 'bench', 'action': 'pick', 'item': 'DSC'}",
+          "cel": "{'task': 'storage_out', 'action': 'pick', 'item': 'FTIR'}",
           "next": {
             "pick": "start"
           },
@@ -81,10 +104,42 @@
           "type": "section",
           "template": "ur_perform_task",
           "connect": {
-            "ok": "status_ok",
+            "ok": {
+              "set_complete": "start"
+            },
             "failed": "status_failed"
           },
-          "op_sequence": 3
+          "op_sequence": 6
+        },
+        "set_complete": {
+          "type": "section",
+          "template": "storage_set_unload_complete",
+          "connect": {
+            "ok": {
+              "ack_and_clear": "start"
+            },
+            "failed": "status_failed"
+          },
+          "op_sequence": 7
+        },
+        "ack_and_clear": {
+          "type": "section",
+          "template": "storage_wait_unload_ack_and_clear_no_trayid",
+          "connect": {
+            "ok": {
+              "pause": "start"
+            },
+            "failed": "status_failed"
+          },
+          "op_sequence": 8
+        },
+        "pause": {
+          "type": "section",
+          "template": "pause_until_resume",
+          "connect": {
+            "ok": "status_ok",
+            "failed": "status_failed"
+          }
         },
         "status_ok": {
           "type": "transform",

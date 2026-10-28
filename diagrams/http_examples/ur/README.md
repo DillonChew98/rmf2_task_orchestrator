@@ -23,7 +23,7 @@ position the arm can hit the bench or machine there.
 
 | `task` | MiR position | Waypoint in `lab.toml` |
 |---|---|---|
-| `bench` | `BENCH`, for every item | `bench_waypoint` |
+| `bench` | `BENCH`, for every item | `tray_station_waypoint` |
 | `tga` | `TGA` | `tga_waypoint` |
 | `gpc` | `GPC` | `gpc_waypoint` |
 | `dsc` | `DSC` | `dsc_waypoint` |

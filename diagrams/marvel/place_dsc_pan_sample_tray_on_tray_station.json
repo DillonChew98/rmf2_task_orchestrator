@@ -1,6 +1,6 @@
 {
   "templates": {
-    "pick_dsc_pan_sample_tray_from_spm": {
+    "place_dsc_pan_sample_tray_on_tray_station": {
       "inputs": {
         "start": "check_input"
       },
@@ -23,24 +23,12 @@
         },
         "if_input_ok": {
           "type": "fork_result",
-          "ok": {
-            "health": "start"
-          },
+          "ok": "set_waypoint",
           "err": "status_skipped"
-        },
-        "health": {
-          "type": "section",
-          "template": "dsc_health_check",
-          "display_text": "Check X3 DSC is up",
-          "connect": {
-            "ok": "set_waypoint",
-            "failed": "status_failed"
-          },
-          "op_sequence": 1
         },
         "set_waypoint": {
           "type": "transform",
-          "cel": "{'waypoint': '${lab.spm_waypoint}'}",
+          "cel": "{'waypoint': '${lab.tray_station_waypoint}'}",
           "next": {
             "move": "start"
           },
@@ -55,26 +43,26 @@
             "ok": "set_task",
             "failed": "status_failed"
           },
-          "op_sequence": 2
+          "op_sequence": 1
         },
         "set_task": {
           "type": "transform",
-          "cel": "{'task': 'bench', 'action': 'pick', 'item': 'DSC'}",
+          "cel": "{'task': 'bench', 'action': 'place', 'item': 'DSC'}",
           "next": {
-            "pick": "start"
+            "place": "start"
           },
           "on_error": {
             "builtin": "dispose"
           }
         },
-        "pick": {
+        "place": {
           "type": "section",
           "template": "ur_perform_task",
           "connect": {
             "ok": "status_ok",
             "failed": "status_failed"
           },
-          "op_sequence": 3
+          "op_sequence": 2
         },
         "status_ok": {
           "type": "transform",

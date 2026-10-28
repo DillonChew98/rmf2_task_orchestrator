@@ -29,6 +29,8 @@ Each workflow runs five steps in order. Here `<x>` is `ftir`, `tga` or `dsc`.
 | 4 | `pick_<x>_pan_sample_tray_from_<x>` | `pick_<x>_pan_sample_tray_from_<x>` | `pick_gpc_vials_from_gpc` |
 | 5 | `place_<x>_pan_sample_tray_on_workbench` | `place_<x>_pan_sample_tray_in_storage` | `place_gpc_vials_on_workbench` |
 
+- DSC uses the tray station in steps 1 and 5: `pick_dsc_pan_sample_tray_from_tray_station`
+  and `place_dsc_pan_sample_tray_on_tray_station`.
 - `<x>_process` uses the section's `experiment_id` to fetch the experiment from
   `experiment_server_host` in `lab.toml`. The orchestrator refuses the schedule if an
   experiment is missing or not `ready`.
@@ -44,9 +46,11 @@ To use one of these versions, put the template name in the adapter's registry in
   place of `<x>_process` to skip the instrument run.
 - **Fixed payload.** `<x>_process_with_fixed_payload` runs a fixed experiment and gets nothing
   from the experiment server. It needs no `experiment_id`.
-- **DSC with a pause.** `pick_dsc_pan_sample_tray_from_spm_with_pause` and
+- **DSC with a pause.** `pick_dsc_pan_sample_tray_from_tray_station_with_pause` and
   `place_dsc_pan_sample_tray_on_dsc_with_pause` pause before the UR arm moves. See
-  [DSC pause](#dsc-pause).
+  [Pauses](#pauses).
+- **FTIR storage pick with a pause.** `pick_ftir_pan_sample_tray_from_storage_with_pause`
+  pauses after the UR arm takes the tray out of the storage buffer. See [Pauses](#pauses).
 
 ## Storage buffer
 
@@ -116,9 +120,10 @@ On failure, `mir_move_to_waypoint` clears the mission queue and drives the MiR t
 |---|---|
 | `pause_until_resume` | Sends `waiting_for_resume` on MQTT topic `workflow/status`. Pauses until `resume` arrives on `workflow/resume`. Fails after 1 hour. |
 
-## DSC pause
+## Pauses
 
 The two `_with_pause` DSC templates stop before the UR arm moves.
+`pick_ftir_pan_sample_tray_from_storage_with_pause` stops after the UR arm takes the tray out.
 
 1. Watch the workflow topics:
 

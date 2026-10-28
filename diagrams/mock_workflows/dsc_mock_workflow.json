@@ -5,10 +5,10 @@
   "ops": {
     "wo2026100001_r1837_op1": {
       "type": "section",
-      "template": "pick_dsc_pan_sample_tray_from_spm",
+      "template": "pick_dsc_pan_sample_tray_from_tray_station",
       "workflow_id": "2026100001",
       "op_sequence": 1,
-      "display_text": "Pick DSC pan sample tray from SPM",
+      "display_text": "Pick DSC pan sample tray from Tray Station",
       "connect": {
         "precedence": {
           "wo2026100001_r1837_op2": "start"
@@ -53,10 +53,10 @@
     },
     "wo2026100001_r1837_op5": {
       "type": "section",
-      "template": "place_dsc_pan_sample_tray_on_workbench",
+      "template": "place_dsc_pan_sample_tray_on_tray_station",
       "workflow_id": "2026100001",
       "op_sequence": 5,
-      "display_text": "Place DSC pan sample tray on Workbench",
+      "display_text": "Place DSC pan sample tray on Tray Station",
       "connect": {}
     },
     "run_started": {

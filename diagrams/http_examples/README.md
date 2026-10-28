@@ -31,8 +31,7 @@ cd mock_servers && ./run_all.sh
 [lab]
 mir_host         = "http://127.0.0.1:50065"
 ur_host          = "http://127.0.0.1:50066"
-bench_waypoint   = "mock-position-bench"
-spm_waypoint     = "mock-position-bench"
+tray_station_waypoint = "mock-position-bench"
 dsc_waypoint     = "mock-position-dsc"
 tga_waypoint     = "mock-position-tga"
 ftir_waypoint    = "mock-position-ftir"
@@ -54,8 +53,7 @@ MIR_AUTH="Basic mock"   # the mock accepts any value
 [lab]
 mir_host         = "http://<mir-ip>"
 ur_host          = "http://<robot-pc-ip>:8080"
-bench_waypoint   = "b04b2c25-c5f1-11f1-abf0-000e8eaca9f1"
-spm_waypoint     = "b04b2c25-c5f1-11f1-abf0-000e8eaca9f1"
+tray_station_waypoint = "b04b2c25-c5f1-11f1-abf0-000e8eaca9f1"
 dsc_waypoint     = "907dcdfd-c610-11f1-abf0-000e8eaca9f1"
 tga_waypoint     = "c459cb45-c879-11f1-abd5-000e8eaca9f1"
 ftir_waypoint    = "e94dea94-c850-11f1-abd5-000e8eaca9f1"
@@ -63,8 +61,8 @@ gpc_waypoint     = "2d624c18-c851-11f1-abd5-000e8eaca9f1"
 charger_waypoint = "a295c878-c39b-11f1-bf09-000e8eaca9f1"
 ```
 
-The guids belong to MiR map `L8`. A guid from another map fails at run time. For now,
-`bench_waypoint` and `spm_waypoint` both point at `BENCH`.
+The guids belong to MiR map `L8`. A guid from another map fails at run time. On the MiR map,
+the tray station is `BENCH`.
 
 `.env.development`:
 

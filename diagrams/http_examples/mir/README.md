@@ -26,7 +26,7 @@ Before sending `move_to_waypoint.json`, set the station in the first step, `set_
 "cel": "{'waypoint': '${lab.<station>_waypoint}'}"
 ```
 
-`<station>` is `bench`, `spm`, `dsc`, `tga`, `ftir` or `gpc`. To send the MiR to the
+`<station>` is `tray_station`, `dsc`, `tga`, `ftir` or `gpc`. To send the MiR to the
 charger, use `send_to_charger.json`.
 
 ## Send
