@@ -74,6 +74,11 @@ class GpcStateMachine:
         self._state = initial
         self._on_change = on_change
 
+    def set_on_change(self, callback: Callable[[GpcState], None] | None) -> None:
+        """Register or clear the state-change callback (e.g. SiLA observable)."""
+        with self._lock:
+            self._on_change = callback
+
     @property
     def state(self) -> GpcState:
         with self._lock:

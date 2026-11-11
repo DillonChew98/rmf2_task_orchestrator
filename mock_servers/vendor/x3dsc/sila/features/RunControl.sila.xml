@@ -1,11 +1,11 @@
 <Feature xmlns="http://www.sila-standard.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Category="xdsc" FeatureVersion="2.0" MaturityLevel="Draft" Originator="org.tainstruments" SiLA2Version="1.0" xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
 <Identifier>RunControl</Identifier>
 <DisplayName>X3 DSC run control</DisplayName>
-<Description>TRIOS run control start/stop on the shared /api base.</Description>
+<Description>TRIOS run control start/stop and full experiment runs on the shared /api base.</Description>
 <DataTypeDefinition>
   <Identifier>Request</Identifier>
   <DisplayName>Request</DisplayName>
-  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none.</Description>
   <DataType>
     <Structure>
       <Element>
@@ -29,8 +29,8 @@
       <Element>
         <Identifier>Payload</Identifier>
         <DisplayName>Payload</DisplayName>
-        <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
-        <DataType><Basic>String</Basic></DataType>
+        <Description>SiLA Any for the request body. Void means none. Prefer a Structure matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>Any</Basic></DataType>
       </Element>
     </Structure>
   </DataType>
@@ -38,7 +38,7 @@
 <DataTypeDefinition>
   <Identifier>Envelope</Identifier>
   <DisplayName>Envelope</DisplayName>
-  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none.</Description>
   <DataType>
     <Structure>
       <Element>
@@ -88,8 +88,8 @@
       <Element>
         <Identifier>Payload</Identifier>
         <DisplayName>Payload</DisplayName>
-        <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
-        <DataType><Basic>String</Basic></DataType>
+        <Description>SiLA Any for the result body. Void means none. Prefer a Structure matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>Any</Basic></DataType>
       </Element>
       <Element>
         <Identifier>Details</Identifier>
@@ -130,7 +130,7 @@
 <DataTypeDefinition>
   <Identifier>QueueStatusProgress</Identifier>
   <DisplayName>Queue status progress</DisplayName>
-  <Description>Intermediate Update Payload during ControlStart.</Description>
+  <Description>Intermediate Update Payload during ControlStart and RunExperiment.</Description>
   <DataType>
     <Structure>
       <Element>
@@ -146,6 +146,60 @@
   <Identifier>ControlStartResult</Identifier>
   <DisplayName>Control start result</DisplayName>
   <Description>ControlStart Result.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS REST JSON response (or status snapshot).</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>RunExperimentRequestPayload</Identifier>
+  <DisplayName>Run experiment request payload</DisplayName>
+  <Description>RunExperiment Request.Payload.</Description>
+  <DataType>
+    <Structure>
+      <Element>
+        <Identifier>QueueType</Identifier>
+        <DisplayName>Queue type</DisplayName>
+        <Description>empty or &quot;running&quot;. &quot;design&quot; is rejected; control start runs the instrument queue.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Body</Identifier>
+        <DisplayName>Body</DisplayName>
+        <Description>Opaque TRIOS newExperiments document. When --payload-json omits Body, remaining keys (except QueueType, WaitForReady, ReadyTimeoutSeconds, and Force) are treated as the body.</Description>
+        <DataType><Basic>Any</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>WaitForReady</Identifier>
+        <DisplayName>Wait for ready</DisplayName>
+        <Description>empty | &quot;true&quot; | &quot;false&quot;; empty means server default.</Description>
+        <DataType><Basic>String</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>ReadyTimeoutSeconds</Identifier>
+        <DisplayName>Ready timeout seconds</DisplayName>
+        <Description>REST ready-wait timeout; 0 omits.</Description>
+        <DataType><Basic>Integer</Basic></DataType>
+      </Element>
+      <Element>
+        <Identifier>Force</Identifier>
+        <DisplayName>Force</DisplayName>
+        <Description>Retry with force after HTTP 409 / canForce.</Description>
+        <DataType><Basic>Boolean</Basic></DataType>
+      </Element>
+    </Structure>
+  </DataType>
+</DataTypeDefinition>
+<DataTypeDefinition>
+  <Identifier>RunExperimentResult</Identifier>
+  <DisplayName>Run experiment result</DisplayName>
+  <Description>RunExperiment Result.Payload.</Description>
   <DataType>
     <Structure>
       <Element>
@@ -229,6 +283,31 @@
     <Description>Standard command envelope.</Description>
     <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
   </Response>
+  <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
+</Command>
+<Command>
+  <Identifier>RunExperiment</Identifier>
+  <DisplayName>Run experiment</DisplayName>
+  <Description>Validate, queue, and start an experiment. Request.Payload is RunExperimentRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is RunExperimentResult (added experiment ids and terminal statuses). Completes when each added experiment id is Completed, Error, or Cancelled.</Description>
+  <Observable>Yes</Observable>
+  <Parameter>
+    <Identifier>Request</Identifier>
+    <DisplayName>Request</DisplayName>
+    <Description>Standard command request.</Description>
+    <DataType><DataTypeIdentifier>Request</DataTypeIdentifier></DataType>
+  </Parameter>
+  <Response>
+    <Identifier>Result</Identifier>
+    <DisplayName>Result</DisplayName>
+    <Description>Standard command envelope.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </Response>
+  <IntermediateResponse>
+    <Identifier>Update</Identifier>
+    <DisplayName>Update</DisplayName>
+    <Description>Intermediate envelope with Outcome Running.</Description>
+    <DataType><DataTypeIdentifier>Envelope</DataTypeIdentifier></DataType>
+  </IntermediateResponse>
   <DefinedExecutionErrors><Identifier>InternalError</Identifier></DefinedExecutionErrors>
 </Command>
 <DefinedExecutionError>

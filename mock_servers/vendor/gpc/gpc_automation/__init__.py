@@ -10,7 +10,7 @@ Usage:
     gpc.click_start()
 """
 
-from gpc_automation.core import GpcAutomation, get_gpc
+from gpc_automation.facade import GpcAutomation, get_gpc
 from gpc_automation.models import (
     CurrentSequenceStep,
     InstrumentSnapshot,

@@ -19,6 +19,8 @@ from argparse import ArgumentParser, Namespace
 from sila2.server import SilaServer
 
 from sila_common.server import add_tls_args, install_shutdown_signals, run_until_stopped, start_sila_server
+from sila_common.status_http import ReachabilityCache, StatusHttpServer, add_status_args
+from sila_common.equipment_status import PARAMETERS
 
 from ftir_automation import FtirAutomation
 from ftir_automation.envfile import ftir_output_dir, load_dotenv
@@ -34,7 +36,7 @@ from .ftir_impl import (
     OpusFunctionServiceImpl,
     StageControlServiceImpl,
 )
-from ftir_automation.health import FtirHealthPoller, SKIPPED, snapshot_is_up
+from ftir_automation.health import FtirHealthPoller
 from .ftir_sila.instrumentconnection.instrumentconnection_feature import (
     InstrumentConnectionFeature,
 )
@@ -115,6 +117,7 @@ def _build_arg_parser() -> ArgumentParser:
         help="Enable DEBUG-level logging.",
     )
     add_tls_args(p, default_private_key=DEFAULT_PRIVATE_KEY, default_cert_chain=DEFAULT_CERT_CHAIN)
+    add_status_args(p, port_env="FTIR_STATUS_PORT")
     p.add_argument(
         "--otel-endpoint",
         default=_env("OTEL_EXPORTER_OTLP_ENDPOINT") or None,
@@ -208,21 +211,29 @@ def build_server(args: Namespace) -> tuple[SilaServer, FtirExecutor, InstrumentC
 def run_server_forever(server: SilaServer, executor: FtirExecutor, args: Namespace) -> None:
     start_sila_server(server, args, log=logger)
     install_shutdown_signals(server, log=logger)
-
-    def _health_probe() -> bool | object:
-        snap = executor.try_get_snapshot()
-        if snap is SKIPPED:
-            return SKIPPED
-        return snapshot_is_up(snap)
+    cache = ReachabilityCache()
+    cache.configure("ftir", PARAMETERS["ftir"])
+    executor.set_status_listener(cache.record_activity)
+    cache.record_activity(executor.status)
+    status_http = StatusHttpServer(cache, args.host, args.status_port)
+    try:
+        status_http.start()
+    except OSError:
+        if server.running:
+            server.stop(grace_period=0)
+        raise
 
     poller = FtirHealthPoller(
-        lambda fn: fn(),
-        _health_probe,
-        interval_s=60.0,
+        interval_s=args.status_poll_interval,
+        timeout_s=args.status_probe_timeout,
+        cache=cache,
+        submit_fn=executor.try_submit_snapshot,
+        activity_fn=lambda: executor.status,
     )
     poller.start()
 
     def _on_shutdown() -> None:
+        status_http.stop()
         poller.stop()
         if server.running:
             server.stop(grace_period=5.0)

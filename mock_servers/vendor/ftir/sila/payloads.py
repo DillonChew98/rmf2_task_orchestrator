@@ -1,8 +1,8 @@
 """Typed payload structures for FTIR command Request/Envelope.Payload.
 
 Each class subclasses ``sila_common.envelope.AnyPayload``. On the wire,
-``Request.Payload`` / ``Envelope.Payload`` are UTF-8 JSON strings; these
-dataclasses are the in-memory models. Matching ``DataTypeDefinition``
+``Request.Payload`` / ``Envelope.Payload`` are SiLA Any (named Structure);
+these dataclasses are the in-memory models. Matching ``DataTypeDefinition``
 entries are generated in ``scripts/generate_sila_features.py``.
 """
 
@@ -186,27 +186,50 @@ MEASURE_BACKGROUND_REQUEST_ELEMENTS: list[tuple[str, str, str, str]] = [
 ]
 
 MEASURE_SAMPLE_REQUEST_ELEMENTS: list[tuple[str, str, str, str]] = [
-    ("Resolution", "Resolution", "Spectral resolution cm-1 (OPUS RES); 0 means default.", basic_dt("Real")),
-    ("SampleScans", "Sample scans", "Number of sample scans (OPUS NSS); 0 means default.", basic_dt("Integer")),
+    (
+        "Resolution",
+        "Resolution",
+        "Spectral resolution cm-1 (OPUS RES). Default 0; with ExperimentFile, 0 omits RES.",
+        basic_dt("Real"),
+    ),
+    (
+        "SampleScans",
+        "Sample scans",
+        "Number of sample scans (OPUS NSS). Default 0; with ExperimentFile, 0 omits NSS.",
+        basic_dt("Integer"),
+    ),
     (
         "BackgroundScans",
         "Background scans",
-        "Number of background scans (OPUS NSR); 0 means default.",
+        "Number of background scans (OPUS NSR). Default 0; with ExperimentFile, 0 omits NSR.",
         basic_dt("Integer"),
     ),
     (
         "OpticalVelocity",
         "Optical velocity",
-        "OPUS VEL in kHz; 0 means omit.",
+        "OPUS VEL in kHz. Default 0; 0 means omit.",
         basic_dt("Real"),
     ),
-    ("Aperture", "Aperture", 'OPUS APT (e.g. "6 mm"); empty means omit.', basic_dt("String")),
-    ("DetectorGain", "Detector gain", "OPUS SGN; 0 means omit.", basic_dt("Real")),
-    ("OutputPath", "Output path", "Absolute OPUS intermediate output path on the instrument PC.", basic_dt("String")),
+    (
+        "Aperture",
+        "Aperture",
+        'OPUS APT (e.g. "6 mm"). Default empty; empty means omit.',
+        basic_dt("String"),
+    ),
+    ("DetectorGain", "Detector gain", "OPUS SGN. Default 0; 0 means omit.", basic_dt("Real")),
+    (
+        "OutputPath",
+        "Output path",
+        "Optional OPUS file path. Default empty; empty uses FTIR_OUTPUT_DIR (OPUS names the file).",
+        basic_dt("String"),
+    ),
     (
         "ExperimentFile",
         "Experiment file",
-        "Absolute .XPM path; empty means omit. When set, RES/NSS/NSR of 0 are omitted.",
+        "Absolute .XPM path (for example "
+        r"C:\Users\Public\Documents\Bruker\OPUS_9.2.4\OpusLab\Xpm\HTS-trans.XPM). "
+        "Default empty; sets EXP/XPP. PTH is FTIR_OUTPUT_DIR when set. "
+        "When set, RES/NSS/NSR of 0 are omitted.",
         basic_dt("String"),
     ),
     (
@@ -224,7 +247,7 @@ MEASURE_SAMPLE_REQUEST_ELEMENTS: list[tuple[str, str, str, str]] = [
     (
         "IncludeData",
         "Include data",
-        "True to include full arrays in Result.Payload.Spectra.",
+        "Default false. True to include full arrays in Result.Payload.Spectra.",
         basic_dt("Boolean"),
     ),
     (

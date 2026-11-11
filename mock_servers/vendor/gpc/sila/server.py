@@ -15,6 +15,8 @@ from argparse import ArgumentParser, Namespace
 from sila2.server import SilaServer
 
 from gpc_automation import GpcAutomation
+from gpc_automation.models import InstrumentSnapshot
+from sila_common.status_http import ReachabilityCache, StatusHttpServer, add_status_args
 
 from .tls_config import DEFAULT_CERT_CHAIN, DEFAULT_PRIVATE_KEY, load_tls_material
 
@@ -33,6 +35,7 @@ from .gpc_sila.instrumentstatus.instrumentstatus_feature import InstrumentStatus
 from .gpc_sila.sequencecontrol.sequencecontrol_feature import SequenceControlFeature
 from .gpc_sila.uiinput.uiinput_feature import UiInputFeature
 from .gpc_sila.utility.utility_feature import UtilityFeature
+from .health import GpcStatusPoller
 from .state_machine import GpcState, GpcStateMachine
 
 logger = logging.getLogger("gpc.sila")
@@ -94,6 +97,7 @@ def _build_arg_parser() -> ArgumentParser:
         action="store_true",
         help="Let sila2 generate a self-signed cert instead of reading cert_tools/ (TLS mode only).",
     )
+    add_status_args(p, port_env="GPC_STATUS_PORT")
     return p
 
 
@@ -101,13 +105,12 @@ def register_features(
     server: SilaServer,
     executor: GpcExecutor,
     fsm: GpcStateMachine,
-) -> InstrumentLifecycleImpl:
+) -> tuple[InstrumentLifecycleImpl, InstrumentStatusImpl]:
     """Wire all 5 feature implementations into *server*."""
     lifecycle = InstrumentLifecycleImpl(server, executor, fsm)
+    status = InstrumentStatusImpl(server, executor, fsm)
     server.set_feature_implementation(InstrumentLifecycleFeature, lifecycle)
-    server.set_feature_implementation(
-        InstrumentStatusFeature, InstrumentStatusImpl(server, executor, fsm)
-    )
+    server.set_feature_implementation(InstrumentStatusFeature, status)
     server.set_feature_implementation(
         SequenceControlFeature, SequenceControlImpl(server, executor, fsm)
     )
@@ -117,10 +120,12 @@ def register_features(
     server.set_feature_implementation(
         UtilityFeature, UtilityImpl(server, executor, fsm)
     )
-    return lifecycle
+    return lifecycle, status
 
 
-def build_server(args: Namespace) -> tuple[SilaServer, GpcExecutor, GpcStateMachine]:
+def build_server(
+    args: Namespace,
+) -> tuple[SilaServer, GpcExecutor, GpcStateMachine, InstrumentStatusImpl]:
     gpc = GpcAutomation(timeout=args.connect_timeout)
     executor = GpcExecutor(gpc)
     fsm = GpcStateMachine()
@@ -131,13 +136,11 @@ def build_server(args: Namespace) -> tuple[SilaServer, GpcExecutor, GpcStateMach
         server_version="0.1.0",
         server_vendor_url="https://www.agilent.com",
     )
-    register_features(server, executor, fsm)
-    return server, executor, fsm
+    _lifecycle, status = register_features(server, executor, fsm)
+    return server, executor, fsm, status
 
 
-def run_server_forever(
-    server: SilaServer, executor: GpcExecutor, args: Namespace
-) -> None:
+def _start_sila(server: SilaServer, args: Namespace) -> None:
     if args.insecure:
         server.start_insecure(
             args.host, args.port, enable_discovery=not args.no_discovery
@@ -145,39 +148,73 @@ def run_server_forever(
         logger.info(
             "GPC SiLA server listening (insecure) on %s:%s", args.host, args.port
         )
-    else:
-        if args.auto_generate_tls:
-            server.start(args.host, args.port, enable_discovery=not args.no_discovery)
-            logger.info(
-                "GPC SiLA server listening (TLS, auto-generated cert) on %s:%s",
-                args.host,
-                args.port,
-            )
-        else:
-            tls = load_tls_material(
-                private_key_path=args.private_key,
-                cert_chain_path=args.cert_chain,
-                ca_for_discovery_path=args.ca_for_discovery or args.cert_chain,
-            )
-            server.start(
-                args.host,
-                args.port,
-                private_key=tls.private_key,
-                cert_chain=tls.cert_chain,
-                ca_for_discovery=tls.ca_for_discovery,
-                enable_discovery=not args.no_discovery,
-            )
-            logger.info(
-                "GPC SiLA server listening (TLS, cert=%s) on %s:%s",
-                args.cert_chain,
-                args.host,
-                args.port,
-            )
+        return
+    if args.auto_generate_tls:
+        server.start(args.host, args.port, enable_discovery=not args.no_discovery)
+        logger.info(
+            "GPC SiLA server listening (TLS, auto-generated cert) on %s:%s",
+            args.host,
+            args.port,
+        )
+        return
+    tls = load_tls_material(
+        private_key_path=args.private_key,
+        cert_chain_path=args.cert_chain,
+        ca_for_discovery_path=args.ca_for_discovery or args.cert_chain,
+    )
+    server.start(
+        args.host,
+        args.port,
+        private_key=tls.private_key,
+        cert_chain=tls.cert_chain,
+        ca_for_discovery=tls.ca_for_discovery,
+        enable_discovery=not args.no_discovery,
+    )
+    logger.info(
+        "GPC SiLA server listening (TLS, cert=%s) on %s:%s",
+        args.cert_chain,
+        args.host,
+        args.port,
+    )
+
+
+def run_server_forever(
+    server: SilaServer,
+    executor: GpcExecutor,
+    fsm: GpcStateMachine,
+    status: InstrumentStatusImpl,
+    args: Namespace,
+) -> None:
+    _start_sila(server, args)
+    cache = ReachabilityCache()
+
+    def _on_snapshot(snapshot: InstrumentSnapshot) -> None:
+        status.update_CurrentSystemStatus(snapshot.system_status)
+        status.update_CurrentAnalysisStatus(snapshot.analysis_status)
+
+    poller = GpcStatusPoller(
+        cache,
+        fsm=fsm,
+        submit_fn=executor.try_submit_snapshot,
+        interval_s=args.status_poll_interval,
+        timeout_s=args.status_probe_timeout,
+        on_snapshot=_on_snapshot,
+    )
+    status_http = StatusHttpServer(cache, args.host, args.status_port)
+    try:
+        status_http.start()
+    except OSError:
+        if server.running:
+            server.stop(grace_period=0)
+        raise
+    poller.start()
     try:
         server.grpc_server.wait_for_termination()
     except KeyboardInterrupt:
         logger.info("Shutting down on KeyboardInterrupt...")
     finally:
+        status_http.stop()
+        poller.stop()
         if server.running:
             server.stop(grace_period=5.0)
         executor.shutdown()
@@ -190,7 +227,7 @@ def main(argv: list[str] | None = None) -> None:
         format="%(asctime)s.%(msecs)03d %(levelname)-5s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    server, executor, fsm = build_server(args)
+    server, executor, fsm, status = build_server(args)
     if args.auto_connect:
         try:
             executor.run(executor.gpc.connect)
@@ -200,7 +237,7 @@ def main(argv: list[str] | None = None) -> None:
             logger.exception(
                 "Auto-connect failed; server is up but state remains Disconnected"
             )
-    run_server_forever(server, executor, args)
+    run_server_forever(server, executor, fsm, status, args)
 
 
 if __name__ == "__main__":

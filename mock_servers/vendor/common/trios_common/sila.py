@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+import weakref
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from queue import Queue
@@ -118,6 +119,107 @@ def start_status_property_poller(
             time.sleep(interval_s)
 
     threading.Thread(target=_run, daemon=True, name=thread_name).start()
+
+
+class SharedStatusFeed:
+    """One REST poll shared by every subscriber of a status property.
+
+    Each ``subscribe()`` returns its own queue. The feed calls *fetch_json*
+    once per interval and copies that value onto every live queue. Queues are
+    held weakly, so the poll stops after *idle_grace_s* once SiLA drops the
+    last subscription. A client error is delivered to the current queues and
+    the thread stops, matching ``start_status_property_poller``.
+    """
+
+    def __init__(
+        self,
+        fetch_json: Callable[[], str],
+        err_cls: type[Any],
+        *,
+        client_error_cls: type[BaseException] = TriosClientError,
+        thread_name: str = "trios-shared-status",
+        interval_s: float = STATUS_PROPERTY_POLL_INTERVAL_SECONDS,
+        idle_grace_s: float | None = None,
+    ) -> None:
+        self._fetch_json = fetch_json
+        self._err_cls = err_cls
+        self._client_error_cls = client_error_cls
+        self._thread_name = thread_name
+        self._interval_s = interval_s
+        self._idle_grace_s = interval_s if idle_grace_s is None else idle_grace_s
+        self._queues: weakref.WeakSet[Queue[Any]] = weakref.WeakSet()
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+
+    def subscribe(self) -> Queue[Any]:
+        queue: Queue[Any] = Queue()
+        with self._lock:
+            self._queues.add(queue)
+            thread = self._thread
+            if thread is None or not thread.is_alive():
+                self._stop.clear()
+                self._thread = threading.Thread(
+                    target=self._run,
+                    daemon=True,
+                    name=self._thread_name,
+                )
+                self._thread.start()
+        return queue
+
+    def _snapshot(self) -> list[Queue[Any]]:
+        with self._lock:
+            return list(self._queues)
+
+    def _broadcast(self, value: Any) -> None:
+        for queue in self._snapshot():
+            queue.put(value)
+
+    def _stop_thread(self) -> None:
+        with self._lock:
+            if self._thread is threading.current_thread():
+                self._thread = None
+
+    def _run(self) -> None:
+        idle_since: float | None = None
+        while not self._stop.is_set():
+            if not self._snapshot():
+                now = time.monotonic()
+                if idle_since is None:
+                    idle_since = now
+                if now - idle_since >= self._idle_grace_s:
+                    with self._lock:
+                        if list(self._queues):
+                            idle_since = None
+                            continue
+                        self._thread = None
+                        return
+                if self._stop.wait(min(0.05, self._idle_grace_s)):
+                    self._stop_thread()
+                    return
+                continue
+            idle_since = None
+            try:
+                value = self._fetch_json()
+            except self._client_error_cls as exc:
+                self._publish_error(exc)
+                return
+            except Exception as exc:  # noqa: BLE001 — surface unexpected poller errors
+                self._publish_error(exc)
+                return
+            self._broadcast(value)
+            if self._stop.wait(self._interval_s):
+                self._stop_thread()
+                return
+
+    def _publish_error(self, exc: BaseException) -> None:
+        error = self._err_cls(str(exc))
+        with self._lock:
+            queues = list(self._queues)
+            if self._thread is threading.current_thread():
+                self._thread = None
+        for queue in queues:
+            queue.put(error)
 
 
 def queue_run_is_active(queue_status: Any) -> bool:

@@ -5,7 +5,7 @@
   <DataTypeDefinition>
     <Identifier>Request</Identifier>
     <DisplayName>Request</DisplayName>
-    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+    <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none.</Description>
     <DataType>
       <Structure>
         <Element>
@@ -35,9 +35,9 @@
         <Element>
           <Identifier>Payload</Identifier>
           <DisplayName>Payload</DisplayName>
-          <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <Description>SiLA Any for the request body. Void means none. Prefer a Structure matching the command DataTypeDefinition.</Description>
           <DataType>
-            <Basic>String</Basic>
+            <Basic>Any</Basic>
           </DataType>
         </Element>
       </Structure>
@@ -46,7 +46,7 @@
   <DataTypeDefinition>
     <Identifier>Envelope</Identifier>
     <DisplayName>Envelope</DisplayName>
-    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+    <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none.</Description>
     <DataType>
       <Structure>
         <Element>
@@ -104,9 +104,9 @@
         <Element>
           <Identifier>Payload</Identifier>
           <DisplayName>Payload</DisplayName>
-          <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
+          <Description>SiLA Any for the result body. Void means none. Prefer a Structure matching the command DataTypeDefinition.</Description>
           <DataType>
-            <Basic>String</Basic>
+            <Basic>Any</Basic>
           </DataType>
         </Element>
         <Element>
@@ -346,7 +346,7 @@
         <Element>
           <Identifier>Resolution</Identifier>
           <DisplayName>Resolution</DisplayName>
-          <Description>Spectral resolution cm-1 (OPUS RES); 0 means default.</Description>
+          <Description>Spectral resolution cm-1 (OPUS RES). Default 0; with ExperimentFile, 0 omits RES.</Description>
           <DataType>
             <Basic>Real</Basic>
           </DataType>
@@ -354,7 +354,7 @@
         <Element>
           <Identifier>SampleScans</Identifier>
           <DisplayName>Sample scans</DisplayName>
-          <Description>Number of sample scans (OPUS NSS); 0 means default.</Description>
+          <Description>Number of sample scans (OPUS NSS). Default 0; with ExperimentFile, 0 omits NSS.</Description>
           <DataType>
             <Basic>Integer</Basic>
           </DataType>
@@ -362,7 +362,7 @@
         <Element>
           <Identifier>BackgroundScans</Identifier>
           <DisplayName>Background scans</DisplayName>
-          <Description>Number of background scans (OPUS NSR); 0 means default.</Description>
+          <Description>Number of background scans (OPUS NSR). Default 0; with ExperimentFile, 0 omits NSR.</Description>
           <DataType>
             <Basic>Integer</Basic>
           </DataType>
@@ -370,7 +370,7 @@
         <Element>
           <Identifier>OpticalVelocity</Identifier>
           <DisplayName>Optical velocity</DisplayName>
-          <Description>OPUS VEL in kHz; 0 means omit.</Description>
+          <Description>OPUS VEL in kHz. Default 0; 0 means omit.</Description>
           <DataType>
             <Basic>Real</Basic>
           </DataType>
@@ -378,7 +378,7 @@
         <Element>
           <Identifier>Aperture</Identifier>
           <DisplayName>Aperture</DisplayName>
-          <Description>OPUS APT (e.g. "6 mm"); empty means omit.</Description>
+          <Description>OPUS APT (e.g. "6 mm"). Default empty; empty means omit.</Description>
           <DataType>
             <Basic>String</Basic>
           </DataType>
@@ -386,7 +386,7 @@
         <Element>
           <Identifier>DetectorGain</Identifier>
           <DisplayName>Detector gain</DisplayName>
-          <Description>OPUS SGN; 0 means omit.</Description>
+          <Description>OPUS SGN. Default 0; 0 means omit.</Description>
           <DataType>
             <Basic>Real</Basic>
           </DataType>
@@ -394,7 +394,7 @@
         <Element>
           <Identifier>OutputPath</Identifier>
           <DisplayName>Output path</DisplayName>
-          <Description>Absolute OPUS intermediate output path on the instrument PC.</Description>
+          <Description>Optional OPUS file path. Default empty; empty uses FTIR_OUTPUT_DIR (OPUS names the file).</Description>
           <DataType>
             <Basic>String</Basic>
           </DataType>
@@ -402,7 +402,7 @@
         <Element>
           <Identifier>ExperimentFile</Identifier>
           <DisplayName>Experiment file</DisplayName>
-          <Description>Absolute .XPM path; empty means omit. When set, RES/NSS/NSR of 0 are omitted.</Description>
+          <Description>Absolute .XPM path (for example C:\Users\Public\Documents\Bruker\OPUS_9.2.4\OpusLab\Xpm\HTS-trans.XPM). Default empty; sets EXP/XPP. PTH is FTIR_OUTPUT_DIR when set. When set, RES/NSS/NSR of 0 are omitted.</Description>
           <DataType>
             <Basic>String</Basic>
           </DataType>
@@ -426,7 +426,7 @@
         <Element>
           <Identifier>IncludeData</Identifier>
           <DisplayName>Include data</DisplayName>
-          <Description>True to include full arrays in Result.Payload.Spectra.</Description>
+          <Description>Default false. True to include full arrays in Result.Payload.Spectra.</Description>
           <DataType>
             <Basic>Boolean</Basic>
           </DataType>

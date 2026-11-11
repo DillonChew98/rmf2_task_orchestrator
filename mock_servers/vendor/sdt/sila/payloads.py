@@ -1,7 +1,7 @@
 """Typed payload structures for SDT command Request/Envelope.Payload.
 
 Each class subclasses ``sila_common.envelope.AnyPayload``. On the wire,
-Payload fields are UTF-8 JSON strings; these dataclasses are the in-memory
+Payload fields are SiLA Any; these dataclasses are the in-memory
 models. Matching ``DataTypeDefinition`` entries are generated in
 ``scripts/generate_sila_features.py``.
 

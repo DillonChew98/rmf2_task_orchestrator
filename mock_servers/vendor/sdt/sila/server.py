@@ -13,9 +13,11 @@ from argparse import ArgumentParser, Namespace
 from sila2.server import SilaServer
 
 from sila_common.server import add_tls_args, install_shutdown_signals, run_until_stopped, start_sila_server
+from sila_common.status_http import ReachabilityCache, StatusHttpServer, add_status_args
 
 from sdt_automation import TriosSdtClient
 
+from .health import SdtHealthPoller
 from .tls_config import DEFAULT_CERT_CHAIN, DEFAULT_PRIVATE_KEY
 
 from .sdt_sila.authentication.authentication_feature import AuthenticationFeature
@@ -80,6 +82,7 @@ def _build_arg_parser() -> ArgumentParser:
     )
     p.add_argument("--bearer-token", default=None, help="Optional initial Bearer token for secured routes.")
     add_tls_args(p, default_private_key=DEFAULT_PRIVATE_KEY, default_cert_chain=DEFAULT_CERT_CHAIN)
+    add_status_args(p, port_env="SDT_STATUS_PORT")
     p.add_argument(
         "--otel-endpoint",
         default=None,
@@ -224,11 +227,28 @@ def _setup_otel(args: Namespace, server_uuid: str = "") -> None:
     setup_observability(cfg)
 
 
-def run_server_forever(server: SilaServer, args: Namespace) -> None:
+def run_server_forever(server: SilaServer, client: TriosSdtClient, args: Namespace) -> None:
     start_sila_server(server, args, log=logger)
     install_shutdown_signals(server, log=logger)
+    cache = ReachabilityCache()
+    poller = SdtHealthPoller(
+        client,
+        cache,
+        interval_s=args.status_poll_interval,
+        timeout_s=args.status_probe_timeout,
+    )
+    status_http = StatusHttpServer(cache, args.host, args.status_port)
+    try:
+        status_http.start()
+    except OSError:
+        if server.running:
+            server.stop(grace_period=0)
+        raise
+    poller.start()
 
     def _on_shutdown() -> None:
+        status_http.stop()
+        poller.stop()
         if server.running:
             server.stop(grace_period=5.0)
         try:
@@ -244,9 +264,9 @@ def run_server_forever(server: SilaServer, args: Namespace) -> None:
 def main(argv: list[str] | None = None) -> None:
     args = _build_arg_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO)
-    server, _ = build_server_and_client(args)
+    server, client = build_server_and_client(args)
     _setup_otel(args, server_uuid=str(server.server_uuid))
-    run_server_forever(server, args)
+    run_server_forever(server, client, args)
 
 
 if __name__ == "__main__":

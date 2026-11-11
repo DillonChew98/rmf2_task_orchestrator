@@ -1,8 +1,8 @@
-"""SiLA Request / Envelope builders and payload JSON codec.
+"""SiLA Request / Envelope builders and payload codec.
 
-Request.Payload / Envelope.Payload / Envelope.Details are UTF-8 JSON strings on
-the wire (empty string means none). ``encode_any`` / ``decode_any`` remain for
-legacy Structure-inside-Any helpers and documentation type XML.
+Request.Payload / Envelope.Payload are SiLA Any on the wire (Void means none).
+Envelope.Details remains a UTF-8 JSON string (empty string means none).
+``encode_any`` / ``decode_any`` map Python values to and from SiLA Any.
 """
 
 from __future__ import annotations
@@ -21,16 +21,16 @@ ENVELOPE_VERSION = 2
 
 
 class InvalidPayloadError(ValueError):
-    """Raised when Request/Envelope Payload or Details is not valid JSON."""
+    """Raised when Request/Envelope Payload or Details cannot be decoded."""
 
 
 class AnyPayload(ABC):
     """Typed structure for command payloads (named fields, PascalCase).
 
     Subclasses are frozen dataclasses whose field names match FDL
-    ``DataTypeDefinition`` catalogs. On the wire they serialize as JSON objects
-    via ``dumps_payload``. Fields listed in ``_ANY_FIELDS`` are open maps
-    (nested JSON objects); ``encode_any`` / ``to_sila_any`` remain for tests.
+    ``DataTypeDefinition`` catalogs. On the wire they serialize as a named
+    Structure inside SiLA Any via ``encode_any`` / ``to_sila_any``. Fields
+    listed in ``_ANY_FIELDS`` are open maps encoded as nested Any.
     """
 
     _TYPE_XML: ClassVar[str]
@@ -103,7 +103,7 @@ def _jsonable_field(value: Any) -> Any:
 
 
 def dumps_payload(value: Any) -> str:
-    """Serialize a payload/details value to a wire JSON string (empty string = none)."""
+    """Serialize a Details (or legacy) value to a wire JSON string (empty = none)."""
     if value is None:
         return ""
     if isinstance(value, AnyPayload) or (is_dataclass(value) and not isinstance(value, type)):
@@ -112,7 +112,7 @@ def dumps_payload(value: Any) -> str:
 
 
 def loads_payload(raw: Any) -> Any:
-    """Decode a wire Payload/Details field to a Python value (``None`` = none).
+    """Decode a Details (or legacy JSON Payload) field to a Python value (``None`` = none).
 
     Accepts JSON strings, already-decoded values, or ``AnyPayload`` instances.
     Raises ``InvalidPayloadError`` on invalid JSON.
@@ -131,6 +131,27 @@ def loads_payload(raw: Any) -> Any:
     if hasattr(raw, "_asdict"):
         return dict(raw._asdict())
     raise InvalidPayloadError(f"Unsupported Payload/Details type: {type(raw).__name__}")
+
+
+def decode_payload(raw: Any) -> Any:
+    """Decode a wire Payload field (SiLA Any or legacy JSON string) to Python.
+
+    Void / ``None`` becomes ``None``. JSON strings remain accepted for stored
+    records. Raises ``InvalidPayloadError`` on unsupported or invalid values.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, SilaAnyType):
+        try:
+            return decode_any(raw)
+        except Exception as exc:
+            raise InvalidPayloadError(str(exc)) from exc
+    try:
+        return loads_payload(raw)
+    except InvalidPayloadError:
+        raise
+    except Exception as exc:
+        raise InvalidPayloadError(str(exc)) from exc
 
 
 class Outcome:
@@ -377,7 +398,7 @@ class Envelope:
             "Code": code,
             "Message": message,
             "CorrelationId": self.correlation_id,
-            "Payload": dumps_payload(self.payload),
+            "Payload": encode_any(self.payload),
             "Details": dumps_payload(self.details),
         }
 
@@ -385,7 +406,7 @@ class Envelope:
 def parse_request(raw: Any) -> Request:
     """Parse a sila2 Request structure. ``TimeoutSeconds == 0`` becomes ``None``.
 
-    Raises ``InvalidPayloadError`` when Payload is not valid JSON.
+    Raises ``InvalidPayloadError`` when Payload cannot be decoded.
     """
     if isinstance(raw, Request):
         timeout = raw.timeout_seconds
@@ -393,19 +414,19 @@ def parse_request(raw: Any) -> Request:
             version=raw.version,
             correlation_id=raw.correlation_id,
             timeout_seconds=None if timeout == 0 else timeout,
-            payload=loads_payload(raw.payload),
+            payload=decode_payload(raw.payload),
         )
     timeout = int(_field(raw, "TimeoutSeconds"))
     return Request(
         version=int(_field(raw, "Version")),
         correlation_id=str(_field(raw, "CorrelationId", "")),
         timeout_seconds=None if timeout == 0 else timeout,
-        payload=loads_payload(_field(raw, "Payload", "")),
+        payload=decode_payload(_field(raw, "Payload", None)),
     )
 
 
 def try_parse_request(raw: Any) -> tuple[Request | None, dict[str, Any] | None]:
-    """Parse a Request or return ``(None, rejected Envelope dict)`` on bad JSON."""
+    """Parse a Request or return ``(None, rejected Envelope dict)`` on bad Payload."""
     try:
         return parse_request(raw), None
     except InvalidPayloadError as exc:
@@ -433,7 +454,7 @@ def request(
         "Version": version,
         "CorrelationId": correlation_id,
         "TimeoutSeconds": timeout,
-        "Payload": dumps_payload(payload),
+        "Payload": encode_any(payload),
     }
 
 
@@ -446,7 +467,7 @@ def parse_envelope(raw: Any) -> Envelope:
         code=str(_field(raw, "Code", "")),
         message=str(_field(raw, "Message", "")),
         correlation_id=str(_field(raw, "CorrelationId", "")),
-        payload=loads_payload(_field(raw, "Payload", "")),
+        payload=decode_payload(_field(raw, "Payload", None)),
         details=loads_payload(_field(raw, "Details", "")),
     )
 

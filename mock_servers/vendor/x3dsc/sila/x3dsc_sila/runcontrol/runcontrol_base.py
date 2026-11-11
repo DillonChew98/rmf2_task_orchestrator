@@ -7,7 +7,14 @@ from typing import TYPE_CHECKING, Optional
 
 from sila2.server import FeatureImplementationBase, MetadataDict, ObservableCommandInstanceWithIntermediateResponses
 
-from .runcontrol_types import ControlStart_IntermediateResponses, ControlStart_Responses, ControlStop_Responses, Request
+from .runcontrol_types import (
+    ControlStart_IntermediateResponses,
+    ControlStart_Responses,
+    ControlStop_Responses,
+    Request,
+    RunExperiment_IntermediateResponses,
+    RunExperiment_Responses,
+)
 
 if TYPE_CHECKING:
 
@@ -23,13 +30,16 @@ class RunControlBase(FeatureImplementationBase, ABC):
 
     ControlStart_default_lifetime_of_execution: Optional[timedelta]
 
+    RunExperiment_default_lifetime_of_execution: Optional[timedelta]
+
     def __init__(self, parent_server: Server):
         """
-        TRIOS run control start/stop on the shared /api base.
+        TRIOS run control start/stop and full experiment runs on the shared /api base.
         """
         super().__init__(parent_server=parent_server)
 
         self.ControlStart_default_lifetime_of_execution = None
+        self.RunExperiment_default_lifetime_of_execution = None
 
     @abstractmethod
     def ControlStop(self, Request: Request, *, metadata: MetadataDict) -> ControlStop_Responses:
@@ -58,6 +68,30 @@ class RunControlBase(FeatureImplementationBase, ABC):
     ) -> ControlStart_Responses:
         """
         Start the experiment (POST /control/start). Request.Payload is ControlStartRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is ControlStartResult (terminal queue status).
+
+
+        :param Request: Standard command request.
+
+        :param metadata: The SiLA Client Metadata attached to the call
+        :param instance: The command instance, enabling sending status updates to subscribed clients
+
+        :return:
+
+            - Result: Standard command envelope.
+
+
+        """
+
+    @abstractmethod
+    def RunExperiment(
+        self,
+        Request: Request,
+        *,
+        metadata: MetadataDict,
+        instance: ObservableCommandInstanceWithIntermediateResponses[RunExperiment_IntermediateResponses],
+    ) -> RunExperiment_Responses:
+        """
+        Validate, queue, and start an experiment. Request.Payload is RunExperimentRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is RunExperimentResult (added experiment ids and terminal statuses). Completes when each added experiment id is Completed, Error, or Cancelled.
 
 
         :param Request: Standard command request.

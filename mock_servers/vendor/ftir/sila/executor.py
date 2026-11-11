@@ -13,7 +13,7 @@ import logging
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, NoReturn, TypeVar
 
 from ftir_automation import FtirAutomation
@@ -148,6 +148,47 @@ class FtirExecutor:
             return self.ftir.get_snapshot()
 
         return self.try_run(_work)
+
+    def try_submit(self, fn: Callable[..., T], *args: Any, **kwargs: Any) -> Future[T] | object:
+        """Queue *fn* without waiting. ``_in_flight`` drops only after *fn* returns.
+
+        A caller that stops waiting must not treat that as the work having finished.
+        """
+        with self._lock:
+            if self._in_flight > 0:
+                return SKIPPED
+            self._in_flight += 1
+        try:
+            future = self._pool.submit(fn, *args, **kwargs)
+        except Exception:
+            self._end()
+            raise
+
+        def _release(done: Future[T]) -> None:
+            try:
+                done.result()
+                with self._lock:
+                    cur = self._status
+                if cur in (STATUS_UNREACHABLE, STATUS_ERROR):
+                    self._notify_status(STATUS_IDLE)
+            except Exception as exc:
+                if isinstance(exc, (ConnectionError, OSError, ImportError)):
+                    self._notify_status(STATUS_UNREACHABLE)
+            finally:
+                self._end()
+
+        future.add_done_callback(_release)
+        return future
+
+    def try_submit_snapshot(self) -> Future[InstrumentSnapshot] | object:
+        """Quiet snapshot submit; returns ``SKIPPED`` when a command is in flight."""
+
+        def _work() -> InstrumentSnapshot:
+            if self.ftir._opus_api is None:  # noqa: SLF001
+                self.ftir.connect()
+            return self.ftir.get_snapshot()
+
+        return self.try_submit(_work)
 
     def run_with_session(self, fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Ensure OPUS is connected, run *fn*, leave the session open."""

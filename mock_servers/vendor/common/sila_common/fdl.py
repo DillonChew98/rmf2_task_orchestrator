@@ -6,7 +6,7 @@ REQUEST_XML = """\
 <DataTypeDefinition>
   <Identifier>Request</Identifier>
   <DisplayName>Request</DisplayName>
-  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none.</Description>
+  <Description>Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none.</Description>
   <DataType>
     <Structure>
       <Element>
@@ -30,8 +30,8 @@ REQUEST_XML = """\
       <Element>
         <Identifier>Payload</Identifier>
         <DisplayName>Payload</DisplayName>
-        <Description>UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
-        <DataType><Basic>String</Basic></DataType>
+        <Description>SiLA Any for the request body. Void means none. Prefer a Structure matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>Any</Basic></DataType>
       </Element>
     </Structure>
   </DataType>
@@ -41,7 +41,7 @@ ENVELOPE_XML = """\
 <DataTypeDefinition>
   <Identifier>Envelope</Identifier>
   <DisplayName>Envelope</DisplayName>
-  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none.</Description>
+  <Description>Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none.</Description>
   <DataType>
     <Structure>
       <Element>
@@ -91,8 +91,8 @@ ENVELOPE_XML = """\
       <Element>
         <Identifier>Payload</Identifier>
         <DisplayName>Payload</DisplayName>
-        <Description>UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition.</Description>
-        <DataType><Basic>String</Basic></DataType>
+        <Description>SiLA Any for the result body. Void means none. Prefer a Structure matching the command DataTypeDefinition.</Description>
+        <DataType><Basic>Any</Basic></DataType>
       </Element>
       <Element>
         <Identifier>Details</Identifier>

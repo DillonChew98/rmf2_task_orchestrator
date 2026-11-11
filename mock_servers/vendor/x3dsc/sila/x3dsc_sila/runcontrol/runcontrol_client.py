@@ -12,7 +12,13 @@ if TYPE_CHECKING:
 
     from typing import Iterable, Optional
 
-    from runcontrol_types import ControlStart_IntermediateResponses, ControlStart_Responses, ControlStop_Responses
+    from runcontrol_types import (
+        ControlStart_IntermediateResponses,
+        ControlStart_Responses,
+        ControlStop_Responses,
+        RunExperiment_IntermediateResponses,
+        RunExperiment_Responses,
+    )
     from sila2.client import ClientMetadataInstance, ClientObservableCommandInstanceWithIntermediateResponses
 
     from .runcontrol_types import Request
@@ -20,7 +26,7 @@ if TYPE_CHECKING:
 
 class RunControlClient:
     """
-    TRIOS run control start/stop on the shared /api base.
+    TRIOS run control start/stop and full experiment runs on the shared /api base.
     """
 
     def ControlStop(
@@ -38,5 +44,15 @@ class RunControlClient:
     ]:
         """
         Start the experiment (POST /control/start). Request.Payload is ControlStartRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is ControlStartResult (terminal queue status).
+        """
+        ...
+
+    def RunExperiment(
+        self, Request: Request, *, metadata: Optional[Iterable[ClientMetadataInstance]] = None
+    ) -> ClientObservableCommandInstanceWithIntermediateResponses[
+        RunExperiment_IntermediateResponses, RunExperiment_Responses
+    ]:
+        """
+        Validate, queue, and start an experiment. Request.Payload is RunExperimentRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is RunExperimentResult (added experiment ids and terminal statuses). Completes when each added experiment id is Completed, Error, or Cancelled.
         """
         ...

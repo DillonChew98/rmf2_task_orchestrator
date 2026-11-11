@@ -14,6 +14,10 @@ from .runcontrol_types import (
     Envelope,
     QueueStatusProgress,
     Request,
+    RunExperiment_IntermediateResponses,
+    RunExperiment_Responses,
+    RunExperimentRequestPayload,
+    RunExperimentResult,
 )
 
 __all__ = [
@@ -23,12 +27,16 @@ __all__ = [
     "ControlStop_Responses",
     "ControlStart_Responses",
     "ControlStart_IntermediateResponses",
+    "RunExperiment_Responses",
+    "RunExperiment_IntermediateResponses",
     "InternalError",
     "Request",
     "Envelope",
     "ControlStartRequestPayload",
     "QueueStatusProgress",
     "ControlStartResult",
+    "RunExperimentRequestPayload",
+    "RunExperimentResult",
     "ControlStopRequestPayload",
     "ControlStopResult",
 ]

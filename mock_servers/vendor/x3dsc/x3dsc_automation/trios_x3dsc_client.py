@@ -47,8 +47,8 @@ class TriosX3dscClient(TriosHttpClient):
     # Instrument status
     # -------------------------------------------------------------------------
 
-    def get_instrument_status(self) -> JsonValue | None:
-        return self._request("GET", "/status")
+    def get_instrument_status(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/status", request_timeout=request_timeout)
 
     def wait_until_idle(self, timeout_seconds: int | None = None) -> JsonValue | None:
         return self._request(
@@ -200,8 +200,8 @@ class TriosX3dscClient(TriosHttpClient):
     # Autosampler
     # -------------------------------------------------------------------------
 
-    def get_autosampler_status(self) -> JsonValue | None:
-        return self._request("GET", "/autosampler/status")
+    def get_autosampler_status(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/autosampler/status", request_timeout=request_timeout)
 
     def get_autosampler_settings(self) -> JsonValue | None:
         return self._request("GET", "/autosampler/settings")
@@ -265,8 +265,8 @@ class TriosX3dscClient(TriosHttpClient):
     def verify_auth_token(self, request_body: JsonMapping) -> JsonValue | None:
         return self._request("POST", "/auth/verify-token", json_body=request_body, route="common")
 
-    def get_health(self) -> JsonValue | None:
-        return self._request("GET", "/health", route="common")
+    def get_health(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/health", route="common", request_timeout=request_timeout)
 
     def list_instances(self) -> JsonValue | None:
         return self._request("GET", "/instances", route="common")

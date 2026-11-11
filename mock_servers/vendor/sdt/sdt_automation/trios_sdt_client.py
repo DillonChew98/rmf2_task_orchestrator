@@ -45,8 +45,8 @@ class TriosSdtClient(TriosHttpClient):
 
     api_error_fallback = "TRIOS SDT API request failed"
 
-    def get_instrument_status(self) -> JsonValue | None:
-        return self._request("GET", "/status")
+    def get_instrument_status(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/status", request_timeout=request_timeout)
 
     def wait_until_idle(self, timeout_seconds: int | None = None) -> JsonValue | None:
         return self._request(
@@ -76,8 +76,8 @@ class TriosSdtClient(TriosHttpClient):
     def get_control_panel_signals(self) -> JsonValue | None:
         return self._request("GET", "/signals")
 
-    def get_furnace_status(self) -> JsonValue | None:
-        return self._request("GET", "/furnace/status")
+    def get_furnace_status(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/furnace/status", request_timeout=request_timeout)
 
     def open_furnace(self) -> JsonValue | None:
         return self._request("POST", "/furnace/open")
@@ -244,8 +244,8 @@ class TriosSdtClient(TriosHttpClient):
     def put_sample_mode(self, request_body: JsonMapping) -> JsonValue | None:
         return self._request("PUT", "/sample-mode", json_body=request_body)
 
-    def get_gas_status(self) -> JsonValue | None:
-        return self._request("GET", "/gas/status")
+    def get_gas_status(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/gas/status", request_timeout=request_timeout)
 
     def select_gas(self, request_body: JsonMapping) -> JsonValue | None:
         return self._request("POST", "/gas/select", json_body=request_body)
@@ -274,8 +274,8 @@ class TriosSdtClient(TriosHttpClient):
     def verify_auth_token(self, request_body: JsonMapping) -> JsonValue | None:
         return self._request("POST", "/auth/verify-token", json_body=request_body, route="common")
 
-    def get_health(self) -> JsonValue | None:
-        return self._request("GET", "/health", route="common")
+    def get_health(self, *, request_timeout: float | None = None) -> JsonValue | None:
+        return self._request("GET", "/health", route="common", request_timeout=request_timeout)
 
     def list_instances(self) -> JsonValue | None:
         return self._request("GET", "/instances", route="common")

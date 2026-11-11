@@ -19,6 +19,6 @@
     "center_y_um": 65000,
     "unload_x_um": 275000,
     "unload_y_um": 65000,
-    "default_transmission_xpm_path": "C:/Users/Public/Documents/Bruker/OPUS_9.3.1/OpusLab/Xpm/HTS-trans.XPM",
+    "default_transmission_xpm_path": "C:/Users/Public/Documents/Bruker/OPUS_9.2.4/OpusLab/Xpm/HTS-trans.XPM",
     "opus_methods_path": "C:/Users/Public/Documents/Bruker/OPUS_9.3.1/METHODS"
 }

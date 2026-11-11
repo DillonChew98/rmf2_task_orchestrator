@@ -1,7 +1,7 @@
 """Typed payload structures for X3 DSC command Request/Envelope.Payload.
 
 Each class subclasses ``sila_common.envelope.AnyPayload``. On the wire,
-Payload fields are UTF-8 JSON strings; these dataclasses are the in-memory
+Payload fields are SiLA Any; these dataclasses are the in-memory
 models. Matching ``DataTypeDefinition`` entries are generated in
 ``scripts/generate_sila_features.py``.
 
@@ -149,6 +149,23 @@ CONTROL_STOP_REQUEST_ELEMENTS: list[tuple[str, str, str, str]] = [
     ),
 ]
 
+RUN_EXPERIMENT_REQUEST_ELEMENTS: list[tuple[str, str, str, str]] = [
+    (
+        "QueueType",
+        "Queue type",
+        'empty or "running". "design" is rejected; control start runs the instrument queue.',
+        basic_dt("String"),
+    ),
+    (
+        "Body",
+        "Body",
+        "Opaque TRIOS newExperiments document. When --payload-json omits Body, remaining keys "
+        "(except QueueType, WaitForReady, ReadyTimeoutSeconds, and Force) are treated as the body.",
+        basic_dt("Any"),
+    ),
+    *CONTROL_START_REQUEST_ELEMENTS,
+]
+
 DELETE_REFERENCE_PAN_REQUEST_ELEMENTS: list[tuple[str, str, str, str]] = [
     (
         "PanNumber",
@@ -250,6 +267,17 @@ class ControlStartRequestPayload(AnyPayload):
 @dataclass(frozen=True, slots=True)
 class ControlStopRequestPayload(AnyPayload):
     _TYPE_XML: ClassVar[str] = structure_type_xml(CONTROL_STOP_REQUEST_ELEMENTS)
+    Force: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class RunExperimentRequestPayload(AnyPayload):
+    _TYPE_XML: ClassVar[str] = structure_type_xml(RUN_EXPERIMENT_REQUEST_ELEMENTS)
+    _ANY_FIELDS: ClassVar[frozenset[str]] = frozenset({"Body"})
+    QueueType: str = ""
+    Body: Any = None
+    WaitForReady: str = ""
+    ReadyTimeoutSeconds: int = 0
     Force: bool = False
 
 
@@ -360,6 +388,7 @@ GetInstrumentInfoJsonResult = RestBodyResult
 # RunControl
 ControlStartResult = RestBodyResult
 ControlStopResult = RestBodyResult
+RunExperimentResult = RestBodyResult
 
 # ResultsExport
 ExportResultsJsonRequestPayload = RestBodyRequestPayload

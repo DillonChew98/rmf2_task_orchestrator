@@ -23,6 +23,7 @@ from .sila import (
     queue_run_is_done,
     run_wait_with_envelope_stream,
     run_wait_with_status_stream,
+    SharedStatusFeed,
     start_status_property_poller,
     trios_error_envelope,
 )
@@ -48,6 +49,7 @@ __all__ = [
     "queue_run_is_done",
     "run_wait_with_envelope_stream",
     "run_wait_with_status_stream",
+    "SharedStatusFeed",
     "start_status_property_poller",
     "trios_error_envelope",
 ]

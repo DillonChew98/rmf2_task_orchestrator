@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Mapping
 from datetime import timedelta
 from queue import Queue
@@ -9,19 +10,32 @@ from typing import Any, Optional
 
 from sila2.server import MetadataDict, ObservableCommandInstanceWithIntermediateResponses
 
-from sila_common.envelope import AnyPayload, Code, Outcome, parse_envelope, parse_request, rejected
+from sila_common.envelope import (
+    AnyPayload,
+    Code,
+    Outcome,
+    failed,
+    parse_envelope,
+    parse_request,
+    rejected,
+    running,
+    succeeded,
+)
 from trios_common.sila import (
+    RUN_POLL_INTERVAL,
     envelope_call as _shared_envelope_call,
     map_trios,
     poll_autosampler_with_envelope,
     poll_experiment_with_envelope,
+    queue_run_is_active,
+    SharedStatusFeed,
     run_wait_with_envelope_stream,
-    start_status_property_poller as _shared_start_status_property_poller,
     trios_error_envelope,
 )
 
 from sila import payloads
 from x3dsc_automation import TriosX3dscClient, TriosX3dscClientError
+from x3dsc_automation.measurement_record import RecordError, record_export_response
 
 from .authentication.authentication_base import AuthenticationBase
 from .authentication.authentication_types import Login_Responses, RefreshAuthTokenJson_Responses, VerifyAuthTokenJson_Responses
@@ -82,7 +96,13 @@ from .referencepansmanagement.referencepansmanagement_types import (
 )
 
 from .runcontrol.runcontrol_base import RunControlBase
-from .runcontrol.runcontrol_types import ControlStart_IntermediateResponses, ControlStart_Responses, ControlStop_Responses
+from .runcontrol.runcontrol_types import (
+    ControlStart_IntermediateResponses,
+    ControlStart_Responses,
+    ControlStop_Responses,
+    RunExperiment_IntermediateResponses,
+    RunExperiment_Responses,
+)
 
 from .sensorcontrol.sensorcontrol_base import SensorControlBase
 from .sensorcontrol.sensorcontrol_types import SetSensors_Responses
@@ -164,19 +184,7 @@ def _envelope_call(
     )
 
 
-def _start_status_property_poller(
-    fetch_json: Callable[[], str],
-    queue: Queue[str],
-    err_cls: type[Any],
-) -> None:
-    """Daemon thread that polls REST and pushes JSON into a subscription queue."""
-    _shared_start_status_property_poller(
-        fetch_json,
-        queue,
-        err_cls,
-        client_error_cls=TriosX3dscClientError,
-        thread_name="x3dsc-status-poller",
-    )
+_STATUS_SUBSCRIBE_POLL_INTERVAL_SECONDS = 2.0
 
 
 def _payload_mapping(payload: Any) -> dict[str, Any]:
@@ -235,6 +243,119 @@ def _apply_lifetime(instance: Any, timeout_seconds: int | None) -> None:
         instance.lifetime_of_execution = timedelta(seconds=timeout_seconds)
 
 
+_TERMINAL_EXPERIMENT_STATUSES = frozenset({"Completed", "Error", "Cancelled"})
+_RUN_EXPERIMENT_RESERVED = ("QueueType", "WaitForReady", "ReadyTimeoutSeconds", "Force")
+_EXPERIMENT_NOT_COMPLETED = "trios.experiment.not_completed"
+_EXPERIMENT_NOT_QUEUED = "trios.experiment.not_queued"
+
+
+def _trios_data(result: Any) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        return {}
+    data = result.get("data", result)
+    return data if isinstance(data, dict) else {}
+
+
+def _experiment_document_is_valid(result: Any) -> bool:
+    return _trios_data(result).get("valid") is True
+
+
+def _added_experiment_ids(result: Any) -> list[str]:
+    raw = _trios_data(result).get("addedExperimentIds")
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, str) and item]
+
+
+def _experiment_status(detail: Any) -> str | None:
+    status = _trios_data(detail).get("status")
+    return status if isinstance(status, str) else None
+
+
+def _queue_experiment_rows(result: Any) -> list[dict[str, Any]]:
+    raw = _trios_data(result).get("experiments")
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, dict)]
+
+
+def _rows_for_added_ids(
+    rows: list[dict[str, Any]], experiment_ids: list[str]
+) -> list[dict[str, Any]] | None:
+    """Return list rows in added-id order, or None when an id is missing."""
+    by_id: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        experiment_id = row.get("experimentId")
+        if isinstance(experiment_id, str):
+            by_id[experiment_id] = row
+    matched: list[dict[str, Any]] = []
+    for experiment_id in experiment_ids:
+        row = by_id.get(experiment_id)
+        if row is None:
+            return None
+        matched.append(row)
+    return matched
+
+
+def _run_experiment_body(
+    experiment_ids: list[str],
+    experiments: list[Any],
+    queue_status: Any,
+) -> dict[str, Any]:
+    return {
+        "addedExperimentIds": experiment_ids,
+        "experiments": experiments,
+        "queueStatus": queue_status,
+    }
+
+
+def _send_run_progress(
+    instance: Any,
+    *,
+    phase: str,
+    experiment_ids: list[str],
+    queue_status: Any,
+    experiments: list[Any],
+    correlation_id: str,
+) -> None:
+    instance.send_intermediate_response(
+        RunExperiment_IntermediateResponses(
+            Update=running(
+                payload=payloads.QueueStatusProgress(
+                    Body={
+                        "phase": phase,
+                        "addedExperimentIds": experiment_ids,
+                        "queueStatus": queue_status,
+                        "experiments": experiments,
+                    }
+                ),
+                correlation_id=correlation_id,
+            )
+        )
+    )
+
+
+def _envelope_with_run_body(envelope: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
+    """Keep a TRIOS error outcome and attach the run snapshot as Result.Payload."""
+    env = parse_envelope(envelope)
+    payload = payloads.RestBodyResult(Body=body)
+    if env.outcome == Outcome.REJECTED:
+        return rejected(
+            code=env.code,
+            message=env.message,
+            payload=payload,
+            details=env.details,
+            correlation_id=env.correlation_id,
+        )
+    return failed(
+        code=env.code or Code.trios_http(None),
+        message=env.message,
+        payload=payload,
+        details=env.details,
+        correlation_id=env.correlation_id,
+    )
+
+
 # ---------------------------------------------------------------------------
 # InstrumentStatus
 # ---------------------------------------------------------------------------
@@ -244,6 +365,13 @@ class InstrumentStatusImpl(InstrumentStatusBase):
     def __init__(self, parent_server: Any, client: TriosX3dscClient) -> None:
         super().__init__(parent_server)
         self._c = client
+        self._status_feed = SharedStatusFeed(
+            self._fetch_instrument_status_json,
+            instrumentstatus_errors_module.InternalError,
+            client_error_cls=TriosX3dscClientError,
+            thread_name="x3dsc-instrument-status",
+            interval_s=_STATUS_SUBSCRIBE_POLL_INTERVAL_SECONDS,
+        )
 
     def _fetch_instrument_status_json(self) -> str:
         return dumps_json(self._c.get_instrument_status())
@@ -256,13 +384,7 @@ class InstrumentStatusImpl(InstrumentStatusBase):
             raise map_trios(instrumentstatus_errors_module.InternalError, e) from e
 
     def CurrentInstrumentStatus_on_subscription(self, *, metadata: MetadataDict) -> Optional[Queue[str]]:
-        queue: Queue[str] = Queue()
-        _start_status_property_poller(
-            self._fetch_instrument_status_json,
-            queue,
-            instrumentstatus_errors_module.InternalError,
-        )
-        return queue
+        return self._status_feed.subscribe()
 
     def _run_wait(
         self,
@@ -570,6 +692,13 @@ class AutosamplerControlImpl(AutosamplerControlBase):
     def __init__(self, parent_server: Any, client: TriosX3dscClient) -> None:
         super().__init__(parent_server)
         self._c = client
+        self._status_feed = SharedStatusFeed(
+            self._fetch_autosampler_status_json,
+            autosamplercontrol_errors_module.InternalError,
+            client_error_cls=TriosX3dscClientError,
+            thread_name="x3dsc-autosampler-status",
+            interval_s=_STATUS_SUBSCRIBE_POLL_INTERVAL_SECONDS,
+        )
 
     def _fetch_autosampler_status_json(self) -> str:
         return dumps_json(self._c.get_autosampler_status())
@@ -582,13 +711,7 @@ class AutosamplerControlImpl(AutosamplerControlBase):
             raise map_trios(autosamplercontrol_errors_module.InternalError, e) from e
 
     def CurrentAutosamplerStatus_on_subscription(self, *, metadata: MetadataDict) -> Optional[Queue[str]]:
-        queue: Queue[str] = Queue()
-        _start_status_property_poller(
-            self._fetch_autosampler_status_json,
-            queue,
-            autosamplercontrol_errors_module.InternalError,
-        )
-        return queue
+        return self._status_feed.subscribe()
 
     def _run_motion(
         self,
@@ -964,6 +1087,218 @@ class RunControlImpl(RunControlBase):
             correlation_id=req.correlation_id,
         )
 
+    def RunExperiment(
+        self,
+        Request: Any,
+        *,
+        metadata: MetadataDict,
+        instance: ObservableCommandInstanceWithIntermediateResponses[RunExperiment_IntermediateResponses],
+    ) -> Any:
+        req = parse_request(Request)
+        if req.timeout_seconds is not None and req.timeout_seconds < 0:
+            return RunExperiment_Responses(
+                Result=_rejected_payload(
+                    "TimeoutSeconds must be zero or a positive integer.",
+                    correlation_id=req.correlation_id,
+                )
+            )
+        _apply_lifetime(instance, req.timeout_seconds)
+        try:
+            payload = _payload_mapping(req.payload)
+            queue_type_raw = str(payload.get("QueueType", "") or "").strip()
+            if queue_type_raw.lower() == "running":
+                queue_type_raw = "running"
+            elif queue_type_raw:
+                return RunExperiment_Responses(
+                    Result=_rejected_payload(
+                        'RunExperiment QueueType must be empty or "running".',
+                        correlation_id=req.correlation_id,
+                    )
+                )
+            wait_for_ready = bool_opt(str(payload.get("WaitForReady", "") or ""))
+            ready_timeout = payload.get("ReadyTimeoutSeconds", 0)
+            ready_timeout_seconds = None if not ready_timeout else int(ready_timeout)
+            force = bool(payload.get("Force", False))
+            body = _rest_body(payload, *_RUN_EXPERIMENT_RESERVED)
+            new_experiments = body.get("newExperiments")
+            if not isinstance(new_experiments, list) or not new_experiments:
+                return RunExperiment_Responses(
+                    Result=_rejected_payload(
+                        "Request.Payload must include a non-empty newExperiments array.",
+                        correlation_id=req.correlation_id,
+                    )
+                )
+        except (TypeError, ValueError) as exc:
+            return RunExperiment_Responses(
+                Result=_rejected_payload(str(exc), correlation_id=req.correlation_id)
+            )
+
+        queue_type = queue_type_opt(queue_type_raw)
+        _send_run_progress(
+            instance,
+            phase="validating",
+            experiment_ids=[],
+            queue_status=None,
+            experiments=[],
+            correlation_id=req.correlation_id,
+        )
+        validation_env = _shared_envelope_call(
+            lambda: self._c.validate_experiment(body, queue_type=queue_type),
+            correlation_id=req.correlation_id,
+            client_error_cls=TriosX3dscClientError,
+        )
+        if parse_envelope(validation_env).outcome != Outcome.SUCCEEDED:
+            return RunExperiment_Responses(Result=validation_env)
+        validation = parse_envelope(validation_env).payload
+        if not _experiment_document_is_valid(validation):
+            return RunExperiment_Responses(
+                Result=rejected(
+                    code=Code.REQUEST_INVALID_PAYLOAD,
+                    message="Experiment JSON failed TRIOS validation.",
+                    payload=payloads.RestBodyResult(Body=validation),
+                    correlation_id=req.correlation_id,
+                )
+            )
+
+        add_env = _shared_envelope_call(
+            lambda: self._c.add_new_experiments_to_queue(body, queue_type=queue_type),
+            correlation_id=req.correlation_id,
+            client_error_cls=TriosX3dscClientError,
+        )
+        if parse_envelope(add_env).outcome != Outcome.SUCCEEDED:
+            return RunExperiment_Responses(Result=add_env)
+        experiment_ids = _added_experiment_ids(parse_envelope(add_env).payload)
+        if not experiment_ids:
+            return RunExperiment_Responses(
+                Result=failed(
+                    code=_EXPERIMENT_NOT_QUEUED,
+                    message="TRIOS did not return added experiment ids.",
+                    payload=payloads.RestBodyResult(Body=_run_experiment_body([], [], None)),
+                    correlation_id=req.correlation_id,
+                )
+            )
+        _send_run_progress(
+            instance,
+            phase="queued",
+            experiment_ids=experiment_ids,
+            queue_status=None,
+            experiments=[],
+            correlation_id=req.correlation_id,
+        )
+
+        try:
+            queue_status = self._c.get_queue_status(queue_type=queue_type)
+        except TriosX3dscClientError as exc:
+            return RunExperiment_Responses(
+                Result=_envelope_with_run_body(
+                    trios_error_envelope(exc, correlation_id=req.correlation_id),
+                    _run_experiment_body(experiment_ids, [], None),
+                )
+            )
+
+        if not queue_run_is_active(queue_status):
+            _send_run_progress(
+                instance,
+                phase="starting",
+                experiment_ids=experiment_ids,
+                queue_status=queue_status,
+                experiments=[],
+                correlation_id=req.correlation_id,
+            )
+            start_env = _shared_envelope_call(
+                lambda: self._c.control_start(
+                    wait_for_ready=wait_for_ready,
+                    timeout_seconds=ready_timeout_seconds,
+                    force=force,
+                ),
+                correlation_id=req.correlation_id,
+                client_error_cls=TriosX3dscClientError,
+            )
+            if parse_envelope(start_env).outcome != Outcome.SUCCEEDED:
+                return RunExperiment_Responses(
+                    Result=_envelope_with_run_body(
+                        start_env,
+                        _run_experiment_body(experiment_ids, [], queue_status),
+                    )
+                )
+
+        return RunExperiment_Responses(
+            Result=self._poll_added_experiments(
+                experiment_ids,
+                instance,
+                queue_type=queue_type,
+                correlation_id=req.correlation_id,
+            )
+        )
+
+    def _poll_added_experiments(
+        self,
+        experiment_ids: list[str],
+        instance: Any,
+        *,
+        queue_type: str | None,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        """Stream the queue list until every added experiment id is terminal.
+
+        Each tick is one ``GET /queue/experiments`` plus one ``GET /queue/status``.
+        Full experiment details are fetched once, after every added id is terminal.
+        """
+        queue_status: Any = None
+        experiments: list[Any] = []
+        try:
+            while True:
+                time.sleep(RUN_POLL_INTERVAL)
+                listed = self._c.list_queue_experiments(queue_type=queue_type)
+                queue_status = self._c.get_queue_status(queue_type=queue_type)
+                rows = _rows_for_added_ids(_queue_experiment_rows(listed), experiment_ids)
+                if rows is None:
+                    return failed(
+                        code=_EXPERIMENT_NOT_QUEUED,
+                        message="Queued experiment id was not found in the running queue.",
+                        payload=payloads.RestBodyResult(
+                            Body=_run_experiment_body(experiment_ids, [], queue_status)
+                        ),
+                        correlation_id=correlation_id,
+                    )
+                _send_run_progress(
+                    instance,
+                    phase="running",
+                    experiment_ids=experiment_ids,
+                    queue_status=queue_status,
+                    experiments=rows,
+                    correlation_id=correlation_id,
+                )
+                statuses = [_experiment_status(item) for item in rows]
+                if all(status in _TERMINAL_EXPERIMENT_STATUSES for status in statuses):
+                    experiments = [
+                        self._c.get_experiment_details(experiment_id)
+                        for experiment_id in experiment_ids
+                    ]
+                    queue_status = self._c.get_queue_status(queue_type=queue_type)
+                    break
+        except TriosX3dscClientError as exc:
+            return _envelope_with_run_body(
+                trios_error_envelope(exc, correlation_id=correlation_id),
+                _run_experiment_body(experiment_ids, experiments, queue_status),
+            )
+
+        body = _run_experiment_body(experiment_ids, experiments, queue_status)
+        wrapped = payloads.RestBodyResult(Body=body)
+        if all(_experiment_status(item) == "Completed" for item in experiments):
+            return succeeded(payload=wrapped, correlation_id=correlation_id)
+        unfinished = [
+            f"{experiment_id}={_experiment_status(detail)}"
+            for experiment_id, detail in zip(experiment_ids, experiments, strict=True)
+            if _experiment_status(detail) != "Completed"
+        ]
+        return failed(
+            code=_EXPERIMENT_NOT_COMPLETED,
+            message="Experiment did not complete: " + ", ".join(unfinished),
+            payload=wrapped,
+            correlation_id=correlation_id,
+        )
+
 
 class ResultsExportImpl(ResultsExportBase):
 
@@ -1000,16 +1335,15 @@ class ResultsExportImpl(ResultsExportBase):
             correlation_id=req.correlation_id,
         )
         try:
-            from trios_common.harvest import maybe_harvest_export_job
-
-            maybe_harvest_export_job(
+            record_export_response(
                 resp,
-                run_id=job_id,
-                instrument_id=getattr(self._c, "instrument_id", "") or "",
-                instrument_kind="x3dsc",
+                request_payload=_payload_mapping(req.payload),
+                job_id=job_id,
             )
-        except Exception:
-            pass
+        except RecordError as exc:
+            return GetExportJsonJob_Responses(
+                Result=_rejected_payload(str(exc), correlation_id=req.correlation_id)
+            )
         return resp
 
 

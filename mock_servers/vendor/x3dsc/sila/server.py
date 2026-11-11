@@ -2,20 +2,27 @@
 TRIOS X3 DSC SiLA 2 server exposing org.tainstruments/xdsc/* features over gRPC.
 
 CLI entry point: ``python -m sila.server`` or installed script ``x3dsc-sila-server``.
+
+Lab settings (OTLP, database, NAS, bind, and TRIOS API) load from ``x3dsc/.env``
+when present; see ``.env.example``.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 from argparse import ArgumentParser, Namespace
 
 from sila2.server import SilaServer
 
 from sila_common.server import add_tls_args, install_shutdown_signals, run_until_stopped, start_sila_server
+from sila_common.status_http import ReachabilityCache, StatusHttpServer, add_status_args
 
 from x3dsc_automation import TriosX3dscClient
+from x3dsc_automation.envfile import load_dotenv
 
+from .health import X3dscHealthPoller
 from .tls_config import DEFAULT_CERT_CHAIN, DEFAULT_PRIVATE_KEY
 
 from .x3dsc_sila.authentication.authentication_feature import AuthenticationFeature
@@ -48,10 +55,33 @@ from .x3dsc_sila.trios_impl import (
 logger = logging.getLogger("x3dsc.sila")
 
 
+def _env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip() or default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 def _build_arg_parser() -> ArgumentParser:
     p = argparse.ArgumentParser(description="SiLA 2 server bridging to TriosX3dscClient REST API")
-    p.add_argument("--host", default="0.0.0.0", help="Bind address (default 0.0.0.0)")
-    p.add_argument("--port", type=int, default=50053, help="gRPC port (default 50053)")
+    p.add_argument(
+        "--host",
+        default=_env("X3DSC_SILA_HOST", "0.0.0.0"),
+        help="Bind address (default X3DSC_SILA_HOST or 0.0.0.0)",
+    )
+    p.add_argument(
+        "--port",
+        type=int,
+        default=_env_int("X3DSC_SILA_PORT", 50053),
+        help="gRPC port (default X3DSC_SILA_PORT or 50053)",
+    )
     p.add_argument(
         "--insecure",
         action="store_true",
@@ -64,19 +94,20 @@ def _build_arg_parser() -> ArgumentParser:
     )
     p.add_argument(
         "--api-base-url",
-        required=True,
-        help="TRIOS API base, e.g. http://localhost:8080/ (see TriosX3dscClient).",
+        default=_env("X3DSC_API_BASE_URL", "http://localhost:8080/"),
+        help="TRIOS API base (default X3DSC_API_BASE_URL or http://localhost:8080/).",
     )
     p.add_argument(
         "--instrument-id",
-        required=True,
-        help="Instrument id for /api/v1/instruments/{id}/...",
+        default=_env("X3DSC_INSTRUMENT_ID") or None,
+        help="TRIOS id for /api/v1/instruments/{id}/... (default X3DSC_INSTRUMENT_ID).",
     )
     p.add_argument("--bearer-token", default=None, help="Optional initial Bearer token for secured routes.")
     add_tls_args(p, default_private_key=DEFAULT_PRIVATE_KEY, default_cert_chain=DEFAULT_CERT_CHAIN)
+    add_status_args(p, port_env="X3DSC_STATUS_PORT")
     p.add_argument(
         "--otel-endpoint",
-        default=None,
+        default=_env("OTEL_EXPORTER_OTLP_ENDPOINT") or None,
         metavar="HOST:PORT",
         help="OTLP gRPC endpoint (default: OTEL_EXPORTER_OTLP_ENDPOINT or disabled).",
     )
@@ -87,8 +118,8 @@ def _build_arg_parser() -> ArgumentParser:
     )
     p.add_argument(
         "--lab-instrument-id",
-        default=None,
-        help="lab.instrument.id resource attribute (default: --instrument-id or LAB_INSTRUMENT_ID).",
+        default=_env("LAB_INSTRUMENT_ID") or None,
+        help="lab.instrument.id resource attribute (default: LAB_INSTRUMENT_ID or x3dsc-01).",
     )
     p.add_argument(
         "--otel-grpc-interceptor",
@@ -191,7 +222,7 @@ def _setup_otel(args: Namespace, server_uuid: str = "") -> None:
     except ImportError:
         logger.info("lab-observability not installed; telemetry disabled")
         return
-    lab_id = args.lab_instrument_id or args.instrument_id or "x3dsc-01"
+    lab_id = args.lab_instrument_id or "x3dsc-01"
     cfg = load_config(
         service_name="x3dsc-sila-server",
         service_version="0.1.0",
@@ -206,11 +237,28 @@ def _setup_otel(args: Namespace, server_uuid: str = "") -> None:
     setup_observability(cfg)
 
 
-def run_server_forever(server: SilaServer, args: Namespace) -> None:
+def run_server_forever(server: SilaServer, client: TriosX3dscClient, args: Namespace) -> None:
     start_sila_server(server, args, log=logger)
     install_shutdown_signals(server, log=logger)
+    cache = ReachabilityCache()
+    poller = X3dscHealthPoller(
+        client,
+        cache,
+        interval_s=args.status_poll_interval,
+        timeout_s=args.status_probe_timeout,
+    )
+    status_http = StatusHttpServer(cache, args.host, args.status_port)
+    try:
+        status_http.start()
+    except OSError:
+        if server.running:
+            server.stop(grace_period=0)
+        raise
+    poller.start()
 
     def _on_shutdown() -> None:
+        status_http.stop()
+        poller.stop()
         if server.running:
             server.stop(grace_period=5.0)
         try:
@@ -224,11 +272,17 @@ def run_server_forever(server: SilaServer, args: Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = _build_arg_parser().parse_args(argv)
+    loaded = load_dotenv()
+    parser = _build_arg_parser()
+    args = parser.parse_args(argv)
+    if not (args.instrument_id or "").strip():
+        parser.error("TRIOS instrument id is required (X3DSC_INSTRUMENT_ID in .env or --instrument-id)")
     logging.basicConfig(level=logging.INFO)
-    server, _ = build_server_and_client(args)
+    if loaded is not None:
+        logger.info("Loaded environment from %s", loaded)
+    server, client = build_server_and_client(args)
     _setup_otel(args, server_uuid=str(server.server_uuid))
-    run_server_forever(server, args)
+    run_server_forever(server, client, args)
 
 
 if __name__ == "__main__":

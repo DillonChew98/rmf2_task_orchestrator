@@ -20,7 +20,23 @@ class ControlStart_Responses(NamedTuple):
     """
 
 
+class RunExperiment_Responses(NamedTuple):
+
+    Result: Envelope
+    """
+    Standard command envelope.
+    """
+
+
 class ControlStart_IntermediateResponses(NamedTuple):
+
+    Update: Envelope
+    """
+    Intermediate envelope with Outcome Running.
+    """
+
+
+class RunExperiment_IntermediateResponses(NamedTuple):
 
     Update: Envelope
     """
@@ -37,6 +53,10 @@ ControlStartRequestPayload = Any
 QueueStatusProgress = Any
 
 ControlStartResult = Any
+
+RunExperimentRequestPayload = Any
+
+RunExperimentResult = Any
 
 ControlStopRequestPayload = Any
 
