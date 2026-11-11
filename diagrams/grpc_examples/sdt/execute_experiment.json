@@ -24,7 +24,8 @@
                 "value": 0
               },
               "Payload": {
-                "value": "{\"WaitForReady\":\"true\",\"Force\":false}"
+                "WaitForReady": "true",
+                "Force": false
               }
             }
           }

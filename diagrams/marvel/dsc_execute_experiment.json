@@ -34,7 +34,9 @@
                         "value": 0
                       },
                       "Payload": {
-                        "value": "{\"WaitForReady\": \"true\", \"ReadyTimeoutSeconds\": 0, \"Force\": false}"
+                        "WaitForReady": "true",
+                        "ReadyTimeoutSeconds": 0,
+                        "Force": false
                       }
                     }
                   }

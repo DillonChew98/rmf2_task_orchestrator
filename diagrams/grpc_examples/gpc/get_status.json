@@ -24,9 +24,7 @@
               "TimeoutSeconds": {
                 "value": 0
               },
-              "Payload": {
-                "value": ""
-              }
+              "Payload": null
             }
           }
         }
@@ -59,7 +57,7 @@
     },
     "report_succeeded": {
       "type": "transform",
-      "cel": "{'result': 'succeeded', 'status': request.Result.Envelope.Payload.value}",
+      "cel": "{'result': 'succeeded', 'status': request.Result.Envelope.Payload}",
       "next": {
         "builtin": "terminate"
       },

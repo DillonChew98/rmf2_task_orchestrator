@@ -34,9 +34,7 @@
                       "TimeoutSeconds": {
                         "value": 0
                       },
-                      "Payload": {
-                        "value": ""
-                      }
+                      "Payload": null
                     }
                   }
                 }
@@ -88,9 +86,7 @@
                       "TimeoutSeconds": {
                         "value": 0
                       },
-                      "Payload": {
-                        "value": ""
-                      }
+                      "Payload": null
                     }
                   }
                 }
@@ -112,7 +108,7 @@
               "builder": "cel_condition",
               "display_text": "Is Start off?",
               "config": {
-                "condition": "Result.Envelope.Outcome.value == 'Succeeded' && Result.Envelope.Payload.value.contains('\"IsOn\":false')"
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded' && Result.Envelope.Payload.IsOn == false"
               },
               "next": "if_button_off"
             },
@@ -142,9 +138,7 @@
                       "TimeoutSeconds": {
                         "value": 0
                       },
-                      "Payload": {
-                        "value": ""
-                      }
+                      "Payload": null
                     }
                   }
                 }
@@ -166,7 +160,7 @@
               "builder": "cel_condition",
               "display_text": "Did the run start?",
               "config": {
-                "condition": "Result.Envelope.Outcome.value == 'Succeeded' && Result.Envelope.Payload.value.contains('\"is_on\":true')"
+                "condition": "Result.Envelope.Outcome.value == 'Succeeded' && Result.Envelope.Payload.is_on == true"
               },
               "next": "if_started"
             },
@@ -211,9 +205,7 @@
                       "TimeoutSeconds": {
                         "value": 0
                       },
-                      "Payload": {
-                        "value": ""
-                      }
+                      "Payload": null
                     }
                   }
                 }
@@ -249,7 +241,7 @@
               "builder": "cel_condition",
               "display_text": "Is the run done?",
               "config": {
-                "condition": "Result.Envelope.Payload.value.contains('\"IsOn\":false')"
+                "condition": "Result.Envelope.Payload.IsOn == false"
               },
               "next": "if_run_done"
             },
@@ -279,9 +271,7 @@
                       "TimeoutSeconds": {
                         "value": 0
                       },
-                      "Payload": {
-                        "value": ""
-                      }
+                      "Payload": null
                     }
                   }
                 }

@@ -25,7 +25,81 @@
                 "value": 0
               },
               "Payload": {
-                "value": "{\"QueueType\": \"running\", \"Body\": {\"newExperiments\": [{\"sampleInfo\": {\"sampleNameA\": \"nameA\", \"sampleNameB\": \"nameB\", \"sampleNameC\": \"nameC\", \"samplePanA\": {\"trayPosition\": 12, \"sampleMass\": 5, \"panMass\": 42.7, \"panType\": \"TzeroAlum\"}, \"samplePanB\": {\"trayPosition\": 13, \"sampleMass\": 4.8, \"panMass\": 43.5, \"panType\": \"TzeroAlum\"}, \"samplePanC\": {\"trayPosition\": 14, \"sampleMass\": 5.1, \"panMass\": 43.7, \"panType\": \"TzeroAlum\"}, \"useSensorA\": true, \"useSensorB\": true, \"useSensorC\": true, \"referencePan\": {\"trayPosition\": 15, \"panType\": \"None\", \"referenceMass\": 54, \"panMass\": 0}, \"operator\": \"robot\", \"project\": \"marvel\", \"notes\": \"demo robot only\"}, \"filePaths\": {\"fileDirectory\": \"C:\\\\Users\\\\User\\\\Desktop\\\\experiment_output\", \"tokens\": \"DSC-<SAMPLENAME>\"}, \"procedure\": {\"procedureName\": \"demo experiment\", \"testType\": \"StandardCustom\", \"segments\": [{\"type\": \"Data\", \"dataOn\": true}, {\"type\": \"Equilibrate\", \"temperatureC\": -60}, {\"type\": \"Isothermal\", \"isothermTimeMin\": 5, \"temperatureC\": 0}, {\"type\": \"Ramp\", \"rampRateDegCPerMin\": 10, \"finalTemperatureC\": 190}, {\"type\": \"Isothermal\", \"isothermTimeMin\": 5, \"temperatureC\": 0}]}}]}}"
+                "QueueType": "running",
+                "Body": {
+                  "newExperiments": [
+                    {
+                      "sampleInfo": {
+                        "sampleNameA": "nameA",
+                        "sampleNameB": "nameB",
+                        "sampleNameC": "nameC",
+                        "samplePanA": {
+                          "trayPosition": 12,
+                          "sampleMass": 5,
+                          "panMass": 42.7,
+                          "panType": "TzeroAlum"
+                        },
+                        "samplePanB": {
+                          "trayPosition": 13,
+                          "sampleMass": 4.8,
+                          "panMass": 43.5,
+                          "panType": "TzeroAlum"
+                        },
+                        "samplePanC": {
+                          "trayPosition": 14,
+                          "sampleMass": 5.1,
+                          "panMass": 43.7,
+                          "panType": "TzeroAlum"
+                        },
+                        "useSensorA": true,
+                        "useSensorB": true,
+                        "useSensorC": true,
+                        "referencePan": {
+                          "trayPosition": 15,
+                          "panType": "None",
+                          "referenceMass": 54,
+                          "panMass": 0
+                        },
+                        "operator": "robot",
+                        "project": "marvel",
+                        "notes": "demo robot only"
+                      },
+                      "filePaths": {
+                        "fileDirectory": "C:\\Users\\User\\Desktop\\experiment_output",
+                        "tokens": "DSC-<SAMPLENAME>"
+                      },
+                      "procedure": {
+                        "procedureName": "demo experiment",
+                        "testType": "StandardCustom",
+                        "segments": [
+                          {
+                            "type": "Data",
+                            "dataOn": true
+                          },
+                          {
+                            "type": "Equilibrate",
+                            "temperatureC": -60
+                          },
+                          {
+                            "type": "Isothermal",
+                            "isothermTimeMin": 5,
+                            "temperatureC": 0
+                          },
+                          {
+                            "type": "Ramp",
+                            "rampRateDegCPerMin": 10,
+                            "finalTemperatureC": 190
+                          },
+                          {
+                            "type": "Isothermal",
+                            "isothermTimeMin": 5,
+                            "temperatureC": 0
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
               }
             }
           }

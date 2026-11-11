@@ -46,18 +46,18 @@ service MeasurementService {
   rpc Get_LastAsmMissingRequiredJson (sila2.com.bruker.ftir.measurementservice.v3.Get_LastAsmMissingRequiredJson_Parameters) returns (sila2.com.bruker.ftir.measurementservice.v3.Get_LastAsmMissingRequiredJson_Responses) {}
 }
 
-/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
 message DataType_Request {
   message Request_Struct {
     sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
     sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
     sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
-    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.Any Payload = 4;  /* SiLA Any for the request body. Void means none. Prefer a Structure matching the command DataTypeDefinition. */
   }
   sila2.com.bruker.ftir.measurementservice.v3.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
 }
 
-/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none. */
 message DataType_Envelope {
   message Envelope_Struct {
     sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
@@ -65,10 +65,10 @@ message DataType_Envelope {
     sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
     sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
     sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
-    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.Any Payload = 6;  /* SiLA Any for the result body. Void means none. Prefer a Structure matching the command DataTypeDefinition. */
     sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
   }
-  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Details is Void when unused. */
+  sila2.com.bruker.ftir.measurementservice.v3.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none. */
 }
 
 /* One spectral intensity channel (SiLA forbids nested List of Real). */
@@ -129,17 +129,17 @@ message DataType_MeasureBackgroundResult {
 /* MeasureSample Request.Payload. */
 message DataType_MeasureSampleRequestPayload {
   message MeasureSampleRequestPayload_Struct {
-    sila2.org.silastandard.Real Resolution = 1;  /* Spectral resolution cm-1 (OPUS RES); 0 means default. */
-    sila2.org.silastandard.Integer SampleScans = 2;  /* Number of sample scans (OPUS NSS); 0 means default. */
-    sila2.org.silastandard.Integer BackgroundScans = 3;  /* Number of background scans (OPUS NSR); 0 means default. */
-    sila2.org.silastandard.Real OpticalVelocity = 4;  /* OPUS VEL in kHz; 0 means omit. */
-    sila2.org.silastandard.String Aperture = 5;  /* OPUS APT (e.g. "6 mm"); empty means omit. */
-    sila2.org.silastandard.Real DetectorGain = 6;  /* OPUS SGN; 0 means omit. */
-    sila2.org.silastandard.String OutputPath = 7;  /* Absolute OPUS intermediate output path on the instrument PC. */
-    sila2.org.silastandard.String ExperimentFile = 8;  /* Absolute .XPM path; empty means omit. When set, RES/NSS/NSR of 0 are omitted. */
+    sila2.org.silastandard.Real Resolution = 1;  /* Spectral resolution cm-1 (OPUS RES). Default 0; with ExperimentFile, 0 omits RES. */
+    sila2.org.silastandard.Integer SampleScans = 2;  /* Number of sample scans (OPUS NSS). Default 0; with ExperimentFile, 0 omits NSS. */
+    sila2.org.silastandard.Integer BackgroundScans = 3;  /* Number of background scans (OPUS NSR). Default 0; with ExperimentFile, 0 omits NSR. */
+    sila2.org.silastandard.Real OpticalVelocity = 4;  /* OPUS VEL in kHz. Default 0; 0 means omit. */
+    sila2.org.silastandard.String Aperture = 5;  /* OPUS APT (e.g. "6 mm"). Default empty; empty means omit. */
+    sila2.org.silastandard.Real DetectorGain = 6;  /* OPUS SGN. Default 0; 0 means omit. */
+    sila2.org.silastandard.String OutputPath = 7;  /* Optional OPUS file path. Default empty; empty uses FTIR_OUTPUT_DIR (OPUS names the file). */
+    sila2.org.silastandard.String ExperimentFile = 8;  /* Absolute .XPM path (for example C:\Users\Public\Documents\Bruker\OPUS_9.2.4\OpusLab\Xpm\HTS-trans.XPM). Default empty; sets EXP/XPP. PTH is FTIR_OUTPUT_DIR when set. When set, RES/NSS/NSR of 0 are omitted. */
     sila2.org.silastandard.String Well = 9;  /* Optional HTS-XT well label (e.g. B3). Empty means measure at current stage position. */
     sila2.org.silastandard.Any ExtraParameters = 10;  /* Additional OPUS 3-letter codes. Void or empty object means none. */
-    sila2.org.silastandard.Boolean IncludeData = 11;  /* True to include full arrays in Result.Payload.Spectra. */
+    sila2.org.silastandard.Boolean IncludeData = 11;  /* Default false. True to include full arrays in Result.Payload.Spectra. */
     sila2.org.silastandard.Boolean ExportAsm = 12;  /* True to write an Allotrope FTIR ASM JSON beside the OPUS file (default true). */
     sila2.org.silastandard.String AsmOutputPath = 13;  /* Explicit ASM JSON path; empty derives {opus_stem}.asm.json beside the OPUS file. */
     sila2.org.silastandard.String SampleName = 14;  /* OPUS SNM and ASM sample identifier. */

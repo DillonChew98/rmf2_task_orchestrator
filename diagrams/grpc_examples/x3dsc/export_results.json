@@ -24,7 +24,8 @@
                 "value": 0
               },
               "Payload": {
-                "value": "{\"path\": \"C:/Users/User/Desktop/experiment_output\", \"async\": false}"
+                "path": "C:/Users/User/Desktop/experiment_output",
+                "async": false
               }
             }
           }

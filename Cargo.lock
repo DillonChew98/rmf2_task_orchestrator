@@ -1289,11 +1289,12 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 [[package]]
 name = "crossflow"
 version = "0.0.7"
-source = "git+https://github.com/junwei582/crossflow?branch=feat%2Fgrpc-tls#11ba5c462ffe5bde6ad0e1217dd919073a521565"
+source = "git+https://github.com/junwei582/crossflow?branch=feat%2Fgrpc-tls#f5d85e6f67db943328d65339daa36cf47531d202"
 dependencies = [
  "anyhow",
  "async-std",
  "backtrace",
+ "base64 0.22.1",
  "bevy_app",
  "bevy_derive",
  "bevy_diagnostic",
@@ -1311,6 +1312,7 @@ dependencies = [
  "itertools 0.13.0",
  "prost",
  "prost-reflect",
+ "roxmltree",
  "schemars 1.2.1",
  "semver",
  "serde",
@@ -1331,7 +1333,7 @@ dependencies = [
 [[package]]
 name = "crossflow_derive"
 version = "0.0.7"
-source = "git+https://github.com/junwei582/crossflow?branch=feat%2Fgrpc-tls#11ba5c462ffe5bde6ad0e1217dd919073a521565"
+source = "git+https://github.com/junwei582/crossflow?branch=feat%2Fgrpc-tls#f5d85e6f67db943328d65339daa36cf47531d202"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1341,7 +1343,7 @@ dependencies = [
 [[package]]
 name = "crossflow_diagram_editor"
 version = "0.0.7"
-source = "git+https://github.com/junwei582/crossflow?branch=feat%2Fgrpc-tls#11ba5c462ffe5bde6ad0e1217dd919073a521565"
+source = "git+https://github.com/junwei582/crossflow?branch=feat%2Fgrpc-tls#f5d85e6f67db943328d65339daa36cf47531d202"
 dependencies = [
  "axum",
  "bevy_app",
@@ -1352,6 +1354,7 @@ dependencies = [
  "mime_guess",
  "serde",
  "serde_json",
+ "sha2",
  "tar",
  "thiserror 2.0.18",
  "tokio",
@@ -3818,6 +3821,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9da7f59328b09405b181fee1018925fad50f157afb43c0c0f5c522c256dd5907"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rsa"
 version = "0.9.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5632,7 +5644,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

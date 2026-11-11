@@ -25,7 +25,55 @@
                 "value": 0
               },
               "Payload": {
-                "value": "{\"QueueType\":\"running\",\"Body\":{\"newExperiments\":[{\"experimentKind\":\"dualSample\",\"name\":\"empty_combustion_air\",\"sampleInfo\":{\"sampleAName\":\"sampleA\",\"sampleAPan\":{\"trayPosition\":29,\"panType\":\"Aluminum\"},\"sampleBName\":\"sampleB\",\"sampleBPan\":{\"trayPosition\":30,\"panType\":\"Aluminum\"},\"operator\":\"robot\",\"project\":\"marvel\",\"notes\":\"robot testing only\"},\"filePaths\":{\"fileDirectory\":\"C:\\\\Users\\\\User\\\\Desktop\\\\experiment_output\",\"tokens\":\"TGA-<SAMPLENAME>\"},\"procedure\":{\"testType\":\"Custom\",\"procedureName\":\"demo_test\",\"segments\":[{\"type\":\"Ramp\",\"rampRateDegCPerMin\":10,\"finalTemperatureC\":500},{\"type\":\"Isothermal\",\"isothermTimeMin\":5}],\"advancedOptions\":{\"skipWeightStabilization\":true,\"airCoolEnable\":true,\"coolUntilTemperatureC\":25,\"endOfRunDelayMin\":0}}}]}}"
+                "QueueType": "running",
+                "Body": {
+                  "newExperiments": [
+                    {
+                      "experimentKind": "dualSample",
+                      "name": "empty_combustion_air",
+                      "sampleInfo": {
+                        "sampleAName": "sampleA",
+                        "sampleAPan": {
+                          "trayPosition": 29,
+                          "panType": "Aluminum"
+                        },
+                        "sampleBName": "sampleB",
+                        "sampleBPan": {
+                          "trayPosition": 30,
+                          "panType": "Aluminum"
+                        },
+                        "operator": "robot",
+                        "project": "marvel",
+                        "notes": "robot testing only"
+                      },
+                      "filePaths": {
+                        "fileDirectory": "C:\\Users\\User\\Desktop\\experiment_output",
+                        "tokens": "TGA-<SAMPLENAME>"
+                      },
+                      "procedure": {
+                        "testType": "Custom",
+                        "procedureName": "demo_test",
+                        "segments": [
+                          {
+                            "type": "Ramp",
+                            "rampRateDegCPerMin": 10,
+                            "finalTemperatureC": 500
+                          },
+                          {
+                            "type": "Isothermal",
+                            "isothermTimeMin": 5
+                          }
+                        ],
+                        "advancedOptions": {
+                          "skipWeightStabilization": true,
+                          "airCoolEnable": true,
+                          "coolUntilTemperatureC": 25,
+                          "endOfRunDelayMin": 0
+                        }
+                      }
+                    }
+                  ]
+                }
               }
             }
           }

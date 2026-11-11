@@ -17,7 +17,7 @@
             "build_request": {
               "type": "transform",
               "display_text": "Build request from experiment",
-              "cel": "{'Request': {'Request': {'Version': {'value': 2}, 'CorrelationId': {'value': 'marvel-ftir-measure-sample'}, 'TimeoutSeconds': {'value': 0}, 'Payload': {'value': request.runs[0].run_method_str}}}}",
+              "cel": "{'Request': {'Request': {'Version': {'value': 2}, 'CorrelationId': {'value': 'marvel-ftir-measure-sample'}, 'TimeoutSeconds': {'value': 0}, 'Payload': request.runs[0].run_method}}}",
               "next": "measure_sample",
               "on_error": {
                 "builtin": "dispose"

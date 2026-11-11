@@ -16,7 +16,7 @@
             "build_request": {
               "type": "transform",
               "display_text": "Build request from experiment",
-              "cel": "{'Request': {'Request': {'Version': {'value': 2}, 'CorrelationId': {'value': 'marvel-sdt-add-experiment'}, 'TimeoutSeconds': {'value': 0}, 'Payload': {'value': '{\"QueueType\": \"running\", \"Body\": {\"newExperiments\": [' + request.runs[0].run_method_str + ']}}'}}}}",
+              "cel": "{'Request': {'Request': {'Version': {'value': 2}, 'CorrelationId': {'value': 'marvel-sdt-add-experiment'}, 'TimeoutSeconds': {'value': 0}, 'Payload': {'QueueType': 'running', 'Body': {'newExperiments': [request.runs[0].run_method]}}}}}",
               "next": "add_experiment",
               "on_error": {
                 "builtin": "dispose"

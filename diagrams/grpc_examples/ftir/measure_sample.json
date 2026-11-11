@@ -25,7 +25,20 @@
                 "value": 0
               },
               "Payload": {
-                "value": "{\"Resolution\": 0, \"SampleScans\": 0, \"BackgroundScans\": 1, \"OpticalVelocity\": 0, \"Aperture\": \"6 mm\", \"DetectorGain\": 0, \"OutputPath\": \"\", \"ExperimentFile\": \"C:\\\\Users\\\\User\\\\Desktop\\\\HTS-trans.XPM\", \"ExtraParametersJson\": \"\", \"IncludeData\": false, \"ExportAsm\": false, \"AsmOutputPath\": \"\", \"SampleName\": \"prototype_sample\", \"AsmMetadataJson\": \"\"}"
+                "Resolution": 0,
+                "SampleScans": 0,
+                "BackgroundScans": 1,
+                "OpticalVelocity": 0,
+                "Aperture": "6 mm",
+                "DetectorGain": 0,
+                "OutputPath": "",
+                "ExperimentFile": "C:\\Users\\User\\Desktop\\HTS-trans.XPM",
+                "ExtraParameters": null,
+                "IncludeData": false,
+                "ExportAsm": false,
+                "AsmOutputPath": "",
+                "SampleName": "prototype_sample",
+                "AsmMetadata": null
               }
             }
           }

@@ -70,18 +70,18 @@ service AutosamplerControl {
   rpc Subscribe_CurrentAutosamplerStatus (sila2.org.tainstruments.xdsc.autosamplercontrol.v2.Subscribe_CurrentAutosamplerStatus_Parameters) returns (stream sila2.org.tainstruments.xdsc.autosamplercontrol.v2.Subscribe_CurrentAutosamplerStatus_Responses) {}
 }
 
-/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
 message DataType_Request {
   message Request_Struct {
     sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
     sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
     sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
-    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.Any Payload = 4;  /* SiLA Any for the request body. Void means none. Prefer a Structure matching the command DataTypeDefinition. */
   }
-  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
 }
 
-/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none. */
 message DataType_Envelope {
   message Envelope_Struct {
     sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
@@ -89,10 +89,10 @@ message DataType_Envelope {
     sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
     sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
     sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
-    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.Any Payload = 6;  /* SiLA Any for the result body. Void means none. Prefer a Structure matching the command DataTypeDefinition. */
     sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
   }
-  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+  sila2.org.tainstruments.xdsc.autosamplercontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none. */
 }
 
 /* Intermediate Update Payload during autosampler motion commands. */

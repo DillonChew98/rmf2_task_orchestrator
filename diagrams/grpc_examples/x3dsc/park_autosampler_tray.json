@@ -25,7 +25,7 @@
                 "value": 0
               },
               "Payload": {
-                "value": "{\"Position\": \"TraySide\"}"
+                "Position": "TraySide"
               }
             }
           }

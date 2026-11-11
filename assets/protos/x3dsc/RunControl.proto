@@ -4,7 +4,7 @@ import "SiLAFramework.proto";
 
 package sila2.org.tainstruments.xdsc.runcontrol.v2;
 
-/* TRIOS run control start/stop on the shared /api base. */
+/* TRIOS run control start/stop and full experiment runs on the shared /api base. */
 service RunControl {
   /* Start the experiment (POST /control/start). Request.Payload is ControlStartRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is ControlStartResult (terminal queue status). */
   rpc ControlStart (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStart_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
@@ -16,20 +16,28 @@ service RunControl {
   rpc ControlStart_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStart_Responses) {}
   /* POST /control/stop. Request.Payload is ControlStopRequestPayload; Result.Payload is ControlStopResult. */
   rpc ControlStop (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStop_Parameters) returns (sila2.org.tainstruments.xdsc.runcontrol.v2.ControlStop_Responses) {}
+  /* Validate, queue, and start an experiment. Request.Payload is RunExperimentRequestPayload. Update Payload is QueueStatusProgress; Result.Payload is RunExperimentResult (added experiment ids and terminal statuses). Completes when each added experiment id is Completed, Error, or Cancelled. */
+  rpc RunExperiment (sila2.org.tainstruments.xdsc.runcontrol.v2.RunExperiment_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of RunExperiment */
+  rpc RunExperiment_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of RunExperiment */
+  rpc RunExperiment_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.tainstruments.xdsc.runcontrol.v2.RunExperiment_IntermediateResponses) {}
+  /* Retrieve result of RunExperiment */
+  rpc RunExperiment_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.tainstruments.xdsc.runcontrol.v2.RunExperiment_Responses) {}
 }
 
-/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+/* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
 message DataType_Request {
   message Request_Struct {
     sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
     sila2.org.silastandard.String CorrelationId = 2;  /* Caller correlation id. Empty means none. Echoed on the response. */
     sila2.org.silastandard.Integer TimeoutSeconds = 3;  /* Command timeout in seconds. 0 means the server default. */
-    sila2.org.silastandard.String Payload = 4;  /* UTF-8 JSON string for the request body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.Any Payload = 4;  /* SiLA Any for the request body. Void means none. Prefer a Structure matching the command DataTypeDefinition. */
   }
-  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Empty Payload means none. */
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Request.Request_Struct Request = 1;  /* Standard command request. Version is the envelope schema version. Empty CorrelationId means none. TimeoutSeconds 0 means the server default. Void Payload means none. */
 }
 
-/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+/* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none. */
 message DataType_Envelope {
   message Envelope_Struct {
     sila2.org.silastandard.Integer Version = 1;  /* Envelope schema version. Currently 2. */
@@ -37,10 +45,10 @@ message DataType_Envelope {
     sila2.org.silastandard.String Code = 3;  /* Additive lowercase dotted code on Failed/Rejected. 0 on Succeeded. Empty on Running. */
     sila2.org.silastandard.String Message = 4;  /* Human-readable outcome message. Defaults to success on Succeeded. */
     sila2.org.silastandard.String CorrelationId = 5;  /* Echo of the request correlation id. Empty means none. */
-    sila2.org.silastandard.String Payload = 6;  /* UTF-8 JSON string for the result body. Empty string means none. Prefer a JSON object matching the command DataTypeDefinition. */
+    sila2.org.silastandard.Any Payload = 6;  /* SiLA Any for the result body. Void means none. Prefer a Structure matching the command DataTypeDefinition. */
     sila2.org.silastandard.String Details = 7;  /* UTF-8 JSON string for diagnostics such as status_code, url, and canForce. Empty string means none. */
   }
-  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. */
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope.Envelope_Struct Envelope = 1;  /* Standard command result. Outcome is Succeeded, Failed, Rejected, or Running. Code is 0 on Succeeded and empty on Running. Message defaults to success on Succeeded. Empty Details means none. Void Payload means none. */
 }
 
 /* ControlStart Request.Payload. */
@@ -53,12 +61,12 @@ message DataType_ControlStartRequestPayload {
   sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_ControlStartRequestPayload.ControlStartRequestPayload_Struct ControlStartRequestPayload = 1;  /* ControlStart Request.Payload. */
 }
 
-/* Intermediate Update Payload during ControlStart. */
+/* Intermediate Update Payload during ControlStart and RunExperiment. */
 message DataType_QueueStatusProgress {
   message QueueStatusProgress_Struct {
     sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
   }
-  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_QueueStatusProgress.QueueStatusProgress_Struct QueueStatusProgress = 1;  /* Intermediate Update Payload during ControlStart. */
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_QueueStatusProgress.QueueStatusProgress_Struct QueueStatusProgress = 1;  /* Intermediate Update Payload during ControlStart and RunExperiment. */
 }
 
 /* ControlStart Result.Payload. */
@@ -67,6 +75,26 @@ message DataType_ControlStartResult {
     sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
   }
   sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_ControlStartResult.ControlStartResult_Struct ControlStartResult = 1;  /* ControlStart Result.Payload. */
+}
+
+/* RunExperiment Request.Payload. */
+message DataType_RunExperimentRequestPayload {
+  message RunExperimentRequestPayload_Struct {
+    sila2.org.silastandard.String QueueType = 1;  /* empty or "running". "design" is rejected; control start runs the instrument queue. */
+    sila2.org.silastandard.Any Body = 2;  /* Opaque TRIOS newExperiments document. When --payload-json omits Body, remaining keys (except QueueType, WaitForReady, ReadyTimeoutSeconds, and Force) are treated as the body. */
+    sila2.org.silastandard.String WaitForReady = 3;  /* empty | "true" | "false"; empty means server default. */
+    sila2.org.silastandard.Integer ReadyTimeoutSeconds = 4;  /* REST ready-wait timeout; 0 omits. */
+    sila2.org.silastandard.Boolean Force = 5;  /* Retry with force after HTTP 409 / canForce. */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_RunExperimentRequestPayload.RunExperimentRequestPayload_Struct RunExperimentRequestPayload = 1;  /* RunExperiment Request.Payload. */
+}
+
+/* RunExperiment Result.Payload. */
+message DataType_RunExperimentResult {
+  message RunExperimentResult_Struct {
+    sila2.org.silastandard.Any Body = 1;  /* Opaque TRIOS REST JSON response (or status snapshot). */
+  }
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_RunExperimentResult.RunExperimentResult_Struct RunExperimentResult = 1;  /* RunExperiment Result.Payload. */
 }
 
 /* ControlStop Request.Payload. */
@@ -108,4 +136,19 @@ message ControlStop_Parameters {
 /* Responses of ControlStop */
 message ControlStop_Responses {
   sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Parameters for RunExperiment */
+message RunExperiment_Parameters {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Request Request = 1;  /* Standard command request. */
+}
+
+/* Responses of RunExperiment */
+message RunExperiment_Responses {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope Result = 1;  /* Standard command envelope. */
+}
+
+/* Intermediate responses of RunExperiment */
+message RunExperiment_IntermediateResponses {
+  sila2.org.tainstruments.xdsc.runcontrol.v2.DataType_Envelope Update = 1;  /* Intermediate envelope with Outcome Running. */
 }

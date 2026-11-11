@@ -23,9 +23,7 @@
               "TimeoutSeconds": {
                 "value": 0
               },
-              "Payload": {
-                "value": ""
-              }
+              "Payload": null
             }
           }
         }
